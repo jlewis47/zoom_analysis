@@ -29,7 +29,7 @@ from matplotlib.lines import Line2D
 # import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 
-from plot_stuff import setup_plots
+# from plot_stuff import setup_plots
 
 from scipy.spatial import cKDTree
 
@@ -47,12 +47,17 @@ from hagn.utils import get_hagn_sim
 import h5py
 
 
-setup_plots()
+# setup_plots()
 
 if not os.path.exists("./figs"):
     os.makedirs("./figs", exist_ok=True)
 
-tgt_zed = 2.5
+# tgt_zed = 3.5149170041138174
+# tgt_zed = 3.488
+# tgt_zed = 3.439
+# tgt_zed = 3.36146335787232156548
+tgt_zed = 3.31284701427126730076
+
 overwrite = False
 frac = 0.1  # fraction of rvir to use
 dens_thresh = 0.1  # Hpcc for the dust and gas properties
@@ -62,6 +67,34 @@ fpure_lim = 1 - 1e-4
 tgt_zedstr = f"{tgt_zed:.2f}".replace(".", "p")
 
 fig_dtm, ax_dtm = plt.subplots(1, 3, figsize=(18, 6), sharey=True, layout="constrained")
+plt.subplots_adjust(wspace=0.0)
+plt.suptitle(
+    f"z={tgt_zedstr:s}, {frac:.1f}Rvir, >{dens_thresh:.1f}Hpcc, Mgal>{mlim:.1e}Msun"
+)
+fig_dtmCs, ax_dtmCs = plt.subplots(
+    1, 3, figsize=(18, 6), sharey=True, layout="constrained"
+)
+plt.subplots_adjust(wspace=0.0)
+plt.suptitle(
+    f"z={tgt_zedstr:s}, {frac:.1f}Rvir, >{dens_thresh:.1f}Hpcc, Mgal>{mlim:.1e}Msun"
+)
+fig_dtmCl, ax_dtmCl = plt.subplots(
+    1, 3, figsize=(18, 6), sharey=True, layout="constrained"
+)
+plt.subplots_adjust(wspace=0.0)
+plt.suptitle(
+    f"z={tgt_zedstr:s}, {frac:.1f}Rvir, >{dens_thresh:.1f}Hpcc, Mgal>{mlim:.1e}Msun"
+)
+fig_dtmSis, ax_dtmSis = plt.subplots(
+    1, 3, figsize=(18, 6), sharey=True, layout="constrained"
+)
+plt.subplots_adjust(wspace=0.0)
+plt.suptitle(
+    f"z={tgt_zedstr:s}, {frac:.1f}Rvir, >{dens_thresh:.1f}Hpcc, Mgal>{mlim:.1e}Msun"
+)
+fig_dtmSil, ax_dtmSil = plt.subplots(
+    1, 3, figsize=(18, 6), sharey=True, layout="constrained"
+)
 plt.subplots_adjust(wspace=0.0)
 plt.suptitle(
     f"z={tgt_zedstr:s}, {frac:.1f}Rvir, >{dens_thresh:.1f}Hpcc, Mgal>{mlim:.1e}Msun"
@@ -110,7 +143,7 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",  # _leastcoarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
@@ -120,6 +153,16 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
     # "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_high_sconstant",
+    # "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_Vhigh_sconstant",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_VVhigh_sconstant",
 ]
 # sdir =
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
@@ -180,7 +223,7 @@ for isim, sdir in enumerate(sdirs):
     zstr = f"{closest_zed:.2f}".replace(".", "p")
 
     name = sdir.split("/")[-1]
-    dust_file = os.path.join(sdir, f"dens_dust_data_{closest_snap:s}.h5")
+    dust_file = os.path.join(sdir, f"dens_dust_data_{closest_snap:d}.h5")
 
     if os.path.exists(dust_file) and not overwrite:
         print("Reading from file")
@@ -239,7 +282,12 @@ for isim, sdir in enumerate(sdirs):
 
             host_halo = gal_dict["host hid"][gal_arg]
 
-            hal_dict, _ = get_halo_props_snap(sim.path, closest_snap, host_halo)
+            try:
+                hal_dict = get_halo_props_snap(sim.path, closest_snap, host_halo)[
+                    f"halo_{host_halo:07d}"
+                ]
+            except KeyError:
+                continue
 
             tgt_pos = hal_dict["pos"]
             tgt_r = hal_dict["rvir"] * frac
@@ -302,9 +350,10 @@ for isim, sdir in enumerate(sdirs):
                 for field in cells:
                     cells[field] = np.float64(cells[field][cell_pos_args])
 
-                if len(cells["density"]) == 0:
-                    print("No cells")
-                    continue
+                if len(cell_pos_args) > 1:
+                    if len(cells["density"]) == 0:
+                        print("No cells")
+                        continue
 
             ages = stars["age"]
             Zs = stars["metallicity"]
@@ -393,6 +442,8 @@ for isim, sdir in enumerate(sdirs):
     # dtm figure
 
     tot_md = mdCs + mdCl + mdSs + mdSl
+    dtms = [md / (mZ_zoom + md) for md in [mdCs, mdCl, mdSs, mdSl]]
+
     tot_dtm = tot_md / (mZ_zoom + tot_md)
 
     ax_dtm[0].scatter(
@@ -425,11 +476,132 @@ for isim, sdir in enumerate(sdirs):
     ax_dtm[2].set_xlabel("Metallicity")
     # ax_dtm[2].set_ylabel("Dust-to-metals ratio")
 
-    for a in ax_dtm:
-        a.grid()
-        a.set_xscale("log")
-        a.set_yscale("log")
-        a.tick_params(which="both", direction="in", right=True, top=True)
+    ax_dtmCs[0].scatter(
+        mstel_zoom,
+        dtms[0],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmCs[0].set_xlabel("Stellar mass, $M_{\odot}$")
+    ax_dtmCs[0].set_ylabel("Dust-to-metals ratio, small carbonaceous")
+
+    ax_dtmCs[1].scatter(
+        sfr10_zoom,
+        dtms[0],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmCs[1].set_xlabel("SFR10, $M_{\odot}/Myr$")
+    # ax_dtmCs[1].set_ylabel("Dust-to-metals ratio")
+
+    ax_dtmCs[2].scatter(
+        mZ_zoom / mG_zoom,
+        dtms[0],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmCs[2].set_xlabel("Metallicity")
+    # ax_dtm[2].set_ylabel("Dust-to-metals ratio")
+
+    ax_dtmCl[0].scatter(
+        mstel_zoom,
+        dtms[1],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmCl[0].set_xlabel("Stellar mass, $M_{\odot}$")
+    ax_dtmCl[0].set_ylabel("Dust-to-metals ratio, large carbonaceous")
+
+    ax_dtmCl[1].scatter(
+        sfr10_zoom,
+        dtms[1],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmCl[1].set_xlabel("SFR10, $M_{\odot}/Myr$")
+    # ax_dtmCl[1].set_ylabel("Dust-to-metals ratio")
+
+    ax_dtmCl[2].scatter(
+        mZ_zoom / mG_zoom,
+        dtms[1],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmCl[2].set_xlabel("Metallicity")
+    # ax_dtm[2].set_ylabel("Dust-to-metals ratio")
+
+    ax_dtmSis[0].scatter(
+        mstel_zoom,
+        dtms[2],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmSis[0].set_xlabel("Stellar mass, $M_{\odot}$")
+    ax_dtmSis[0].set_ylabel("Dust-to-metals ratio, small silicates")
+
+    ax_dtmSis[1].scatter(
+        sfr10_zoom,
+        dtms[2],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmSis[1].set_xlabel("SFR10, $M_{\odot}/Myr$")
+    # ax_dtmSis[1].set_ylabel("Dust-to-metals ratio")
+
+    ax_dtmSis[2].scatter(
+        mZ_zoom / mG_zoom,
+        dtms[2],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmSis[2].set_xlabel("Metallicity")
+    # ax_dtm[2].set_ylabel("Dust-to-metals ratio")
+
+    ax_dtmSil[0].scatter(
+        mstel_zoom,
+        dtms[3],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmSil[0].set_xlabel("Stellar mass, $M_{\odot}$")
+    ax_dtmSil[0].set_ylabel("Dust-to-metals ratio, large silicates")
+
+    ax_dtmSil[1].scatter(
+        sfr10_zoom,
+        dtms[3],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmSil[1].set_xlabel("SFR10, $M_{\odot}/Myr$")
+    # ax_dtmSil[1].set_ylabel("Dust-to-metals ratio")
+
+    ax_dtmSil[2].scatter(
+        mZ_zoom / mG_zoom,
+        dtms[3],
+        marker=markers[isim],
+        facecolors=colors[isim],
+        edgecolors=colors[isim],
+    )
+    ax_dtmSil[2].set_xlabel("Metallicity")
+    # ax_dtmSil[2].set_ylabel("Dust-to-metals ratio")
+
+    for a_dtm in [ax_dtm, ax_dtmCs, ax_dtmCl, ax_dtmSis, ax_dtmSil]:
+        for a in a_dtm:
+            a.grid()
+            a.set_xscale("log")
+            # a.set_yscale("log")
+            a.tick_params(which="both", direction="in", right=True, top=True)
 
     dens_hpcc = (np.float64(mG_zoom) * msun_to_g / pmass) / (volumes)
 
@@ -483,6 +655,10 @@ ax_depl[2][0].set_position(tgt_pos, which="both")
 
 fig_depl.savefig(f"figs/depletion_{tgt_zedstr:s}.png")
 
-
-ax_dtm[0].legend(lines, labels, framealpha=0.0)
+for a_dtm in [ax_dtm, ax_dtmCs, ax_dtmCl, ax_dtmSis, ax_dtmSil]:
+    a_dtm[0].legend(lines, labels, framealpha=0.0)
 fig_dtm.savefig(f"figs/dtm_{tgt_zedstr:s}.png")
+fig_dtmCs.savefig(f"figs/dtm_Cs{tgt_zedstr:s}.png")
+fig_dtmCl.savefig(f"figs/dtm_Cl{tgt_zedstr:s}.png")
+fig_dtmSis.savefig(f"figs/dtm_Sis{tgt_zedstr:s}.png")
+fig_dtmSil.savefig(f"figs/dtm_Sil{tgt_zedstr:s}.png")

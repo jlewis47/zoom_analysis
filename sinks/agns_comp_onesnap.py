@@ -47,8 +47,8 @@ sim_paths = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_coreen",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
-    # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_DynBondiGravSinkMass",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
+    "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_DynBondiGravSinkMass",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowSFE_gravSink",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowSFE_DynBondiGravSinkMass",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_kicks",
@@ -59,6 +59,7 @@ sim_paths = [
     # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt",
     # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_lowerSFE_drag",
     # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_early_refine",
+    # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_low_dboost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_minMassDynGrav",
@@ -72,6 +73,7 @@ sim_paths = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_nh2",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_vlowSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN",
     # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_drag",
@@ -91,15 +93,20 @@ sim_paths = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",  # _leastcoarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",  # _leastcoarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",  # _leastcoarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_medSFE_stgNHboost_stricterSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_highSFE_stgNHboost_strictestSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288",
     # "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05",
     # "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646",
@@ -148,8 +155,20 @@ zmin_plot = 10
 zmax_plot = 0
 
 
-for isim, sim_path in enumerate(sim_paths):
+all_same_sim = True
 
+sim_name = sim_paths[0].split("/")[-1]
+sim_id = int(sim_name[2:].split("_")[0])
+
+for isim, sim_path in enumerate(sim_paths[1:]):
+
+    sim_name = sim_path.split("/")[-1]
+    print(sim_name)
+    cur_sim_id = int(sim_name[2:].split("_")[0])
+    all_same_sim = all_same_sim * (cur_sim_id == sim_id)
+    sim_id = cur_sim_id
+
+for isim, sim_path in enumerate(sim_paths):
     # print(sim_path)
 
     sim_name = sim_path.split("/")[-1]
@@ -212,7 +231,7 @@ for isim, sim_path in enumerate(sim_paths):
 
         sim_snap = halo_snaps[-2]
 
-        last_sink_file = snap_to_coarse_step(sim_snap, sim)
+        last_sink_file, found = snap_to_coarse_step(sim_snap, sim)
         aexp_last_sink_file = read_sink_bin(
             os.path.join(sim.sink_path, f"sink_{last_sink_file:05d}.dat"),
         )["aexp"]
@@ -332,16 +351,30 @@ for isim, sim_path in enumerate(sim_paths):
         while not found and (rsearch < hagn_rvir):
 
             try:
-                hagn_massive_sid = find_massive_sink(
+                hagn_massive_sinks = find_massive_sink(
                     hagn_ctr, hagn_snap, hagn_sim, rmax=rsearch, hagn=True
-                )["identity"]
-                found = hagn_massive_sid != []
-                # print(found, rsearch,hagn_massive_sid)
-                
+                )
+                if hagn_massive_sinks != {}:
+                    hagn_massive_sid = hagn_massive_sinks["identity"]
+                    # print(rsearch, hagn_massive_sid)
+                    if type(hagn_massive_sid) in [np.ndarray, list]:
+                        if len(hagn_massive_sid) > 0:
+                            found = True
+                    elif type(hagn_massive_sid) in [
+                        int,
+                        float,
+                        np.int32,
+                        np.int64,
+                        np.float32,
+                        np.float64,
+                    ]:
+                        found = True
+                    # print(found)
+
             except ValueError:
                 pass
             if not found:
-                rsearch*=1.5
+                rsearch *= 1.5
 
         if not found:
             print(f"no massive sink found in hagn for halo {sim.name.split('_')[0]}")
@@ -374,7 +407,7 @@ for isim, sim_path in enumerate(sim_paths):
             if not check_if_superEdd(hagn_sim):
                 mdot_data_hagn = np.min([mdot_data_hagn, mdot_edd_data_hagn], axis=0)
             # else:
-                # mdot_data_hagn = mdot_data_hagn
+            # mdot_data_hagn = mdot_data_hagn
 
         # now get sim thing
 
@@ -504,7 +537,9 @@ for isim, sim_path in enumerate(sim_paths):
             mdot_data_zoom = sim_sink_hist["dMBH_coarse"]
             mdot_edd_data_zoom = sim_sink_hist["dMEd_coarse"]
             if not check_if_superEdd(sim):
-                min_mdot_data_zoom = np.min([mdot_data_zoom, mdot_edd_data_zoom], axis=0)
+                min_mdot_data_zoom = np.min(
+                    [mdot_data_zoom, mdot_edd_data_zoom], axis=0
+                )
             else:
                 min_mdot_data_zoom = mdot_data_zoom
 
@@ -542,20 +577,31 @@ for isim, sim_path in enumerate(sim_paths):
 
     non_zero_hagn = np.where(mass_hagn > 0)[0]
 
+    zeds_hagn = zeds_hagn[non_zero_hagn]
+    mass_hagn = mass_hagn[non_zero_hagn]
+    min_mdot_data_hagn = min_mdot_data_hagn[non_zero_hagn]
+    mdot_edd_data_hagn = mdot_edd_data_hagn[non_zero_hagn]
+
     if sim_id in done_hagn_ids:
         c = done_hagn_colors[done_hagn_ids.index(sim_id)]
         # (l,) = axs[0].plot(zeds_hagn, mass_hagn, lw=1, c=c)  # , c=l.get_color())
     elif non_zero_hagn.sum() > 0:
+        if all_same_sim:
+            c = "k"
+        else:
+            c = None
         (l,) = axs[0].plot(
-            zeds_hagn[non_zero_hagn], mass_hagn[non_zero_hagn], lw=1
+            zeds_hagn,
+            mass_hagn,
+            lw=1,
+            color=c,
         )  # , c=l.get_color())
         c = l.get_color()
-        axs[1].plot(
-            zeds_hagn[non_zero_hagn], min_mdot_data_hagn[non_zero_hagn], lw=1, c=c
-        )
+
+        axs[1].plot(zeds_hagn, min_mdot_data_hagn, lw=1, c=c)
         axs[2].plot(
-            zeds_hagn[non_zero_hagn],
-            min_mdot_data_hagn[non_zero_hagn] / mdot_edd_data_hagn[non_zero_hagn],
+            zeds_hagn,
+            min_mdot_data_hagn / mdot_edd_data_hagn,
             lw=1,
             c=c,
         )
@@ -568,18 +614,22 @@ for isim, sim_path in enumerate(sim_paths):
     if len(non_zero) == 0:
         continue
 
+    zeds_zoom = zeds_zoom[non_zero]
+    mass_zoom = mass_zoom[non_zero]
+    min_mdot_data_zoom = min_mdot_data_zoom[non_zero]
+    mdot_edd_data_zoom = mdot_edd_data_zoom[non_zero]
+
     # sim plots
-    axs[0].plot(
-        zeds_zoom[non_zero], mass_zoom[non_zero], lw=2, c=c, label=sim.name, ls=zoom_ls
-    )
+    if all_same_sim:
+        c = None
+    l = axs[0].plot(zeds_zoom, mass_zoom, lw=2, c=c, label=sim.name, ls=zoom_ls)
+    c = l[0].get_color()
     # min_mdot_data = np.convolve(mdot_data, np.ones(nsmooth) / nsmooth, mode="same")
 
-    axs[1].plot(
-        zeds_zoom[non_zero], min_mdot_data_zoom[non_zero], lw=2, c=c, ls=zoom_ls
-    )
+    axs[1].plot(zeds_zoom, min_mdot_data_zoom, lw=2, c=c, ls=zoom_ls)
     axs[2].plot(
-        zeds_zoom[non_zero],
-        min_mdot_data_zoom[non_zero] / mdot_edd_data_zoom[non_zero],
+        zeds_zoom,
+        min_mdot_data_zoom / mdot_edd_data_zoom,
         lw=2,
         c=c,
         ls=zoom_ls,
@@ -658,4 +708,9 @@ ax2.set_xticklabels([f"{sim.cosmo_model.age(xtick).value:.2f}" for xtick in tick
 ax2.set_xlabel("time [Gyr]")
 ax2.tick_params(direction="in", top=True, right=True)
 
-fig.savefig("sink_comp_one_snap")
+fig_name = "figs/sink_comp_one_snap"
+
+if all_same_sim:
+    fig_name += f"_{sim_id}"
+
+fig.savefig(fig_name)

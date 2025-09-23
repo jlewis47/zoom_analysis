@@ -98,6 +98,9 @@ def cosmos_stuff(lephare_bands):
         "ch2": "ch2",
         "NUV": "NUV",
         "FUV": "FUV",
+        "NISP_Y": "NISP_Y",
+        "NISP_J": "NISP_J",
+        "NISP_H": "NISP_H",
     }
 
     bands = [lephare_to_err_bands[lephare_band] for lephare_band in lephare_bands]
@@ -142,6 +145,9 @@ def cosmos_stuff(lephare_bands):
         "ch2": 0.006,
         "NUV": 0.006,
         "FUV": 0.006,
+        "NISP_Y": 0.0,
+        "NISP_J": 0.0,
+        "NISP_H": 0.0,        
     }
     depth = {
         "HSTF814W": 27.8,
@@ -183,6 +189,10 @@ def cosmos_stuff(lephare_bands):
         "ch2": 26.3,
         "NUV": 26,
         "FUV": 26,
+        "NISP_Y": np.inf,
+        "NISP_J": np.inf,
+        "NISP_H": np.inf,
+
     }
     nsig = {
         "HSTF814W": 3,
@@ -224,6 +234,9 @@ def cosmos_stuff(lephare_bands):
         "ch2": 3,
         "NUV": 3,
         "FUV": 3,
+        "NISP_Y": 0,
+        "NISP_J": 0,
+        "NISP_H": 0,
     }
 
     return (

@@ -6,6 +6,7 @@ from pydoc import text
 import numpy as np
 import h5py
 import os
+from scipy.stats import binned_statistic
 
 import matplotlib.pyplot as plt
 
@@ -14,6 +15,8 @@ from gremlin.read_sim_params import ramses_sim
 # from scipy.interpolate import make_smoothing_spline, make_interp_spline, make_lsq_spline
 from scipy.ndimage.filters import median_filter
 from matplotlib.lines import Line2D
+
+
 
 # from zoom_analysis.zoom_helpers import project_direction
 
@@ -27,6 +30,9 @@ def get_gal_assoc_file(sim_dir, snap):
 
     return os.path.join(sim_dir, "association", f"assoc_{snap:03d}_gal_lookup.h5")
 
+def has_assoc(sim_dir,snap):
+
+    return os.path.isfile(get_gal_assoc_file(sim_dir, snap))
 
 def find_star_ctr_period(pos):
     parts_pos = np.copy(pos)
@@ -64,6 +70,8 @@ def find_zoom_tgt_halo(
     tgt_ctr=None,
     tgt_rad=None,
 ):
+
+
     """
     find the zoom target in the association catalog
     """
@@ -93,6 +101,10 @@ def find_zoom_tgt_halo(
         zoom_ctr = tgt_ctr
         rzoom = tgt_rad
 
+    # print(tgt_ctr, sim.zoom_ctr)
+    # print(tgt_rad)
+    # print(zoom_ctr)
+
     # get assoc_halos
     hfile = get_halo_assoc_file(sim.path, snap)
 
@@ -109,6 +121,8 @@ def find_zoom_tgt_halo(
 
         mvirs = mvirs[is_pure]
 
+        # print(list(zip(hids,fpures[is_pure])))
+
         ok_rzooms = np.zeros_like(hids, dtype=bool)
         rzooms = np.zeros_like(hids, dtype=float)
 
@@ -123,8 +137,8 @@ def find_zoom_tgt_halo(
 
             if hkey in f:
                 hdset = f[hkey]
-
-                pos = hdset["pos"][()]
+                pos =  hdset["pos"][()]
+                
 
                 # check within rzoom of zoom_ctr
                 rzooms[ihalo] = np.linalg.norm(pos - zoom_ctr)
@@ -142,7 +156,7 @@ def find_zoom_tgt_halo(
 
         # print(list(zip(hids, mvirs, ok_rzooms, rzooms)))
 
-        # print(hids[ok_rzooms], mvirs[ok_rzooms], rzooms.min(), rzooms.max(), rzoom)
+        if debug:print(hids[ok_rzooms], mvirs[ok_rzooms], rzooms.min(), rzooms.max(), rzoom)
 
         if tgt_mass == None:
             # most massive halo in rzoom that passes the purity test
@@ -156,7 +170,7 @@ def find_zoom_tgt_halo(
             ]
             # print(tgt_mass, found_mass)
 
-        print(rzooms[tgt_hid == hids] * sim.cosmo.lcMpc * 1e3, "kpc from ctr")
+        if debug:print(rzooms[tgt_hid == hids] * sim.cosmo.lcMpc * 1e3, "kpc from ctr")
 
         out_dict = {}
         hosted_galaxies = {}
@@ -184,43 +198,79 @@ def compute_r200(H0_si, om_m, om_b, zed, massoc_kg):
     )
 
 
-def get_halo_props_snap(sim_dir, snap, hid=None):
+def get_halo_props_snap(sim_dir, snap, hids=None, hosted_gals=False):
 
     hfile = get_halo_assoc_file(sim_dir, snap)
 
     out_dict = {}
+    if hosted_gals:hosted_galaxies = {}
+
+    ignore_keys = set(["Ngals","galaxies"])
 
     with h5py.File(hfile, "r") as f:
 
-        hids = f["hid"][()]
+        all_hids = f["hid"][()]
 
-        if hid != None:
+        if hids is not None:
+
+            if type(hids) not in [list,np.ndarray]:
+                hids = [hids]
 
             # arg = np.where(hid == hids)[0]
 
-            out_dict = {}
-            hosted_galaxies = {}
-            hdset = f[f"halo_{hid:07d}"]
-            # halo_arg = np.in1d(f.keys(), [f"halo_{hid:07d}"])[0]
-            halo_arg = np.where(hids == hid)[0][0]
+            fpures = f["fpure"][()]
+            mvirs = f["mvir"][()]
+            
+            # halo_args = (np.where(all_hids == hid)[0][0] for hid in hids)
+            halo_args = np.min([np.searchsorted(all_hids,hids),
+                                np.full_like(hids,len(all_hids)-1,dtype=np.int32)],axis=0)
 
-            # print(hid, hids[halo_arg])
-            fpure = f["fpure"][()][halo_arg]
-            mvir = f["mvir"][()][halo_arg]
+            these_fpures = fpures[halo_args]
+            these_mvirs = mvirs[halo_args]
 
-            out_dict["fpure"] = fpure
-            out_dict["mvir"] = mvir
-            for k in hdset.keys():
-                if k == "Ngals":
-                    continue
+            for ihalo,hid in enumerate(hids):
 
-                if k != "galaxies":
-                    out_dict[k] = hdset[k][()]
-                else:
-                    for gk in hdset[k].keys():
+                halo_tag = f"halo_{hid:07d}"
 
-                        hosted_galaxies[gk] = hdset[k][gk][()]
-            return out_dict, hosted_galaxies
+                out_dict[halo_tag] = {}
+                if hosted_gals:hosted_galaxies[halo_tag] = {}
+
+                hdset = f[halo_tag]
+                hdset_keys = hdset.keys()
+                # halo_arg = np.in1d(f.keys(), [f"halo_{hid:07d}"])[0]
+
+                # halo_arg=halo_args[ihalo]
+                # print(hid, all_hids[halo_arg])
+                # out_dict[halo_tag]["fpure"] = fpures[halo_arg]
+                # out_dict[halo_tag]["mvir"] = mvirs[halo_arg]
+                out_dict[halo_tag]["fpure"] = these_fpures[ihalo]
+                out_dict[halo_tag]["mvir"] = these_mvirs[ihalo]
+
+
+
+                for k in set(hdset_keys) - ignore_keys:
+
+                        out_dict[halo_tag][k] = hdset[k][()]
+                if hosted_gals and "galaxies" in hdset_keys:
+                        for gk in hdset["galaxies"].keys():
+
+                            hosted_galaxies[gk] = hdset["galaxies"][gk][()]
+
+
+            # if len(hids)==1:
+            #     out_dict = out_dict[list(out_dict.keys())[0]]
+
+
+            # print(hids)
+            # print(all_hids[halo_args])
+            # print(halo_args, out_dict)
+            # print(halo_tag)
+            # print(hdset, out_dict[halo_tag])
+
+            if hosted_gals:
+                return out_dict, hosted_galaxies
+            else:
+                return out_dict
 
         else:  # no specified hid, take all halos, no galaxies
 
@@ -416,10 +466,17 @@ def get_central_gal_for_hid(
 
     gfile = get_gal_assoc_file(sim.path, snap)
 
-    hdict, _ = get_halo_props_snap(sim.path, snap, hid)
+    hdict = get_halo_props_snap(sim.path, snap, hid)
 
-    rvir = hdict["rvir"]
-    host_pos = hdict["pos"][()]
+    hkey = f"halo_{hid:07d}"
+
+    rvir = hdict[hkey]["rvir"]
+    host_pos = hdict[hkey]["pos"]
+
+    # if "gids" in hosted_gals:
+    #     hosted_gids = hosted_gals["gids"]
+    # else:
+        # hosted_gids = []
 
     st_grp = get_star_grp(main_stars)
 
@@ -436,8 +493,9 @@ def get_central_gal_for_hid(
     if verbose:
         print(f"reading {gfile}")
 
+    # print(gfile)
     with h5py.File(gfile, "r") as f:
-
+        # print(f.keys())
         host_hids = f["host hid"][()]
         in_host = host_hids == hid
         # in_host = np.full(len(f["mass"][()]), True)
@@ -455,6 +513,8 @@ def get_central_gal_for_hid(
             masses = f["mass"][()][arg_host]
         pos = f["pos"][()].swapaxes(0, 1)[arg_host, :]
         all_gids = f["gids"][()]
+        # in_halo_cond = np.in1d(all_gids, hosted_gids)
+        # print(all_gids[in_halo_cond], hosted_gids)
         gids = all_gids[arg_host]
         central_cond = f["central"][()][arg_host] == 1
         multi_hosts = len(arg_host) > 1
@@ -898,25 +958,47 @@ def find_snaps_with_halos(snaps, sim_dir):
 #     hosting = gprops["host hid"] == gid
 
 
-def get_rfrac(st_pos, st_mass, ctr, rfrac):
+def get_rfrac_exact(st_pos, st_mass, ctr, rfrac): #particle by particle
 
     dist_ctr = np.linalg.norm(st_pos - ctr[None, :], axis=1)
     order_pos = np.argsort(dist_ctr)
 
     mfrac = st_mass.sum() * rfrac
     cuml_ordered_mass = np.cumsum(st_mass[order_pos])
-    masses_order_pos = st_mass[order_pos]
+    # masses_order_pos = st_mass[order_pos]
 
-    return dist_ctr[np.argmin(np.abs(mfrac - cuml_ordered_mass))]
+    return dist_ctr[order_pos][np.argmin(np.abs(mfrac - cuml_ordered_mass))]
 
+def get_rfrac(st_pos, st_mass, ctr, rfrac, dx): #use bins
 
-def get_r50(st_pos, st_mass, ctr):
-    return get_rfrac(st_pos, st_mass, ctr, 0.5)
+    dist_ctr = np.linalg.norm(st_pos - ctr[None, :], axis=1)
+    rbins = np.arange(dist_ctr.min(), dist_ctr.max()+dx,dx)
 
+    bin_mass = binned_statistic(dist_ctr,st_mass,"sum",bins=rbins)[0]
 
-def get_r90(st_pos, st_mass, ctr):
-    return get_rfrac(st_pos, st_mass, ctr, 0.9)
+    # print(rbins)
+    # print(np.cumsum(bin_mass), rfrac*st_mass.sum())
 
+    return(rbins[1:][np.argmin(np.abs(np.cumsum(bin_mass)-rfrac*st_mass.sum()))])
+
+def get_r50(st_pos, st_mass, ctr,dx):
+    return get_rfrac(st_pos, st_mass, ctr, 0.5,dx)
+
+def get_r90(st_pos, st_mass, ctr,dx):
+    return get_rfrac(st_pos, st_mass, ctr, 0.9,dx)
+
+def get_reff(st_pos, st_mass, ctr, dx):
+
+    ndim=3
+    rfrac = 0.0
+
+    for idim in range(ndim):
+        dim_one = idim
+        dim_two = (idim+1)%3
+
+        rfrac+=get_rfrac(st_pos[:,[dim_one,dim_two]], st_mass, ctr[[dim_one,dim_two]], 0.5, dx)
+
+    return rfrac/ndim
 
 def get_assoc_pties_in_tree(
     sim, sim_tree_aexps, sim_tree_hids, assoc_fields=None, verbose=False
@@ -965,20 +1047,28 @@ def get_assoc_pties_in_tree(
         # print(sim_tree_hids, sim_tree_arg)
         cur_snap_hid = sim_tree_hids[sim_tree_arg]
 
-
-        if cur_snap_hid in [0, -1] or daexp > 1e-2:
-            print(f'Closesest snapshot too far for z={1./aexp-1:.1f},snap={snap:d}')
-            # print(daexp,cur_snap_hid)
+        if cur_snap_hid in [0, -1] or daexp > 1e-4:
+            print(f'Closesest snapshot too far for z={1./aexp-1:.2f},snap={snap:d}')
+            print(daexp,cur_snap_hid)
             continue
 
-        hprops, _ = get_halo_props_snap(sim.path, snap, cur_snap_hid)
+        # print(cur_snap_hid, sim_tree_hids[sim_tree_arg], daexp)
+
+        try:
+            hprops = get_halo_props_snap(sim.path, snap, cur_snap_hid)
+            hkey = f"halo_{cur_snap_hid:07d}"
+        except KeyError:
+            print(f"Halo {cur_snap_hid:d} not found for for at z={1./aexp-1:.1f},snap={snap:d}")
+            continue
+
+        print(istep,1/aexp-1.,hprops)
 
         if verbose:
-            print(f"halo mass: {hprops['mvir']:.1e}, prev_mass: {prev_mvir:.1e}")
-            print(f"halo pos: {hprops['pos']}, prev_pos: {prev_hpos}")
-            print(f"halo rvir: {hprops['rvir']:.2e}, prev_rvir: {prev_rvir:.2e}")
+            print(f"halo mass: {hprops[hkey]['mvir']:.1e}, prev_mass: {prev_mvir:.1e}")
+            print(f"halo pos: {hprops[hkey]['pos']}, prev_pos: {prev_hpos}")
+            print(f"halo rvir: {hprops[hkey]['rvir']:.2e}, prev_rvir: {prev_rvir:.2e}")
 
-        dist = np.linalg.norm(hprops["pos"] - prev_hpos)
+        dist = np.linalg.norm(hprops[hkey]["pos"] - prev_hpos)
         dt = abs(time - prev_time)
 
         speed = (
@@ -993,9 +1083,9 @@ def get_assoc_pties_in_tree(
                 f"snap: {snap:d}, aexp:{aexp:.4f}, speed: {speed:.2e} km/s, dist: {dist*sim.cosmo.lcMpc*1e3:.2f} kpc, dt: {dt:.2e} Myr"
             )
 
-        prev_mvir = hprops["mvir"]
-        prev_hpos = hprops["pos"]
-        prev_rvir = hprops["rvir"]
+        prev_mvir = hprops[hkey]["mvir"]
+        prev_hpos = hprops[hkey]["pos"]
+        prev_rvir = hprops[hkey]["rvir"]
         prev_time = time
 
         prev_rad = (
@@ -1005,7 +1095,7 @@ def get_assoc_pties_in_tree(
         )
         # code distance
 
-        # print(sim.name,snap,cur_snap_hid)
+        print(sim.name,snap,cur_snap_hid)
 
         gid, gal_dict = get_central_gal_for_hid(
             sim,
@@ -1031,10 +1121,10 @@ def get_assoc_pties_in_tree(
                 sh = read_sh[read_sh > 1]
                 out_tree[f][sim_tree_arg] = read.reshape(sh)
         out_tree["aexps"][sim_tree_arg] = aexp
-        out_tree["rvir"][sim_tree_arg] = hprops["rvir"]
-        out_tree["mvir"][sim_tree_arg] = hprops["mvir"]
-        out_tree["fpure"][sim_tree_arg] = hprops["fpure"]
-        out_tree["hpos"][sim_tree_arg, :] = hprops["pos"]
+        out_tree["rvir"][sim_tree_arg] = hprops[hkey]["rvir"]
+        out_tree["mvir"][sim_tree_arg] = hprops[hkey]["mvir"]
+        out_tree["fpure"][sim_tree_arg] = hprops[hkey]["fpure"]
+        out_tree["hpos"][sim_tree_arg, :] = hprops[hkey]["pos"]
         out_tree["gids"][sim_tree_arg] = gid
 
         # print(out_tree["aexps"][sim_tree_arg], aexp)

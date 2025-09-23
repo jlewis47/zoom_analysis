@@ -15,7 +15,7 @@ from zoom_analysis.halo_maker.read_treebricks import (
 from zoom_analysis.trees.tree_reader import (
     read_tree_file_rev_correct_pos as read_tree_fev_sim,
 )
-from zoom_analysis.constants import ramses_pc
+from zoom_analysis.constants import Msun_cgs, ramses_pc
 from zoom_analysis.halo_maker.assoc_fcts import (
     get_assoc_pties_in_tree,
     get_halo_assoc_file,
@@ -82,6 +82,8 @@ from hagn.catalogues import make_super_cat, get_cat_hids
 # sdir=     "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_drag"
 # sdir=     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh"
 # sdir=  "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE"
+# sdir=  "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF/"
+# sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF"  # _leastcoarse"
 # sdir=     "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/too_high_nsink/id242704"
 # sdir=     "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/too_high_nsink/id242756"  # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_"
 # sdir=     "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704"  # _leastcoarse"
@@ -94,10 +96,14 @@ from hagn.catalogues import make_super_cat, get_cat_hids
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost"  # _leastcoarse"
+# sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH"  # _leastcoarse"
-sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF"  # _leastcoarse"
+# sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF"  # _leastcoarse"
+# sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe"
+# sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF"
+# sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe_highAGNeff"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"  # _leastcoarse"
@@ -142,11 +148,11 @@ yax2 = None
 tgt_zed = None
 
 
-delta_aexp = 0.005
+delta_aexp = 0.0001
 
 # mlim = 3e10
-# mlim = 1e10
-mlim = 6e9
+mlim = 1e10
+# mlim = 6e9
 # mlim = 1e9
 # mlim = 3e8
 
@@ -158,7 +164,7 @@ isim = 0
 lines = []
 labels = []
 
-centrals=True
+centrals = True
 
 last_simID = None
 l = None
@@ -177,9 +183,11 @@ sim.init_cosmo()
 sim_times = sim.cosmo_model.age(1.0 / sim_aexps - 1.0).value * 1e3
 
 if tgt_zed == None:
-    tgt_zed = 1./sim_aexps[-1]-1.
+    tgt_zed = 1.0 / sim_aexps[-1] - 1.0
 
-tgt_time = sim.cosmo_model.age(tgt_zed).value    
+tgt_time = sim.cosmo_model.age(tgt_zed).value
+
+print(tgt_zed, tgt_time)
 
 # last sim_aexp
 # valid_steps = hagn_tree_aexps < (1.0 / (tgt_zed + 1.0))  # sim.aexp_end
@@ -223,7 +231,7 @@ rad_fact = 2.0
 
 print(np.log10([gal_props["mass"][fpure].min(), gal_props["mass"][fpure].max()]))
 print(gal_props.keys())
-mass_ok = (gal_props["mass"][fpure] > mlim) 
+mass_ok = gal_props["mass"][fpure] > mlim
 # if centrals : mass_ok*= gal_props['central']
 nb_gals_to_plot = np.sum(mass_ok)
 
@@ -236,6 +244,7 @@ print(gal_props["gids"][fpure][mass_ok])
 mstel_zoom = np.zeros((len(avail_times)), dtype=np.float32)
 mvir_zoom = np.zeros((len(avail_times)), dtype=np.float32)
 mgas_zoom = np.zeros((len(avail_times)), dtype=np.float32)
+mgas_zoom_dense = np.zeros((len(avail_times)), dtype=np.float32)
 # sfr_zoom = np.zeros((len(avail_times),nb_gals_to_plot), dtype=np.float32)
 sfr_zoom = np.zeros((len(avail_times)), dtype=np.float32)
 # time_zoom = np.zeros((len(avail_times),nb_gals_to_plot), dtype=np.float32)
@@ -248,11 +257,11 @@ for igal in range(nb_gals_to_plot):
     gid = gal_props["gids"][fpure][mass_ok][igal]
     hid = gal_props["host hid"][fpure][mass_ok][igal]
 
-    if gid in [0,-1] or hid in [0,-1]:
+    if gid in [0, -1] or hid in [0, -1]:
 
         continue
 
-    print(f'halo id: {hid:d}, galaxy id: {gid:d}')
+    print(f"halo id: {hid:d}, galaxy id: {gid:d}")
 
     # tree_gids, tree_datas, tree_aexps = read_tree_fev_sim(
     tree_hids, tree_datas, tree_aexps = read_tree_fev_sim(
@@ -297,7 +306,6 @@ for igal in range(nb_gals_to_plot):
         ],
     )
 
-
     smooth_gal_props = smooth_props(gal_props_tree)
 
     for k in tree_datas:
@@ -315,13 +323,13 @@ for igal in range(nb_gals_to_plot):
         tree_arg = np.argmin(np.abs(tree_aexps - aexp))
         props_arg = np.argmin(np.abs(gal_props_tree["aexps"] - aexp))
 
-        cur_hid = tree_hids[tree_arg]
+        # cur_hid = tree_hids[tree_arg]
 
-        hprops, hosted_gals = get_halo_props_snap(sim.path, snap, cur_hid)
-        if hosted_gals == {}:
-            print(f"step:{istep:d}, no hosted gals, skipping")
-            continue
-        cur_gid = hosted_gals["gids"][hosted_gals["mass"].argmax()]
+        # hprops, hosted_gals = get_halo_props_snap(sim.path, snap, cur_hid)
+        # if hosted_gals == {}:
+        # print(f"step:{istep:d}, no hosted gals, skipping")
+        # continue
+        # cur_gid = hosted_gals["gids"][hosted_gals["mass"].argmax()]
 
         # cur_gid = tree_gids[tree_arg]
 
@@ -332,6 +340,9 @@ for igal in range(nb_gals_to_plot):
         cur_gal_props = {
             key: smooth_gal_props[key][props_arg] for key in smooth_gal_props
         }
+
+        cur_gid = int(gal_props_tree["gids"][props_arg])
+        cur_hid = int(gal_props_tree["host hid"][props_arg])
 
         cur_r50 = cur_gal_props["r50"]
 
@@ -347,8 +358,10 @@ for igal in range(nb_gals_to_plot):
                 data_types=["stars", "gas"],
                 tgt_fields=["ilevel", "density", "mass", "metallicity", "age"],
             )
-        except AssertionError:
-            print(f"step:{istep:d}, no data, skipping")
+        except (AssertionError, FileNotFoundError, KeyError):
+            print(
+                f"step:{istep:d}, snap:{snap:d}, no data or incorrect halo target, skipping"
+            )
             continue
 
         gas_data = datas["gas"]
@@ -357,8 +370,13 @@ for igal in range(nb_gals_to_plot):
             print(f"step:{istep:d}, no gas data, skipping")
             continue
 
-        cell_vols_ccm = (sim.cosmo.lcMpc / 2 ** gas_data["ilevel"] * 3.08e24) ** 3.0
-        gas_mass_msun = gas_data["density"] * (cell_vols_ccm / 1.989e33)
+        density_Hpcc = gas_data["density"] / 1.67e-24  # cm^-3
+        dense_gas = density_Hpcc > 0.1
+        cell_vols_ccm = (
+            sim.cosmo.lcMpc / 2 ** gas_data["ilevel"] * ramses_pc * 1e6
+        ) ** 3.0
+        gas_mass_msun = gas_data["density"] * (cell_vols_ccm / Msun_cgs)
+        gas_mass_dense_msun = gas_mass_msun[dense_gas]
 
         star_data = datas["stars"]
 
@@ -376,6 +394,7 @@ for igal in range(nb_gals_to_plot):
         sfr_zoom[istep] = np.sum(masses[star_data["age"] < tlim]) / tlim  # msun/Myr
         time_zoom[istep] = time  # Myr
         mgas_zoom[istep] = gas_mass_msun.sum()  # msun
+        mgas_zoom_dense[istep] = gas_mass_dense_msun.sum()  # msun
 
     # print(mstel_zoom)
 
@@ -385,12 +404,19 @@ for igal in range(nb_gals_to_plot):
 
     pos_mass = mstel_zoom > 0
 
+    if np.all(pos_mass == False):
+        print(f"no mass for igal {igal:d}, skipping")
+        continue
+
     (l,) = ax[0, 0].plot(time_zoom[pos_mass], mstel_zoom[pos_mass])
     ax[0, 0].plot(time_zoom[pos_mass], mvir_zoom[pos_mass], c=l.get_color(), ls=":")
     ax[1, 0].plot(time_zoom[pos_mass], sfr_zoom[pos_mass])
     ax[2, 0].plot(time_zoom[pos_mass], ssfr_zoom[pos_mass])
 
-    ax[2, 2].plot(time_zoom[pos_mass], mgas_zoom[pos_mass])
+    (l,) = ax[2, 2].plot(time_zoom[pos_mass], mgas_zoom[pos_mass])
+    ax[2, 2].plot(
+        time_zoom[pos_mass], mgas_zoom_dense[pos_mass], c=l.get_color(), ls=":"
+    )
 
     if found_sink:
 
@@ -416,11 +442,18 @@ for igal in range(nb_gals_to_plot):
         sink_times = sim.cosmo_model.age(sink_hist["zeds"]).value * 1e3
 
         sink_found = sink_hist["mass"] > 0
+        sink_times_finite = np.isfinite(sink_times)
 
-        cur_dt = np.abs(np.median(np.diff(sink_times[sink_found])))
-        tgt_dt = max(np.median(np.diff(time_zoom[pos_mass][::-1])), 100)
+        cur_dt = np.abs(
+            np.nanmedian(np.diff(sink_times[sink_found * sink_times_finite]))
+        )
+        tgt_dt = np.nanmax([np.nanmedian(np.diff(time_zoom[pos_mass][::-1])), 100])
+        # print(sink_found,sink_times,sink_times_finite)
+        # print(cur_dt)
+        # print(tgt_dt)
 
         scale = int(np.ceil(tgt_dt / cur_dt))
+
         # median filter all properties
         sink_hist_smooth = {
             # k: np.convolve(v, np.ones(scale) / scale, mode="same")
@@ -506,6 +539,13 @@ ax[0, 0].legend(
     framealpha=0.0,
 )
 
+ax[2, 2].legend(
+    [Line2D([], [], c="k", ls="-"), Line2D([], [], c="k", ls=":")],
+    ["Total gas mass", "Hpcc>0.1 gas mass"],
+    framealpha=0.0,
+)
+
+
 for a in ax:
     for b in a:
         b.tick_params(
@@ -536,6 +576,7 @@ ax[-1, -1].legend(
     lines, labels, framealpha=0.0, ncol=2, title=f"z={real_start_zed:.2f}"
 )  # , handlelength=3)
 
+
 zstr = f"{real_start_zed:.1f}".replace(".", "p")
 fout = f"figs/sfhs_all_gals_BH_{name:s}_z{zstr}.png"
 print(f"saving {fout:s}")
@@ -549,6 +590,11 @@ ax[1, 0].set_ylabel("SFR [Msun/Myr]")
 
 ax[2, 0].set_ylabel("sSFR [1/Myr]")
 ax[2, 0].set_xlabel("Time [Myr]")
+time_lim = ax[2, 0].get_xlim()  # Myr
+time_array = np.arange(*time_lim, 10.0)
+ax[2, 0].plot(time_array, 0.2 / time_array, "--k")
+ax[2, 0].axhline(1e-5, ls=":", color="k")
+ax[2, 0].set_xlim(time_lim)
 
 ax[0, 1].set_ylabel("MBH [Msun]")
 ax[1, 1].set_ylabel("dMBH [Msun/Myr]")

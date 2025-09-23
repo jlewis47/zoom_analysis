@@ -61,7 +61,7 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi/id180130_meanBondi_Sconstant",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_lowerSFE",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",  # _leastcoarse",
@@ -72,6 +72,7 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe_highAGNeff",
 ]
 
 
@@ -249,7 +250,7 @@ for sdir in sdirs:
             # tgt_pos = gal_dict["pos"]
             # tgt_r = gal_dict["r50"]
 
-            hprops, hgals = get_halo_props_snap(sim.path, snap, cur_snap_hid)
+            hprops = get_halo_props_snap(sim.path, snap, cur_snap_hid)
 
             tgt_pos = hprops["pos"]
             tgt_r = hprops["rvir"]

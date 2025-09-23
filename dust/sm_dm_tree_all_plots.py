@@ -1,5 +1,6 @@
 # from f90nml import read
 from f90_tools.star_reader import read_part_ball_NCdust
+from zoom_analysis.read.read_data import read_data_ball
 from zoom_analysis.stars import sfhs
 from zoom_analysis.zoom_helpers import decentre_coordinates, find_starting_position
 from zoom_analysis.halo_maker.read_treebricks import (
@@ -261,6 +262,8 @@ sdirs = [
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130",
 ]
 # sdir =
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
@@ -275,7 +278,7 @@ tgt_zed = 2.0
 
 msun_to_g = 1.989e33
 
-overwrite = True
+overwrite = False
 
 # setup plot
 fig, ax = plt.subplots(4, 1, figsize=(12, 8), sharex=True)
@@ -431,14 +434,26 @@ for sdir in sdirs:
             tgt_r = gal_dict["r50"]
 
             # stars = read_zoom_stars(sim, snap, gid)
-            stars = read_part_ball_NCdust(
-                sim,
-                snap,
-                tgt_pos,
-                tgt_r,
-                tgt_fields=["mass", "birth_time", "metallicity"],
-                fam=2,
-            )
+            # stars = read_part_ball_NCdust(
+            #     sim,
+            #     snap,
+            #     tgt_pos,
+            #     tgt_r,
+            #     tgt_fields=["mass", "birth_time", "metallicity"],
+            #     fam=2,
+            # )
+
+            # stars = read_
+            try:
+                datas = read_data_ball(sim, snap, tgt_pos, tgt_r, host_halo=cur_snap_hid,
+                tgt_fields=["mass","age","metallicity","density","dust_bin01","dust_bin02","dust_bin03","dust_bin04"],
+                data_types=['stars','gas'])
+            except (FileNotFoundError,AssertionError):
+                print(f'snap {snap:d}: unavailable files')
+                continue
+
+
+            stars = datas['stars']
 
             ages = stars["age"]
             Zs = stars["metallicity"]
@@ -451,49 +466,50 @@ for sdir in sdirs:
 
             mstel_zoom[istep] = masses.sum()
 
-            cells = gas_pos_rad(
-                # sim, snap, [1, 6, 16, 17, 18, 19], ctr_stars, extent_stars
-                sim,
-                snap,
-                [1, 6, 16, 17, 18, 19],
-                tgt_pos,
-                tgt_r,
-            )
+            # cells = gas_pos_rad(
+            #     # sim, snap, [1, 6, 16, 17, 18, 19], ctr_stars, extent_stars
+            #     sim,
+            #     snap,
+            #     [1, 6, 16, 17, 18, 19],
+            #     tgt_pos,
+            #     tgt_r,
+            # )
+
+            cells = datas["gas"]
 
             l_hagn_cm_comov = l_hagn * aexp * 1e6 * ramses_pc
             volumes = (2 ** -cells["ilevel"] * l_hagn_cm_comov) ** 3
 
-            mG_zoom[istep] = np.sum(cells["density"] * volumes) * unit_d / msun_to_g
 
             md1_zoom[istep] = (
                 np.sum(cells["density"] * cells["dust_bin01"] * volumes)
-                * unit_d
+                # * unit_d
                 / msun_to_g
             )
 
             md2_zoom[istep] = (
                 np.sum(cells["density"] * cells["dust_bin02"] * volumes)
-                * unit_d
+                # * unit_d
                 / msun_to_g
             )
 
             md3_zoom[istep] = (
                 np.sum(cells["density"] * cells["dust_bin03"] * volumes)
-                * unit_d
+                # * unit_d
                 / msun_to_g
                 / 0.163
             )
 
             md4_zoom[istep] = (
                 np.sum(cells["density"] * cells["dust_bin04"] * volumes)
-                * unit_d
+                # * unit_d
                 / msun_to_g
                 / 0.163
             )
 
             mZ_zoom[istep] = (
                 np.sum(cells["density"] * cells["metallicity"] * volumes)
-                * unit_d
+                # * unit_d
                 / msun_to_g
             )
 

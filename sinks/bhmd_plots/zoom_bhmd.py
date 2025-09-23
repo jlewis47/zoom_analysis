@@ -84,11 +84,14 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nrg_SN",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",  # _leastcoarse",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
     "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
     "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe/",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
@@ -173,14 +176,14 @@ for isim, sim_dir in enumerate(sim_dirs):
     # c = l[0].get_color()
     # find last assoc_file
 
-    coarse_step = sink_reader.snap_to_coarse_step(snap, sim)
+    coarse_step,found = sink_reader.snap_to_coarse_step(snap, sim)
 
     sfile = os.path.join(sim.sink_path, f"sink_{coarse_step:05d}.dat")
     sinks = sink_reader.read_sink_bin(sfile)
 
     sink_reader.convert_sink_units(sinks, sim.get_snap_exps(snap)[0], sim)
 
-    sink_pos = np.transpose(sinks["position"])
+    sink_pos = np.transpose(sinks["position"].T)
 
     vol_args,min_vol = check_in_all_sims_vol(sink_pos, sim, sim_dirs)
 

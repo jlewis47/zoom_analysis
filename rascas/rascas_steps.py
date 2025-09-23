@@ -4,6 +4,41 @@ import numpy as np
 import healpy as hp
 from shutil import copy
 
+# import tarfile
+
+
+def micron_to_fwhm_as(micron):
+    x1, x2 = 0.7, 4.5
+    y1, y2 = 0.025, 0.14
+
+    sl = (y2 - y1) / (x2 - x1)
+    b = y1 - sl * x1
+
+    return sl * micron + b
+
+
+def filt_file_to_dict(
+    floc="/home/jlewis/codes/zoom_analysis/rascas/filter_psf_res.csv",
+):
+
+    out = np.genfromtxt(floc, delimiter=",", dtype=None, encoding=None)
+
+    names, psfs, ress, depths, aper_depths = zip(*out)
+
+    odict = {
+        f"{name}": {
+            "psf_fname": psf,
+            "res_as": float(res),
+            "depth_aper": float(depth),
+            "aper_depth_as": float(aper_depth),
+        }
+        for name, psf, res, depth, aper_depth in zip(
+            names, psfs, ress, depths, aper_depths
+        )
+    }
+
+    return odict
+
 
 def read_params(fin):
 
@@ -152,7 +187,7 @@ def make_CDD_params(dout, sim_dir, snap, pos, rad, options={}):
 
     params["gas_composition"][
         "atomic_data_dir"
-    ] = "/home/jlewis/rascas/ions_parameters/"
+    ] = "/home/jlewis/codes/rascas/ions_parameters/"
 
     write_params(params, os.path.join(dout, "params_CDD.cfg"))
 
@@ -175,21 +210,37 @@ def make_rascas_params(dout, ndir, options={}):
 
     params = read_params("params_rascas.cfg")
 
-    for cat in params:
-        for param in params[cat]:
-            for options_cat in options:
-                if param in options[options_cat]:
-                    params[cat][param] = options[options_cat][param]
-
     if not "mock" in params:
         params["mock"] = {}
     params["mock"]["nDirections"] = ndir
+
+    if not "dust" in params:
+        params["dust"] = {}
+
+    if not "gas_composition" in params:
+        params["gas_composition"] = {}
+
+    print(params)
+
+    # for cat in params:
+    #     for param in params[cat]:
+    #         for options_cat in options:
+    #             print(param, options[options_cat])
+    #             if param in options[options_cat]:
+    #                 print(f"Setting {cat} {param} to {options[options_cat][param]}")
+    #                 params[cat][param] = options[options_cat][param]
+
+    for opt_cat in options:
+        for param in options[opt_cat]:
+            if opt_cat in params:
+                params[opt_cat][param] = options[opt_cat][param]
+                print(f"Setting {opt_cat} {param} to {options[opt_cat][param]}")
 
     if not "gas_composition" in params:
         params["gas_composition"] = {}
     params["gas_composition"][
         "atomic_data_dir"
-    ] = "/home/jlewis/rascas/ions_parameters/"
+    ] = "/home/jlewis/codes/rascas/ions_parameters/"
 
     write_params(params, os.path.join(dout, "params_rascas.cfg"))
 
@@ -232,15 +283,22 @@ def make_mock_params(
         f.write(param_lines)
 
 
-def copy_exec(d):
+def copy_exec(d, NH=False):
 
     # src = "./rascas"
     for src in ["rascas", "CreateDomDump", "PhotonsFromStars"]:
 
         dst = os.path.join(d, src)
 
-        # copy(os.path.join("/home/jlewis/rascas/f90", src), dst)
-        copy(os.path.join("/home/jlewis/rascas_joe_dust/f90", src), dst)
+        if NH and src == "PhotonsFromStars":
+            copy(os.path.join("/home/jlewis/codes/rascas/f90", src), dst)
+        else:
+            copy(os.path.join("/home/jlewis/codes/rascas_joe_dust/f90", src), dst)
+
+
+def copy_draine_table(tgt, dest):
+    dst = os.path.join(tgt, dest)
+    copy(tgt, dst)
 
 
 def create_sh(
@@ -319,6 +377,44 @@ def create_sh(
         f.writelines(lines)
 
 
+def do_untar(sim_dir, output):
+
+    tar_cmd = ""
+
+    if os.path.exists(os.path.join(sim_dir, f"{output}.tar")):
+
+        output_files = os.listdir(os.path.join(sim_dir, output))
+        part_files = [f for f in output_files if f.startswith("part")]
+        hydro_files = [f for f in output_files if f.startswith("hydro")]
+        amr_files = [f for f in output_files if f.startswith("amr")]
+
+        notar = (
+            (len(part_files) > 1)
+            and (len(hydro_files) > 1)
+            and (len(amr_files) > 1)
+            and (len(hydro_files) == len(amr_files))
+        )
+
+        if not notar:
+
+            # first_tar_file = os.system(f'tar tfv {os.path.join(sim_dir,output)}.tar | head -n 1')
+            # print(first_tar_file)
+            # with tarfile.open(os.path.join(sim_dir,f"{output}.tar"),"r") as ftar:
+            #     first_tar_file = ftar.getnames()[0]
+            # print(first_tar_file)
+            # nb_slashes = len([i for i in first_tar_file if i == "/"])
+            # print(nb_slashes)
+            # nb_slashes = max(1, nb_slashes)
+            # this is veryyyyy slow ...
+            nb_slashes = 8  # should be ok for all my sims on infinity
+
+            tar_cmd = (
+                f"tar xvf {sim_dir}/{output}.tar --strip-components {nb_slashes-1:d}"
+            )
+
+    return tar_cmd
+
+
 def create_sh_multi(
     rascas_paths,
     tmplt="./run_rascas.slurm",
@@ -332,6 +428,7 @@ def create_sh_multi(
     name="rascas",
     run_cdds=None,
     run_pfss=None,
+    output_dirs=None,
 ):
 
     if run_cdds == None:
@@ -342,6 +439,14 @@ def create_sh_multi(
     lines = []
 
     rascas_path0 = rascas_paths[0]
+
+    path_split = rascas_path0.split("/")
+    arg_rascas = path_split.index("rascas")
+    sim_dir = "/".join(path_split[:arg_rascas])
+
+    print(sim_dir)
+
+    output_dir0 = output_dirs[0]
 
     with open(tmplt, "r") as f:
         lines = f.readlines()
@@ -405,16 +510,38 @@ def create_sh_multi(
     cdd_line = "./CreateDomDump params_CDD.cfg &> log_CDD\n"
     pfs_line = "./PhotonsFromStars params_PFS.cfg &> log_PFS\n"
 
-    if run_cdds[0]:
-        lines.insert(exec_line, cdd_line)
-    if run_pfss[0]:
-        lines.insert(exec_line + 1, pfs_line)
+    tar_cmd0 = do_untar(sim_dir, output_dir0)
 
-    for rascas_path, cdd_flag, pfs_flag in zip(
-        rascas_paths[1:], run_cdds[1:], run_pfss[1:]
+    untar_line = np.where(["untar" in l for l in lines])[0][0]
+    if tar_cmd0 != "":
+        lines[untar_line] = f"cd {sim_dir}\n{tar_cmd0}\n"
+
+    lines.insert(exec_line, f"cd {rascas_paths[0]}\n")
+    if run_cdds[0]:
+        lines.insert(exec_line + 1, cdd_line)
+    if run_pfss[0]:
+        lines.insert(exec_line + 2, pfs_line)
+    # lines.insert(exec_line + 2, f"mpiexec -np {ntasks:d} ./rascas params_rascas.cfg &> rascas.out\n")
+
+    retar_line = np.where(["retar" in l for l in lines])[0][0]
+    if tar_cmd0 != "":
+        lines[retar_line] = (
+            f"cd {sim_dir}\nfind {sim_dir}/{output_dir0}"
+            + " -type f ! -name '*.txt' -exec rm {} +;\n"
+        )
+
+    for rascas_path, cdd_flag, pfs_flag, output_dir in zip(
+        rascas_paths[1:], run_cdds[1:], run_pfss[1:], output_dirs[1:]
     ):
 
+        lines.append(f"cd {sim_dir}\n")
+
+        tar_cmd = do_untar(sim_dir, output_dir)
+        if tar_cmd != "":
+            lines.append(f"{tar_cmd}\n")
+
         lines.append(f"cd {rascas_path}\n")
+
         if cdd_flag:
             lines.append(cdd_line)
         if pfs_flag:
@@ -422,6 +549,12 @@ def create_sh_multi(
         lines.append(
             f"mpiexec -np {ntasks:d} ./rascas params_rascas.cfg &> rascas.out\n"
         )
+
+        if tar_cmd != "":
+            lines.append(
+                f"find {sim_dir}/{output_dir}"
+                + " -type f ! -name '*.txt' -exec rm {} +;\n"
+            )
 
     with open(os.path.join(rascas_path0, "run.slurm"), "w") as f:
         f.writelines(lines)

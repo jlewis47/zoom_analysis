@@ -87,11 +87,16 @@ from zoom_analysis.trees.tree_reader import (
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130"
-
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_model5"
+# sim_dir = (
+#     "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF/"
+# )
+# sim_dir = "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_high_sconstant/"
+# sim_dir = "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_Vhigh_sconstant/"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_VVhigh_sconstant/"
+sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289"
 
 sim = ramses_sim(sim_dir, nml="cosmo.nml")
-
-
 
 
 zoom_ctr = sim.zoom_ctr
@@ -121,9 +126,10 @@ aexps = sim.get_snap_exps()
 times = sim.get_snap_times()
 
 tgt_zed = None
+# tgt_zed = 3.36
 # tgt_zed = 4.6
 # tgt_zed = 5.12
-# tgt_zed = 2.0
+tgt_zed = 2.0
 # tgt_zed = 3.0
 # tgt_zed = 7.3  # snap 109
 # tgt_zed = 5.37
@@ -131,22 +137,24 @@ tgt_zed = None
 # tgt_zed = 2.5  #
 # tgt_zed = 3.2  #
 
-# rad_fact = 0.15  # fraction of radius to use as plot window
+rad_fact = 0.15  # fraction of radius to use as plot window
 # rad_fact = 0.25  # fraction of radius to use as plot window
 # rad_fact = 0.35  # fraction of radius to use as plot window
 # rad_fact = 5.0  # fraction of radius to use as plot window
+# rad_fact = 1.0  # fraction of radius to use as plot window
 # rad_fact = 2.0  # fraction of radius to use as plot window
-rad_fact = 10.0  # fraction of radius to use as plot window
+# rad_fact = 10.0  # fraction of radius to use as plot window
 plot_win_str = str(rad_fact).replace(".", "p")
 
 if tgt_zed is None:
-    tgt_zed = 1./sim.get_snap_exps().max()-1
+    tgt_zed = 1.0 / sim.get_snap_exps().max() - 1
 
 tgt_fpure = 0.9999
-mlim = 1e10
+mlim = 5e9
 # mlim = 8e8
 
-overwrite = False
+# overwrite = False
+overwrite = True
 clean = False  # no markers for halos/bhs
 annotate = False
 gal_markers = True
@@ -157,17 +165,63 @@ hm_dm = "HaloMaker_DM_dust/"
 
 vmin = None
 vmax = None
-
+log = True
+mode = "mean"
+mthd = np.sum
 field = "density"
 vmin = 1e-26
-vmax = 1e-21
+vmax = 1e-20
+
+# log = False
+# field = "DTM"
+# # vmin = 0.0
+# # vmax = 0.15
+# vmin = 1e-3
+# vmax = 1.0
+# mthd = np.sum
+
+# log = False
+# field = "DTMC"
+# vmin = 1e-3
+# vmax = 1.0
+# mthd = np.sum
+# # log = False
+# field = "DTMCs"
+# vmin = 1e-3
+# vmax = 1.0
+# mthd = np.sum
+# # log = False
+# field = "DTMCl"
+# vmin = 1e-3
+# vmax = 1.0
+# mthd = np.sum
+
+## log = False
+# field = "DTMSi"
+# vmin = 1e-3
+# vmax = 1.0
+# mthd = np.sum
+# log = False
+# field = "DTMSis"
+# vmin = 1e-3
+# vmax = 1.0
+# mthd = np.sum
+# log = False
+# field = "DTMSil"
+# vmin = 1e-3
+# vmax = 1.0
+# mthd = np.sum
+
 
 # field = "temperature"
-# vmin = 1e3
-# vmax = 1e8
+# vmin = 1e2
+# vmax = 1e7
+# mthd = np.sum
 
 # field = "metallicity"
-# vmax = 1.0
+# vmax = 4 * 2e-2
+# vmin = 1e-4
+# mthd = np.sum
 
 # field = "dust_bin01"
 # field = "dust_bin02"
@@ -214,13 +268,15 @@ tgt_snap = snaps[tgt_arg]
 tree_name = os.path.join(sim.path, "TreeMakerDM_dust", "tree_rev.dat")
 byte_file = os.path.join(sim.path, "TreeMakerDM_dust")
 
+tgt_aexp = sim.get_snap_exps(tgt_snap)[0]
+tgt_zed = 1.0 / tgt_aexp - 1.0
 
 if np.abs(zeds[tgt_arg] - tgt_zed) < 0.1:
 
     # load the assoc file
     gal_props = get_gal_props_snap(sim.path, tgt_snap)
 
-    print(np.sum((gal_props["mass"]>mlim )* (gal_props['host purity'] > tgt_fpure)))
+    print(np.sum((gal_props["mass"] > mlim) * (gal_props["host purity"] > tgt_fpure)))
 
     # order all keys by descending halo mass
     sort_arg = np.argsort(gal_props["mass"])[::-1]
@@ -260,48 +316,52 @@ if np.abs(zeds[tgt_arg] - tgt_zed) < 0.1:
 
         fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 
-        sim_tree_hids, tree_datas, sim_tree_aexps = read_tree_file_rev(
-            tree_name,
-            sim,
-            tgt_snap,
-            byte_file,
-            zeds[tgt_arg],
-            [gal_props["host hid"][igal]],
-            # tree_type="halo",
-            tgt_fields=["m", "x", "y", "z", "r"],
-            debug=False,
-            star=False,
-        )
+        # sim_tree_hids, tree_datas, sim_tree_aexps = read_tree_file_rev(
+        #     tree_name,
+        #     sim,
+        #     tgt_snap,
+        #     byte_file,
+        #     zeds[tgt_arg],
+        #     [gal_props["host hid"][igal]],
+        #     # tree_type="halo",
+        #     tgt_fields=["m", "x", "y", "z", "r"],
+        #     # debug=False,
+        #     star=False,
+        # )
 
-        sim_tree_hids = sim_tree_hids[0]
+        # sim_tree_hids = sim_tree_hids[0]
 
-        gal_props_tree = get_assoc_pties_in_tree(sim, sim_tree_aexps, sim_tree_hids)
+        # gal_props_tree = get_assoc_pties_in_tree(sim, sim_tree_aexps, sim_tree_hids)
 
-        smooth_gal_props_tree = smooth_props(gal_props_tree)
+        # smooth_gal_props_tree = smooth_props(gal_props_tree)
 
-        tree_arg = np.argmin(np.abs((1.0 / sim_tree_aexps - 1) - zeds[tgt_arg]))
+        # tree_arg = np.argmin(np.abs((1.0 / sim_tree_aexps - 1) - zeds[tgt_arg]))
 
-        # rad_tgt = tgt_rad * rad_fact
-        rad_tgt = smooth_gal_props_tree["r50"][tree_arg] * rad_fact
+        rad_tgt = tgt_rad * rad_fact
+        # rad_tgt = smooth_gal_props_tree["r50"][tree_arg] * rad_fact
         zdist = rad_tgt * 5 / 1 * sim.cosmo.lcMpc * 1e3
 
         img = plot_fields(
             field,
             fig,
             ax,
-            sim_tree_aexps[tree_arg],
+            # sim_tree_aexps[tree_arg],
+            tgt_aexp,
             [dv1, dv2, dv3],
             tgt_pos,
             rad_tgt,
             sim,
-            hid = sim_tree_hids[tree_arg],
+            # hid=sim_tree_hids[tree_arg],
+            hid=gal_props["host hid"][igal],
             cb=True,
             vmin=vmin,
             vmax=vmax,
             transpose=False,
             cmap="magma",
-            log=True,
-            op=np.sum,
+            log=log,
+            # op=np.sum,
+            op=mthd,
+            mode=mode,
         )
 
         if not clean:

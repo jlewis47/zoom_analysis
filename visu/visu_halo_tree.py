@@ -60,6 +60,7 @@ from scipy.interpolate import UnivariateSpline
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowSFE_DynBondiGravSinkMass"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_minMassDynGrav"
@@ -68,12 +69,18 @@ from scipy.interpolate import UnivariateSpline
 # sim_dir = "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05"
 # sim_dir = "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256"
 # sim_dir = "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_drag"
-sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289"
 # sim_dir = "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt"
+sim_dir = "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost"
+# sim_dir= "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF"
+# sim_dir= "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF"
+# sim_dir= "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe"
 
 sim = ramses_sim(sim_dir, nml="cosmo.nml")
 
@@ -115,7 +122,7 @@ every_snap = True  # try and interpolate between tree nodes if not found
 
 rad_fact = 5.0  # fraction of radius to use as plot window
 use_r50 = True
-fixed_r_ckpc = -1
+fixed_r_ckpc = 45
 
 plot_win_str = str(rad_fact).replace(".", "p")
 if fixed_r_ckpc > 0:
@@ -129,7 +136,9 @@ clean = False  # no markers for halos/bhs
 annotate = False
 gal_markers = True
 halo_markers = True
-subtract_mean=False
+subtract_mean = False
+transpose = True
+lower = True
 
 only_main_stars = True
 
@@ -189,12 +198,12 @@ marker_color = "white"
 # cmap = "YlGnBu"
 # mode = "mean"
 
-# field = "stellar mass"
-# cmap = "gray"
-# # cmap = "viridis"
-# vmin = 6e4
-# vmax = 1e9
-# marker_color = "r"
+field = "stellar mass"
+cmap = "gray"
+# cmap = "viridis"
+vmin = 6e4
+vmax = 1e9
+marker_color = "r"
 
 # field = "stellar age"
 # vmin = 1e1  # Myr
@@ -202,16 +211,16 @@ marker_color = "white"
 # cmap = "Spectral_r"
 # mode = "mean"
 
-# field = "SFR1"
-field = "SFR10"
-field = "SFR100"
-# # # field = "SFR300"
-# # field = "SFR500"
-# # # field = "SFR1000"
-mode = "mean"
-cmap = "hot"
-vmin = 1
-vmax = 1e4
+# # field = "SFR1"
+# field = "SFR10"
+# field = "SFR100"
+# # # # field = "SFR300"
+# # # field = "SFR500"
+# # # # field = "SFR1000"
+# mode = "mean"
+# cmap = "hot"
+# vmin = 1
+# vmax = 5e2
 
 # field = "dm mass"
 # cmap = "viridis"
@@ -276,7 +285,7 @@ start_snap = sim.get_closest_snap(aexp=start_aexp)
 
 # print(l)
 
-directions = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
+# directions = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
 # directions = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 # directions = [
 #     [0.52704628, -0.52704628, -0.66666667],
@@ -284,8 +293,15 @@ directions = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
 #     [-0.47140452, 0.47140452, -0.74535599],
 # ]
 
-# rascas_dir = [0.52704628, -0.52704628, -0.66666667]
-# directions = basis_from_vect(rascas_dir)
+# rascas_dir = [0.52704628, -0.52704628, -0.66666667] # - dir nb 1
+rascas_dir = [0.52704628, 0.52704628, 0.66666667]  # dirnb 0
+# rascas_dir = [-0.527046, 0.527046, 0.666667]  # dirnb 1
+# rascas_dir = [0.52704628, -0.52704628, 0.66666667]  # dirnb 3
+# rascas_dir= [0.527046, 0.527046, 0.666667]
+directions = list(basis_from_vect(rascas_dir))
+# directions[0] = -directions[0]  # flip to align with rascas
+# directions = tuple(directions)
+# directions = [rascas_dir]
 
 
 tree_name = os.path.join(sim.path, "TreeMakerDM_dust", "tree_rev.dat")
@@ -300,7 +316,7 @@ tree_hids, tree_datas, tree_aexps = read_tree_file_rev_correct_pos(
     [hid_start],
     # tree_type="halo",
     tgt_fields=["m", "x", "y", "z", "r"],
-    debug=False,
+    verbose=False,
     star=False,
 )
 tree_times = sim.cosmo_model.age(1.0 / tree_aexps - 1.0).value * 1e3  # Myr
@@ -367,6 +383,9 @@ smooth_gal_props = smooth_props(gal_props_tree)
 
 # for snap, aexp, time in zip(snaps[:], aexps[:], times[:]):
 for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
+
+    # if snap != 143:
+    #     continue
 
     if not os.path.exists(get_halo_assoc_file(sim.path, snap)):
         continue
@@ -439,8 +458,6 @@ for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 10), layout="constrained")
 
-    
-
     # data_path = os.path.join(sim.path, "amr2cell", f"output_{snap:05d}/out_amr2cell")
 
     # if not os.path.exists(data_path):
@@ -474,24 +491,30 @@ for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
         "vmin": vmin,
         "vmax": vmax,
         "mode": mode,
-        "transpose": True,
+        "transpose": transpose,
+        "lower": lower,
         "color": marker_color,
         "hid": int(hids[aexp_arg]),
-        "subtract_mean":subtract_mean,
+        "subtract_mean": subtract_mean,
     }
 
-    img = plot_fields(field, fig, ax, aexp, directions, tgt_pos, rad_tgt, sim, **args)
-    ax.text(
-        0.05,
-        0.9,
-        "z = %.2f" % zed,
-        color="white",
-        transform=ax.transAxes,
-        path_effects=[pe.withStroke(linewidth=1, foreground="black")],
-        ha="left",
-        size=20,
-        zorder=999,
-    )
+    try:
+        img = plot_fields(
+            field, fig, ax, aexp, directions, tgt_pos, rad_tgt, sim, **args
+        )
+        ax.text(
+            0.05,
+            0.9,
+            "z = %.2f" % zed,
+            color="white",
+            transform=ax.transAxes,
+            path_effects=[pe.withStroke(linewidth=1, foreground="black")],
+            ha="left",
+            size=20,
+            zorder=999,
+        )
+    except FileNotFoundError:
+        continue
 
     if not clean:
 
@@ -515,6 +538,7 @@ for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
             fill=False,
             edgecolor=marker_color,
             lw=2,
+            ls=':',
             zorder=999,
         )
 

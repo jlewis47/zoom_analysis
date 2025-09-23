@@ -138,21 +138,30 @@ def spec_to_erg_s_A_cm2_rf(mock, pfs_path):  # in rest frame
 
 
 def spec_to_erg_s_A_cm2(mock, pfs_path, z):  # , aperture_cm):  # in obs frame
+
+    PC_cm = 3.08e18 #cm
+
     phot_hdr = read_PFS_dump(pfs_path, hdr=True)
 
     # print(mock["lambda_min"], mock["lambda_max"], mock["lambda_npix"])
 
+    if z>0:
+        dL = cosmo.luminosity_distance(z).to(u.cm).value
+    else:
+        dL = 10 * PC_cm
+
     lambda_bins = np.linspace(
-        mock["lambda_min"], mock["lambda_max"], mock["lambda_npix"]
+        mock["lambda_min"]*(1+z), mock["lambda_max"]*(1+z), mock["lambda_npix"]
     ) #* (1+z)  # angstrom
     dlamb = np.diff(lambda_bins)[0]  # * 1e-10
     nrg = c * h / (lambda_bins * 1e-10) * 1e7  # erg
     nrg *= phot_hdr["total_flux"] / phot_hdr["nphotons"] / dlamb
 
+
+    nrg /= (
+        4 * np.pi * dL ** 2
+    )  # to flux at observer
     if z > 0:
-        nrg /= (
-            4 * np.pi * cosmo.luminosity_distance(z).to(u.cm).value ** 2
-        )  # to flux at observer
         nrg *= 1 + z  # dimming
     # nrg /= aperture_cm**2 * np.pi
     # nrg *= mock["aperture"] ** 2  # to luminisity at aperture
@@ -173,23 +182,29 @@ def spec_to_erg_s_A_cm2(mock, pfs_path, z):  # , aperture_cm):  # in obs frame
 
 
 def cube_to_erg_s_A_cm2_as2(mock, pfs_path, z, aper_as):  # in obs frame
+
+    PC_cm = 3.08e18
+
     phot_hdr = read_PFS_dump(pfs_path, hdr=True)  # why pfs here ?
 
     # print(mock["lambda_min"], mock["lambda_max"], mock["lambda_npix"])
-
-    dL = cosmo.luminosity_distance(z).to(u.cm).value  # cm
+    if z>0:
+        dL = cosmo.luminosity_distance(z).to(u.cm).value  # cm
+    else:
+        dL = 10 * PC_cm
 
     # dx_as = np.arctan(dx_cm / dL) * 180 / np.pi * 3600  # as
     dx_as = aper_as / mock["cube"].shape[0]
 
     lambs = np.linspace(
-        mock["lambda_min"], mock["lambda_max"], mock["lambda_npix"]
+        mock["lambda_min"]*(1+z), mock["lambda_max"]*(1+z), mock["lambda_npix"]
     )  # angstrom
     dlamb = np.diff(lambs)[0]
     nrg = c * h / (lambs * 1e-10) * 1e7  # erg
     nrg *= phot_hdr["total_flux"] / phot_hdr["nphotons"] / dlamb
     nrg /= dx_as**2  # cell surface
     nrg /= 4 * np.pi * dL**2  # to flux at observer
+
     nrg *= 1 + z  # dimming
 
     mock["cube"] = nrg * mock["cube"]

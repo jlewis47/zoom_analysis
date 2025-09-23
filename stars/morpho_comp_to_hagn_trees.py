@@ -102,11 +102,11 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
 ]
 
 

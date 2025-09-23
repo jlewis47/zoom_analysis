@@ -5,18 +5,21 @@ from zoom_analysis.zoom_helpers import decentre_coordinates, find_starting_posit
 from zoom_analysis.halo_maker.read_treebricks import (
     read_zoom_stars,
 )
-from zoom_analysis.trees.tree_reader import read_tree_file_rev as read_tree_fev_sim
+from zoom_analysis.trees.tree_reader import (
+    read_tree_file_rev_correct_pos as read_tree_fev_sim,
+)
 from zoom_analysis.constants import ramses_pc
 from zoom_analysis.halo_maker.assoc_fcts import (
     # find_zoom_tgt_halo,
     get_central_gal_for_hid,
 )
+from zoom_analysis.read.read_data import read_data_ball
 from zoom_analysis.dust.gas_reader import gas_pos_rad
 from zoom_analysis.halo_maker.assoc_fcts import find_star_ctr_period
 
 # from zoom_analysis.sinks.sink_reader import find_massive_sink, get_sink_mhistory
 
-from plot_stuff import setup_plots
+# from plot_stuff import setup_plots
 
 from gremlin.read_sim_params import ramses_sim
 
@@ -31,17 +34,21 @@ import numpy as np
 from hagn.utils import get_hagn_sim
 from hagn.tree_reader import read_tree_rev, interpolate_tree_position
 
+# from hagn.tree_reader import
+
 # planck cosmo
 from astropy.cosmology import Planck18 as cosmo
 from astropy.cosmology import z_at_value
 from astropy import units as u
 import h5py
 
+Pmass_g = 1.6726219e-24
 
-def plot_metallicity(ax, sim_times, mZ_zoom, **kwargs):
+
+def plot_metallicity(ax, sim_times, Z_zoom, **kwargs):
     (l,) = ax.plot(
         sim_times / 1e3,
-        mZ_zoom,
+        Z_zoom,
         ls=":",
         marker="$Z$",
         markersize=10,
@@ -143,10 +150,12 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130",
 ]
 # sdir =
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
@@ -165,7 +174,7 @@ overwrite = False
 
 # setup plot
 
-setup_plots()
+# setup_plots()
 
 # Create a figure for each plot
 fig_metallicity, ax_metallicity = plt.subplots(figsize=(6, 6))
@@ -289,6 +298,8 @@ for sdir in sdirs:
 
         sim_tree_hids, sim_tree_datas, sim_tree_aexps = read_tree_fev_sim(
             sim_halo_tree_rev_fname,
+            sim,
+            sim.get_closest_snap(aexp=start_aexp),
             fbytes=os.path.join(sim.path, "TreeMakerDM_dust"),
             zstart=1.0 / start_aexp - 1.0,
             tgt_ids=[hid_start],
@@ -319,23 +330,52 @@ for sdir in sdirs:
 
             # print(snap, aexp, sim_tree_aexps[sim_tree_arg], cur_snap_hid)
 
-            gid, gal_dict = get_central_gal_for_hid(sim, cur_snap_hid, snap)
+            try:
+                gid, gal_dict = get_central_gal_for_hid(sim, cur_snap_hid, snap)
+            except KeyError:
+                continue
             if gid == None:
                 print("No central galaxy")
                 continue
 
             tgt_pos = gal_dict["pos"]
-            tgt_r = gal_dict["r50"]
+            tgt_r = gal_dict["r50"] * 3
 
             # stars = read_zoom_stars(sim, snap, gid)
-            stars = read_part_ball_NCdust(
-                sim,
-                snap,
-                tgt_pos,
-                tgt_r,
-                tgt_fields=["mass", "birth_time", "metallicity"],
-                fam=2,
-            )
+            # stars = read_part_ball_NCdust(
+            #     sim,
+            #     snap,
+            #     tgt_pos,
+            #     tgt_r,
+            #     tgt_fields=["mass", "birth_time", "metallicity"],
+            #     fam=2,
+            # )
+
+            try:
+                datas = read_data_ball(
+                    sim,
+                    snap,
+                    tgt_pos,
+                    tgt_r,
+                    host_halo=cur_snap_hid,
+                    tgt_fields=[
+                        "ilevel",
+                        "mass",
+                        "age",
+                        "metallicity",
+                        "density",
+                        "dust_bin01",
+                        "dust_bin02",
+                        "dust_bin03",
+                        "dust_bin04",
+                    ],
+                    data_types=["stars", "gas"],
+                )
+            except (FileNotFoundError, AssertionError):
+                print(f"snap {snap:d}: unavailable files")
+                continue
+
+            stars = datas["stars"]
 
             ages = stars["age"]
             Zs = stars["metallicity"]
@@ -348,49 +388,81 @@ for sdir in sdirs:
 
             mstel_zoom[istep] = masses.sum()
 
-            cells = gas_pos_rad(
-                # sim, snap, [1, 6, 16, 17, 18, 19], ctr_stars, extent_stars
-                sim,
-                snap,
-                [1, 6, 16, 17, 18, 19],
-                tgt_pos,
-                tgt_r,
-            )
+            cells = datas["gas"]
+            if cells is None:
+                continue
+
+            # cells = gas_pos_rad(
+            #     # sim, snap, [1, 6, 16, 17, 18, 19], ctr_stars, extent_stars
+            #     sim,
+            #     snap,
+            #     [1, 6, 16, 17, 18, 19],
+            #     tgt_pos,
+            #     tgt_r,
+            # )
 
             l_hagn_cm_comov = l_hagn * aexp * 1e6 * ramses_pc
             volumes = (2 ** -cells["ilevel"] * l_hagn_cm_comov) ** 3
 
-            mG_zoom[istep] = np.sum(cells["density"] * volumes) * unit_d / msun_to_g
+            dens_Hpcc = cells["density"] / Pmass_g
+
+            dense_gas = dens_Hpcc > 0.1
+
+            mG_zoom[istep] = (
+                np.sum(cells["density"][dense_gas] * volumes[dense_gas])
+                # * unit_d
+                / msun_to_g
+            )
 
             md1_zoom[istep] = (
-                np.sum(cells["density"] * cells["dust_bin01"] * volumes)
-                * unit_d
+                np.sum(
+                    cells["density"][dense_gas]
+                    * cells["dust_bin01"][dense_gas]
+                    * volumes[dense_gas]
+                )
+                # * unit_d
                 / msun_to_g
             )
 
             md2_zoom[istep] = (
-                np.sum(cells["density"] * cells["dust_bin02"] * volumes)
-                * unit_d
+                np.sum(
+                    cells["density"][dense_gas]
+                    * cells["dust_bin02"][dense_gas]
+                    * volumes[dense_gas]
+                )
+                # * unit_d
                 / msun_to_g
             )
 
             md3_zoom[istep] = (
-                np.sum(cells["density"] * cells["dust_bin03"] * volumes)
-                * unit_d
+                np.sum(
+                    cells["density"][dense_gas]
+                    * cells["dust_bin03"][dense_gas]
+                    * volumes[dense_gas]
+                )
+                # * unit_d
                 / msun_to_g
                 / 0.163
             )
 
             md4_zoom[istep] = (
-                np.sum(cells["density"] * cells["dust_bin04"] * volumes)
-                * unit_d
+                np.sum(
+                    cells["density"][dense_gas]
+                    * cells["dust_bin04"][dense_gas]
+                    * volumes[dense_gas]
+                )
+                # * unit_d
                 / msun_to_g
                 / 0.163
             )
 
             mZ_zoom[istep] = (
-                np.sum(cells["density"] * cells["metallicity"] * volumes)
-                * unit_d
+                np.sum(
+                    cells["density"][dense_gas]
+                    * cells["metallicity"][dense_gas]
+                    * volumes[dense_gas]
+                )
+                # * unit_d
                 / msun_to_g
             )
 
@@ -404,7 +476,7 @@ for sdir in sdirs:
             f.create_dataset("mG_zoom", data=mG_zoom)
             f.create_dataset("tgt_times", data=tgt_times)
 
-    l = plot_metallicity(ax_metallicity, tgt_times, mZ_zoom)
+    l = plot_metallicity(ax_metallicity, tgt_times, mZ_zoom / mG_zoom)
     color = l.get_color()
     plot_stellar_mass(ax_stellar_mass, tgt_times, mstel_zoom, color=color)
     plot_total_dust_mass(
@@ -490,10 +562,12 @@ ax_metallicity.legend(lines, labels)
 ax_stellar_mass.set_xlabel("Time (Gyr)")
 ax_stellar_mass.set_ylabel("Stellar Mass (M$_\odot$)")
 ax_stellar_mass.legend(lines, labels)
+ax_stellar_mass.set_yscale("log")
 
 ax_total_dust_mass.set_xlabel("Time (Gyr)")
 ax_total_dust_mass.set_ylabel("Total Dust Mass (M$_\odot$)")
 ax_total_dust_mass.legend(lines, labels)
+ax_total_dust_mass.set_yscale("log")
 
 ax_dust_to_gas_ratio.set_xlabel("Time (Gyr)")
 ax_dust_to_gas_ratio.set_ylabel("Dust to Gas Ratio")
@@ -506,18 +580,22 @@ ax_dust_to_metal_ratio.legend(lines, labels)
 ax_carbon_small.set_xlabel("Time (Gyr)")
 ax_carbon_small.set_ylabel("Carbon Small Dust Mass (M$_\odot$)")
 ax_carbon_small.legend(lines, labels)
+ax_carbon_small.set_yscale("log")
 
 ax_carbon_large.set_xlabel("Time (Gyr)")
 ax_carbon_large.set_ylabel("Carbon Large Dust Mass (M$_\odot$)")
 ax_carbon_large.legend(lines, labels)
+ax_carbon_large.set_yscale("log")
 
 ax_silicate_small.set_xlabel("Time (Gyr)")
 ax_silicate_small.set_ylabel("Silicate Small Dust Mass (M$_\odot$)")
 ax_silicate_small.legend(lines, labels)
+ax_silicate_small.set_yscale("log")
 
 ax_silicate_large.set_xlabel("Time (Gyr)")
 ax_silicate_large.set_ylabel("Silicate Large Dust Mass (M$_\odot$)")
 ax_silicate_large.legend(lines, labels)
+ax_silicate_large.set_yscale("log")
 
 fig_metallicity.savefig("figs/metallicity_evol.png")
 fig_stellar_mass.savefig("figs/stellar_mass_evol.png")

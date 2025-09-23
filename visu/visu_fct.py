@@ -343,18 +343,23 @@ def lookup_hydro_idx_for_field(sim, field):
     if "temperature" == field and (5 not in idx):
         print("Temperature requested loading density and pressure")
         idx.extend([1, 5])
-    elif "DTM" == field and (
-        6 not in idx or 16 not in idx or 17 not in idx or 18 not in idx or 19 not in idx
+    elif "DTM" in ["DTM", "DTMC", "DTMSi", "DTMCs", "DTMCl", "DTMSis", "DTMSil"] and (
+        1 not in idx
+        or 6 not in idx
+        or 16 not in idx
+        or 17 not in idx
+        or 18 not in idx
+        or 19 not in idx
     ):
         print("Dust to metal requested loading density and dust bins")
         idx.extend([1, 6, 16, 17, 18, 19])
     elif "density" != field:
         idx.append(1)
 
-    # elif "metallicity" == field and (6 not in idx):
-    #     print("Metal density requested loading density and metallicity")
-    #     # idx.extend([6])
-    #     idx.extend([1, 6])
+    elif "metallicity" == field and (6 not in idx or 1 not in idx):
+        print("Metal density requested loading density and metallicity")
+        # idx.extend([6])
+        idx.extend([1, 6])
     # elif "dust_bin01" == field and (16 not in idx):
     #     print("small carbon fraction requested loading density and small carbon grains")
     #     # idx.extend([16])
@@ -408,6 +413,7 @@ def plot_amr_data(
     transpose = kwargs.get("transpose", True)
     log = kwargs.get("log", True)
     plot_text = kwargs.get("plot_text", True)
+    mode = kwargs.get("mode", "sum")
 
     cb_args = kwargs.get("cb_args", {})
     cb_loc = cb_args.get("location", "right")
@@ -431,7 +437,7 @@ def plot_amr_data(
 
     cell_pos = np.asarray([amrdata["x"], amrdata["y"], amrdata["z"]]).T
 
-    cell_pos = np.dot(M_basis, cell_pos.T)
+    cell_pos = np.dot(cell_pos.T, M_basis)
 
     # print(np.median(cell_pos, axis=1))
 
@@ -629,10 +635,10 @@ def plot_amr_data(
             # print(vmin, vmax, img.min(), img.max())
 
             if log:
-                if vmin>0:
+                if vmin > 0:
                     norm = LogNorm(vmin=vmin, vmax=vmax)
                 else:
-                    norm = SymLogNorm(vmin=vmin, vmax=vmax, linthresh=vmax/1e2)
+                    norm = SymLogNorm(vmin=vmin, vmax=vmax, linthresh=vmax / 1e2)
                 img = ax.imshow(
                     img.T,
                     origin="lower",
@@ -680,20 +686,31 @@ def plot_amr_data(
 
     if cb:
 
-
-        if kwargs['mode']=="sum":
-            len_dim = f"cm^{-2}"
+        if mode == "sum":
+            len_dim = "$cm^{-2}$"
         else:
-            len_dim = f"cm^{-3}"
-       
+            len_dim = "$cm^{-3}$"
+
         if "label" in cb_args:
             cb_label = cb_args["label"]
         elif field == "density":
-            cb_label = r"Density, $[g.{0}]$".format(len_dim)
+            cb_label = r"Density, " + len_dim
         elif field == "temperature":
             cb_label = f"Temperature, $[K]$"
         elif field == "DTM":
-            cb_label = f"Dust to Metal Ratio"
+            cb_label = f"Dust to Metal ratio"
+        elif field == "DTMC":
+            cb_label = f"Carbon Dust to Metal ratio"
+        elif field == "DTMCs":
+            cb_label = f"Small carbon Dust to Metal ratio"
+        elif field == "DTMCl":
+            cb_label = f"Large carbon Dust to Metal ratio"
+        elif field == "DTMSi":
+            cb_label = f"Sillicate Dust to Metal ratio"
+        elif field == "DTMSis":
+            cb_label = f"Small sillicate Dust to Metal ratio"
+        elif field == "DTMSil":
+            cb_label = f"Large sillicate Dust to Metal ratio"
         elif field == "velocity":
             cb_label = f"Velocity, $[km/s]$"
         else:
@@ -712,8 +729,8 @@ def plot_amr_data(
         )
         cbar.set_label(cb_label)
 
-    ax.set_xlabel("x, [kpc]")
-    ax.set_ylabel("y, [kpc]")
+    ax.set_xlabel("x, [ckpc]")
+    ax.set_ylabel("y, [ckpc]")
 
     zed = 1 / aexp - 1
 
@@ -748,6 +765,7 @@ def make_amr_img_smooth(
     rvir,
     zdist=-1,
     direction=[0, 0, 1],
+    NH_read=False,
     **kwargs,
 ):
 
@@ -809,54 +827,64 @@ def make_amr_img_smooth(
             mins = mins * 0.99
             maxs = maxs * 1.01
 
-        # find index of requested fields, add density for projection if necessary
-        # idx = lookup_hydro_idx_for_field(sim, field)
+        if NH_read:
+            # find index of requested fields, add density for projection if necessary
+            idx = lookup_hydro_idx_for_field(sim, field)
+            # print(idx)
+            amrdata = read_amrcells(sim, snap, np.ravel([mins, maxs]), idx)
 
-        # amrdata = read_amrcells(sim, snap, np.ravel([mins, maxs]), idx)
+            if field not in amrdata:
+                amrdata[field] = []
 
-        # if field not in amrdata:
-        #     amrdata[field] = []
+            if len(amrdata["ilevel"]) == 0:
+                print("No cells found")
+                return
 
-        # if len(amrdata["ilevel"]) == 0:
-        #     print("No cells found")
-        #     return
+            # convert units
+            amrdata = code_to_cgs(sim, aexp, amrdata)
 
-        # # convert units
-        # amrdata = code_to_cgs(sim, aexp, amrdata)
+            # print(tgt_fields)
+        else:
 
-        # print(tgt_fields)
-
-        amrdata = read_data_ball(
-            sim,
-            snap,
-            pos,
-            (r + 1./2**sim.levelmin)* np.sqrt(3),
-            hid,
-            data_types=["gas"],
-            tgt_fields=field,
-            minmax=[mins, maxs],
-        )
+            amrdata = read_data_ball(
+                sim,
+                snap,
+                pos,
+                (r + 1.0 / 2**sim.levelmin) * np.sqrt(3),
+                hid,
+                data_types=["gas"],
+                tgt_fields=field,
+                minmax=[mins, maxs],
+            )
 
         subtract_mean = kwargs.get("subtract_mean", False)
-        #project data if needed
-        #e.g. 3D velocity becomes 2D norm in img plane directions
-        #possibly with bulk vel removed
+        # project data if needed
+        # e.g. 3D velocity becomes 2D norm in img plane directions
+        # possibly with bulk vel removed
         if "velocity" in field:
-            tmp_vel = np.transpose(
-                [amrdata["velocity_x"], amrdata["velocity_y"], amrdata["velocity_z"]]) / 1e5 #km/s
+            tmp_vel = (
+                np.transpose(
+                    [
+                        amrdata["velocity_x"],
+                        amrdata["velocity_y"],
+                        amrdata["velocity_z"],
+                    ]
+                )
+                / 1e5
+            )  # km/s
             cell_pos = np.transpose([amrdata["x"], amrdata["y"], amrdata["z"]])
 
-            vel_proj = np.dot(M_basis, tmp_vel.T)
-            cell_pos_proj = np.dot(M_basis, cell_pos.T)
+            vel_proj = np.dot(tmp_vel.T, M_basis)
+            cell_pos_proj = np.dot(cell_pos.T, M_basis)
 
-            vel_plane = vel_proj[:2,:]
-            cell_pos_plane = cell_pos_proj[:2,:]
+            vel_plane = vel_proj[:2, :]
+            cell_pos_plane = cell_pos_proj[:2, :]
 
             vel_norm = np.linalg.norm(vel_plane, axis=0)
 
-            if subtract_mean :
-                vel_plane = vel_plane -  np.mean(vel_plane,axis=1)[:,None]
-        
+            if subtract_mean:
+                vel_plane = vel_plane - np.mean(vel_plane, axis=1)[:, None]
+
                 # #proj direction is always last axis
                 # vel_norm = np.linalg.norm(vel_plane, axis=0)
 
@@ -869,10 +897,11 @@ def make_amr_img_smooth(
                 # sign[inflow] = -1
                 # sign[outflow] = 1
 
-                directions = ((cell_pos_plane - pos_proj[:2,None])/
-                              np.linalg.norm(cell_pos_plane - pos_proj[:2,None],axis=0))
+                directions = (cell_pos_plane - pos_proj[:2, None]) / np.linalg.norm(
+                    cell_pos_plane - pos_proj[:2, None], axis=0
+                )
 
-                dot_prod = np.sum(vel_plane*directions,axis=0)
+                dot_prod = np.sum(vel_plane * directions, axis=0)
 
                 # vel_norm *= sign
                 vel_norm = dot_prod
@@ -882,7 +911,8 @@ def make_amr_img_smooth(
             amrdata["velocity"] = vel_norm
 
         else:
-            if subtract_mean :amrdata[field] = amrdata[field] -  np.mean(amrdata[field])
+            if subtract_mean:
+                amrdata[field] = amrdata[field] - np.mean(amrdata[field])
 
         img = plot_amr_data(
             amrdata,
@@ -1024,7 +1054,7 @@ def proj_math(sim, pos, zdist, mins, maxs, direction, r):
     ):  # not cartesian x,y,z basis... treat cells as spheres
         # dist_norm = 2
         dist_norm = np.inf
-        dx_boost = np.sqrt(3)*1.5
+        dx_boost = np.sqrt(3) * 1.5
         cartesian = False
     else:
         dist_norm = np.inf
@@ -1034,7 +1064,7 @@ def proj_math(sim, pos, zdist, mins, maxs, direction, r):
     M_basis = project_direction(dv1, [0, 0, 1])
     M_basis_inv = project_direction([0, 0, 1], dv1)
 
-    pos = np.dot(M_basis, pos)
+    pos = np.dot(pos, M_basis)
 
     if np.any(mins == None):
         mins = pos - r
@@ -1083,7 +1113,9 @@ def plot_zoom_BHs(
     sink_files = np.asarray(os.listdir(sim.sink_path))
     sink_fnbs = np.asarray([int(f.split("_")[-1].split(".")[0]) for f in sink_files])
 
-    step = snap_to_coarse_step(snap, sim)
+    step, found = snap_to_coarse_step(snap, sim)
+    if not found:
+        return 0
     sink_f = sink_files[step == sink_fnbs][0]
 
     bhs = sink_read_fct(os.path.join(sim.sink_path, sink_f))
@@ -1098,7 +1130,7 @@ def plot_zoom_BHs(
 
     M_basis = project_direction(dv1, [0, 0, 1])
 
-    pos = np.asarray([np.dot(M_basis, bhp - tgt_pos) for bhp in bh_pos])
+    pos = np.asarray([np.dot(bhp - tgt_pos, M_basis) for bhp in bh_pos])
 
     # print(pos.T)
 
@@ -1337,7 +1369,7 @@ def plot_brick_scatter(
 
     # gal_pos = np.dot(M_basis, gal_pos - tgt_pos).T
 
-    gal_pos = np.asarray([np.dot(M_basis, gp - tgt_pos) for gp in gal_pos])
+    gal_pos = np.asarray([np.dot(gp - tgt_pos, M_basis) for gp in gal_pos])
 
     x, y, z = gal_pos.T
 
@@ -1532,7 +1564,7 @@ def plot_brick_scatter(
         ):
 
             try:
-                _, gal_dict = props_fct(sim.path, snap, gid)
+                gal_dict = props_fct(sim.path, snap, gid)
 
             except FileNotFoundError:
                 pass
@@ -1938,13 +1970,30 @@ def basis_from_vect(u1):
 
     else:
 
-        u2 = np.cross(u1, np.asarray([1.0, 0.0, 0.0]))
+        # u2 = np.cross(np.asarray([1.0, 0.0, 0.0]), u1) #seems wrong formalism vs rascas?
+        # u2 = np.cross(
+        #     u1, np.asarray([0.0, 0.0, 1.0])
+        # )  # seems wrong formalism vs rascas?
+
+        # u2 = [
+        # u1[0] * 0.0 - u1[1] * 1.0,
+        # u1[1] * 0.0 - u1[2] * 0.0,
+        # u1[2] * 1.0 - u1[0] * 0.0,
+        # ]
+
+        u2 = [0, u1[2], -u1[1]]  # copied from rascas
+
         if np.all(u2 == np.zeros(3)):
             u2 += 1.0 / 3
         # print(u2)
         u2 = u2 / np.linalg.norm(u2)
 
-        u3 = np.cross(u1, u2)
+        # u3 = np.cross(u1, u2)
+        u3 = [
+            u1[1] * u2[2] - u1[2] * u2[1],
+            u1[2] * u2[0] - u1[0] * u2[2],
+            u1[0] * u2[1] - u1[1] * u2[0],
+        ]
         if np.all(u3 == np.zeros(3)):
             u3 += 1.0 / 3
         # print(u3)
@@ -2067,6 +2116,11 @@ def plot_stars(
     label = kwargs.get("label", None)
     log = kwargs.get("log", False)
     transpose = kwargs.get("transpose", True)
+    lower = kwargs.get("lower", True)
+    if lower:
+        lower_str = "lower"
+    else:
+        lower_str = "upper"
     zero_ctr = kwargs.get("zero_ctr", True)
     units = kwargs.get("units", "kpc")
     lim = kwargs.get("lim", True)
@@ -2107,11 +2161,28 @@ def plot_stars(
 
     if zero_ctr:
         vis_dir_ctr_st_pos = np.asarray(
-            [np.dot(M_basis, stp - ctr_tgt) for stp in ctr_st_pos]
+            [
+                np.dot(
+                    stp - ctr_tgt,
+                    M_basis,
+                )
+                for stp in ctr_st_pos
+            ]
         )
     else:
-        vis_dir_ctr_st_pos = np.asarray([np.dot(M_basis, stp) for stp in ctr_st_pos])
-        ctr_tgt = np.dot(M_basis, ctr_tgt)
+        vis_dir_ctr_st_pos = np.asarray(
+            [
+                np.dot(
+                    stp,
+                    M_basis,
+                )
+                for stp in ctr_st_pos
+            ]
+        )
+        ctr_tgt = np.dot(
+            ctr_tgt,
+            M_basis,
+        )
 
     # vis_dir_ctr_tgt = np.asarray(
     #     [
@@ -2120,11 +2191,11 @@ def plot_stars(
     #     ]
     # )
 
-    print(
-        len(vis_dir_ctr_st_pos),
-        vis_dir_ctr_st_pos.max(axis=0),
-        vis_dir_ctr_st_pos.min(axis=0),
-    )
+    # print(
+    #     len(vis_dir_ctr_st_pos),
+    #     vis_dir_ctr_st_pos.max(axis=0),
+    #     vis_dir_ctr_st_pos.min(axis=0),
+    # )
 
     if planx_bins == None:
         # planx_bins = np.linspace(-rad_tgt, rad_tgt, nb_img_bins + 1)
@@ -2182,7 +2253,7 @@ def plot_stars(
 
     # print(vis_dir_ctr_st_pos.max(axis=0), vis_dir_ctr_st_pos.min(axis=0))
     # print(planx_bins.min(), planx_bins.max(), plany_bins.min(), plany_bins.max())
-    print(rad_tgt, extent, planx_bins[0], planx_bins[-1])
+    # print(rad_tgt, extent, planx_bins[0], planx_bins[-1])
 
     ctr_img = [0, 0]
 
@@ -2253,7 +2324,7 @@ def plot_stars(
     if log:
         plimg = ax.imshow(
             plot_img,
-            origin="lower",
+            origin=lower_str,
             extent=extent_plot,
             cmap=cmap,
             norm=LogNorm(vmin=vmin, vmax=vmax),
@@ -2261,7 +2332,7 @@ def plot_stars(
     else:
         plimg = ax.imshow(
             plot_img,
-            origin="lower",
+            origin=lower_str,
             extent=extent_plot,
             cmap=cmap,
             vmin=vmin,
@@ -2277,18 +2348,18 @@ def plot_stars(
         cb = plt.colorbar(
             plimg,
             ax=ax,
-            fraction=0.046,
-            pad=0.04,
+            # fraction=0.046,
+            pad=0.0,
             **cb_args,
         )
         cb.set_label(label)
 
     if transpose:
-        ax.set_ylabel("y [kpc]")
-        ax.set_xlabel("x [kpc]")
+        ax.set_ylabel("y [ckpc]")
+        ax.set_xlabel("x [ckpc]")
     else:
-        ax.set_xlabel("y [kpc]")
-        ax.set_ylabel("x [kpc]")
+        ax.set_xlabel("y [ckpc]")
+        ax.set_ylabel("x [ckpc]")
 
     if lim:
         ax.set_xlim(extent_plot[:2])
@@ -2374,7 +2445,7 @@ def make_img_cic(x, y, z, ctr, ncells, extent_code, mode="sum"):
 
     img = np.zeros((ncells, ncells))
     if mode == "mean":
-        img_count = np.zeros((ncells, ncells))
+        img_count = np.zeros((ncells, ncells), dtype=np.float32)
 
     for dx, xdist in zip([-1, 0, 1], [dist_to_xm1, dist_to_x, dist_to_xp1]):
         for dy, ydist in zip([-1, 0, 1], [dist_to_ym1, dist_to_y, dist_to_yp1]):
@@ -2392,10 +2463,12 @@ def make_img_cic(x, y, z, ctr, ncells, extent_code, mode="sum"):
                 * (y_in_cells + dy < ncells + 1)
             )
 
+            print(len(z), len(x_in_cells))
+
             img += binned_statistic_2d(
                 x_in_cells + dx,
                 y_in_cells + dy,
-                fact * in_frame * z,
+                values=fact * in_frame * z,
                 bins=[bins[:], bins[:]],
                 statistic="sum",
             )[0]
@@ -2435,7 +2508,7 @@ def make_img_hist(x, y, z, ctr, ncells, extent_code, mode="sum"):
         ctr[1] + extent_code[2], ctr[1] + extent_code[3], ncells + 1
     )
 
-    img = np.zeros((ncells, ncells))
+    img = np.zeros((ncells, ncells), dtype=np.float32)
     img += binned_statistic_2d(
         x,
         y,
@@ -2556,7 +2629,7 @@ def make_img_stars(
 
     snap = sim.get_closest_snap(aexp=aexp)
 
-    tgt_fields = ["mass", "pos", "birth_time", "metallicity","age"]
+    tgt_fields = ["mass", "pos", "birth_time", "metallicity", "age"]
 
     if "velocity" in plot_field:
         tgt_fields.append("vel")
@@ -2620,7 +2693,7 @@ def make_img_stars(
         else:
             str_msr_dt = "%.1f" % msr_dt
 
-        label = f"SFR [{str_msr_dt} Myr]"+", [M$_\odot.\mathrm{Myr^{-1}}$]"
+        label = f"SFR [{str_msr_dt} Myr]" + ", [M$_\odot.\mathrm{Myr^{-1}}$]"
 
         # print(
         #     cur_time,
@@ -2664,7 +2737,7 @@ def make_img_stars(
         data_to_plot,
         stars["pos"],
         tgt_pos,
-        tgt_rad * (sim.cosmo.lcMpc * 1e3),
+        tgt_rad * (sim.cosmo.lcMpc * 1e3) * np.sqrt(2),
         label=label,
         **kwargs,
     )
@@ -2730,7 +2803,7 @@ def make_img_dm(
         data_to_plot,
         dm["pos"],
         tgt_pos,
-        tgt_rad,
+        tgt_rad * np.sqrt(2) * (sim.cosmo.lcMpc * 1e3),
         label=label,
         **kwargs,
     )
@@ -2780,6 +2853,12 @@ def plot_fields(
         "density",
         "temperature",
         "DTM",
+        "DTMC",
+        "DTMCs",
+        "DTMCl",
+        "DTMSi",
+        "DTMSis",
+        "DTMSil",
         "metallicity",
         "velocity",
         # "radial velocity",
@@ -2789,6 +2868,8 @@ def plot_fields(
         "dust_bin02",
         "dust_bin03",
         "dust_bin04",
+        "alpha_vir",
+        "mach",
     ]
 
     if field_name in stellar_fields:
@@ -2838,7 +2919,6 @@ def plot_fields(
         else:
             zdist = kwargs["zdist"]
 
-
         snap = sim.get_closest_snap(aexp=aexp)
 
         # print(tgt_pos, tgt_rad, zdist)
@@ -2875,6 +2955,6 @@ def guess_nbin(tgt_rad, sim, aexp):
     lvl = lvls[np.digitize(aexp, aexps)]
 
     sim_max_res = 1.0 / 2**lvl  # sim.namelist["amr_params"]["levelmax"]
-    nbins = int(tgt_rad / sim_max_res * 0.5 / aexp)
-    print(f"guessing appropriate nbins at 0.5 max resolution: {nbins}")
+    nbins = int(tgt_rad / sim_max_res * 0.33 / aexp)
+    print(f"guessing appropriate nbins at 0.33 max resolution: {nbins}")
     return nbins

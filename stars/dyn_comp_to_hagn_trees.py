@@ -63,6 +63,12 @@ hagn_snap = 197  # z=2 in the full res box
 HAGN_gal_dir = f"/data40b/Horizon-AGN/STARS"
 delta_t = 100  # Myr
 
+rad_fact=0.2 #xrvir
+overwrite = False
+plot_hagn = False
+only_main_stars = True
+
+
 sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_coreen",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
@@ -95,13 +101,14 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
     # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth",
     # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_boostNH",
     # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_boostNH_resimBoostFriction",
@@ -135,9 +142,6 @@ sfr_max, ssfr_max, sfh_max = -np.inf, -np.inf, -np.inf
 last_hagn_id = -1
 isim = 0
 
-overwrite = True
-plot_hagn = False
-only_main_stars = True
 
 zoom_ls = ["-", "--", ":", "-.", (0, (1, 10)), (0, (5, 10)), (0, (3, 10, 1, 10))] * 5
 lines = []
@@ -449,7 +453,7 @@ for sdir in sdirs:
         prev_mass = -1
         prev_pos = -1
         prev_rad = -1
-        prev_time = -1
+        
 
         # # zoom loop
         for istep, (snap, aexp, time) in enumerate(
@@ -462,6 +466,7 @@ for sdir in sdirs:
                 continue
 
             if not os.path.exists(get_gal_assoc_file(sim.path, snap)):
+                
                 prev_time = time
                 continue
 
@@ -469,23 +474,6 @@ for sdir in sdirs:
             cur_snap_hid = sim_tree_hids[sim_tree_arg]
 
             if cur_snap_hid in [0, -1]:
-                prev_time = time
-                continue
-
-            gid, gal_dict = get_central_gal_for_hid(
-                sim,
-                cur_snap_hid,
-                snap,
-                main_stars=only_main_stars,
-                prev_mass=prev_mass,
-                prev_pos=prev_pos,
-                prev_rad=prev_rad,
-                # debug=True,
-                verbose=True,
-            )
-            if gid == None:
-                print(f"No central galaxy at z={1./aexp-1:.1f},snap={snap:d}")
-                prev_time = time
                 continue
 
             # tgt_pos = gal_dict["pos"]
@@ -495,14 +483,13 @@ for sdir in sdirs:
             # tgt_r = gal_dict["r50"]
 
             smooth_tree_arg = np.argmin(np.abs(smooth_gal_props_tree["aexps"] - aexp))
+            gid = gal_props_tree["gids"][smooth_tree_arg]
 
             tgt_pos = gal_props_tree["pos"][
                 smooth_tree_arg
             ]  # smoothing on position is super dangerous...
-            tgt_r = smooth_gal_props_tree["r50"][smooth_tree_arg] * 1.0
-
-            prev_pos = tgt_pos
-            prev_mass = gal_dict["mass"]
+            # tgt_r = smooth_gal_props_tree["r50"][smooth_tree_arg] * rad_fact
+            tgt_r = smooth_gal_props_tree["rvir"][smooth_tree_arg] * rad_fact
 
             # stars = read_zoom_stars(sim, snap, gid)
 
@@ -510,24 +497,26 @@ for sdir in sdirs:
             # Zs = stars["Zpart"]
 
             # masses = sfhs.correct_mass(hagn_sim, ages, stars["mpart"], Zs)
-            stars = read_data_ball(
-                sim,
-                snap,
-                tgt_pos,
-                tgt_r,
-                host_halo=cur_snap_hid,
-                data_types=["stars"],
-                tgt_fields=[
-                    "pos",
-                    "vel",
-                    "mass",
-                    "age",
-                    "metallicity",
-                ],
-            )
+            try:
+                stars = read_data_ball(
+                    sim,
+                    snap,
+                    tgt_pos,
+                    tgt_r,
+                    host_halo=cur_snap_hid,
+                    data_types=["stars"],
+                    tgt_fields=[
+                        "pos",
+                        "vel",
+                        "mass",
+                        "age",
+                        "metallicity",
+                    ],
+                )
+            except FileNotFoundError:
+                continue
 
             if stars == None:
-                prev_time = time
                 continue
 
             ages = stars["age"]
@@ -536,7 +525,6 @@ for sdir in sdirs:
             masses = sfhs.correct_mass(hagn_sim, ages, stars["mass"], Zs)
 
             if len(masses) == 0:
-                prev_time = time
                 continue
 
             # star_bulk_vel = np.linalg.norm(
@@ -546,31 +534,12 @@ for sdir in sdirs:
             #     star_bulk_vel * (3600 * 24 * 365 * 1e6) * (1e3 / 3.08e16 / 1e3)
             # )  # kpc/Myr
 
-            # print("star bulk vel", star_bulk_vel)
-            if istep > 0:
-                # prev_rad = abs(star_bulk_vel * (time - sim_times[istep - 1]) * 1.5)
-                # prev_rad = prev_rad / sim.cosmo.lcMpc / 1e3  # ckpc->code
-                # print(f"this is: {prev_rad:.2e} code units")
-                dt = abs(time - prev_time) * (1e6 * 3600 * 24 * 365)  # s
-                max_vel = 5e3  # km/s
-                prev_rad = max_vel * dt * 1e3 / (3.08e16 * 1e3)  # kpc
-                print(
-                    f"max gal velocity between snaps : {max_vel:.1e}, equivalent search radius : {prev_rad:.2f} kpc"
-                )
-                prev_rad = prev_rad / (sim.cosmo.lcMpc * 1e3)
-
-                prev_rad = max(prev_rad, tgt_r * 2)
-                print(
-                    f"adopted search radius: {prev_rad* sim.cosmo.lcMpc * 1e3:.2f} kpc"
-                )
-
-            prev_time = time
 
             rot_props, kin_props = extract_nh_kinematics(
                 masses,
                 stars["pos"],
                 stars["vel"] - np.average(stars["vel"], axis=0, weights=masses),
-                gal_dict["pos"],
+                tgt_pos
             )
 
             vrot = rot_props["Vrot"]
@@ -750,49 +719,52 @@ for sdir in sdirs:
     # print(sim.name, intID, last_simID)
     # print(zoom_style, zoom_ls[zoom_style], l[0].get_color())
 
+
     last_simID = intID
 
-    fig_test, ax_test = plt.subplots()
-    ax_test.plot(
-        gal_props_tree["aexps"], gal_props_tree["pos"], label="rmax", marker="o"
-    )
-    ax_test.plot(
-        gal_props_tree["aexps"],
-        gal_props_tree["hpos"],
-        label="r50",
-        ls="--",
-        marker="o",
-    )
-    fig_test.savefig("test_pos.png")
-    fig_test, ax_test = plt.subplots()
-    ax_test.plot(
-        smooth_gal_props_tree["aexps"],
-        smooth_gal_props_tree["pos"],
-        label="rmax",
-        marker="o",
-    )
-    ax_test.plot(
-        smooth_gal_props_tree["aexps"],
-        smooth_gal_props_tree["hpos"],
-        label="r50",
-        ls="--",
-        marker="o",
-    )
-    fig_test.savefig("test_smooth_pos.png")
-    fig_test, ax_test = plt.subplots()
-    ax_test.plot(
-        gal_props_tree["aexps"], gal_props_tree["mass"], label="rmax", marker="o"
-    )
-    ax_test.plot(
-        gal_props_tree["aexps"],
-        gal_props_tree["mvir"],
-        label="r50",
-        ls="--",
-        marker="o",
-    )
-    ax_test.plot(sim_aexps, mstel_zoom[::-1])
-    ax_test.set_yscale("log")
-    fig_test.savefig("test_smooth_m.png")
+
+    if not read_existing:
+        fig_test, ax_test = plt.subplots()
+        ax_test.plot(
+            gal_props_tree["aexps"], gal_props_tree["pos"], label="rmax", marker="o"
+        )
+        ax_test.plot(
+            gal_props_tree["aexps"],
+            gal_props_tree["hpos"],
+            label="r50",
+            ls="--",
+            marker="o",
+        )
+        fig_test.savefig("test_pos.png")
+        fig_test, ax_test = plt.subplots()
+        ax_test.plot(
+            smooth_gal_props_tree["aexps"],
+            smooth_gal_props_tree["pos"],
+            label="rmax",
+            marker="o",
+        )
+        ax_test.plot(
+            smooth_gal_props_tree["aexps"],
+            smooth_gal_props_tree["hpos"],
+            label="r50",
+            ls="--",
+            marker="o",
+        )
+        fig_test.savefig("test_smooth_pos.png")
+        fig_test, ax_test = plt.subplots()
+        ax_test.plot(
+            gal_props_tree["aexps"], gal_props_tree["mass"], label="rmax", marker="o"
+        )
+        ax_test.plot(
+            gal_props_tree["aexps"],
+            gal_props_tree["mvir"],
+            label="r50",
+            ls="--",
+            marker="o",
+        )
+        ax_test.plot(sim_aexps, mstel_zoom[::-1])
+        ax_test.set_yscale("log")
+        fig_test.savefig("test_smooth_m.png")
 
 # if np.isfinite(mstel_min) and np.isfinite(mstel_max):
 #     ax[0].set_ylim(mstel_min * 0.5, mstel_max * 1.5)

@@ -29,7 +29,7 @@ nb=$(printf "%05d" $((cur_nb+1)))
 
 ./manipulate_mergertree -ftr tree.dat -out tree_rev.dat -rev true >& rev_tree_log
 
-python /home/jlewis/zoom_analysis/trees/make_tree_rev_offsets.py tree_rev.dat . >& rev_tree_offsets_log
+python /home/jlewis/codes/zoom_analysis/trees/make_tree_rev_offsets.py tree_rev.dat . >& rev_tree_offsets_log
 
 date
 

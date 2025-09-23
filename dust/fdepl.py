@@ -6,7 +6,7 @@ from zoom_analysis.halo_maker.read_treebricks import (
     read_zoom_stars,
 )
 from zoom_analysis.read.read_data import read_data_ball
-from zoom_analysis.trees.tree_reader import read_tree_file_rev as read_tree_fev_sim
+from zoom_analysis.trees.tree_reader import read_tree_file_rev_correct_pos as read_tree_fev_sim
 from zoom_analysis.constants import ramses_pc
 from zoom_analysis.halo_maker.assoc_fcts import (
     # find_zoom_tgt_halo,
@@ -211,6 +211,8 @@ for sdir in sdirs:
 
         sim_tree_hids, sim_tree_datas, sim_tree_aexps = read_tree_fev_sim(
             sim_halo_tree_rev_fname,
+            sim,
+            sim.get_closest_snap(aexp=start_aexp),
             fbytes=os.path.join(sim.path, "TreeMakerDM_dust"),
             zstart=1.0 / start_aexp - 1.0,
             tgt_ids=[hid_start],
@@ -295,6 +297,7 @@ for sdir in sdirs:
                 tgt_r,
                 host_halo=cur_snap_hid,
                 data_types=["stars", "gas"],
+                tgt_fields=["mass","age","metallicity","density","dust_bin01","dust_bin02","dust_bin03","dust_bin04","chem_O","chem_Fe","chem_C","chem_Si","chem_Mg"],
             )
             cells = datas["gas"]
             stars = datas["stars"]

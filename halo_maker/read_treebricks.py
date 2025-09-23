@@ -267,6 +267,7 @@ def convert_brick_units(treebrick, sim: ramses_sim):
     treebrick["positions"]["y"] += 0.5
     treebrick["positions"]["z"] += 0.5
 
+    print(np.min(treebrick["positions"]["x"]),np.max(treebrick["positions"]["x"]))
     # convert masses to Msol
     treebrick["virial properties"]["mvir"] *= 1e11
     treebrick["hosting info"]["hmass"] *= 1e11

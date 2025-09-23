@@ -62,11 +62,12 @@ delta_aexp = 0.05
 sim = get_nh_sim()
 # bh_fct =
 # gal_fct =
-read_star_fct = read_part_ball_hagn
+# read_star_fct = read_part_ball_hagn
+read_star_fct = read_part_ball_NH
 hm_dm = "TREE_DM"
 hm = "TREE_STARS_AdaptaHOP_dp_SCnew_gross"
 # intID = 242756
-sim_dir = os.path.join("/data101/jlewis/nh", "maps_own_trees", "sinks")
+sim_dir = os.path.join("/data101/jlewis/nh")
 
 
 def gal_fct(snap, sim, hm, **kwargs):
@@ -92,23 +93,28 @@ sim_times = sim.get_snap_times(param_save=False)
 sim_snaps = sim.snap_numbers
 
 
+
 # zstt = 2.0
 tgt_zed = 1.0
 # max_zed = 1.1
 max_zed = 6.0
 
-last_snap = sim_snaps[sim_aexps > 1.0 / (tgt_zed + 1.0)][0]
+tgt_snap = sim.get_closest_snap(zed=tgt_zed)
+# last_snap = sim_snaps[sim_aexps > 1.0 / (tgt_zed + 1.0)][0]
 
 # last_snap = 251
 
 gal_bricks = read_zoom_brick(
-    last_snap, sim, hm, sim_path="/data7b/NewHorizon", star=True, galaxy=True
+    tgt_snap, sim, hm, sim_path="/data7b/NewHorizon", star=True, galaxy=True
 )
 
+tgt_hid = 20
 
 # hal_bricks = read_zoom_brick(last_snap, sim, hm_dm, star=False, galaxy=False)
 
-arg_gal = np.argsort(gal_bricks["hosting info"]["hmass"])[-1]
+# arg_gal = np.argsort(gal_bricks["hosting info"]["hmass"])[-1]
+print(gal_bricks["hosting info"].keys())
+arg_gal = np.where(gal_bricks["hosting info"]['hid'] == tgt_hid)[0][0]
 
 tgt_pos = np.transpose(
     [
@@ -167,7 +173,7 @@ dv1 = [0, 0, 1]
 dv2 = [0, 1, 0]
 dv3 = [1, 0, 0]
 
-nstar_bins = 250
+nstar_bins = 500
 # hagn_sim = get_hagn_sim()
 
 
@@ -279,7 +285,7 @@ sim_snap = sim.get_closest_snap(aexp=1.0 / (find_sink_zed + 1.0))
 # print("Found starting massive sink:", sid, "at z=", 1.0 / h_aexps[closest_arg] - 1)
 
 massive_sink = find_massive_sink(tgt_pos, sim_snap, sim, rmax=tgt_rad)
-print(massive_sink)
+
 sid = massive_sink["identity"]
 # sid = 120
 
@@ -416,21 +422,21 @@ for snap, aexp, time in zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1]):
     ax_img, ax_stars, ax_mass, ax_dens, ax_growth, ax_cs = axs.flatten()
 
     # zoom_stars = read_zoom_stars(sim, snap, gid)
-    # zoom_stars = read_star_fct(
-    #     sim,
-    #     snap,
-    #     tgt_pos,
-    #     rad_tgt / (sim.cosmo.lcMpc * 1e3),
-    #     ["birth_time", "metallicity", "mass", "pos"],
-    #     fam=2,
-    # )
+    zoom_stars = read_star_fct(
+        sim,
+        snap,
+        tgt_pos,
+        rad_tgt / (sim.cosmo.lcMpc * 1e3),
+        ["birth_time", "metallicity", "mass", "pos"],
+        fam=2,
+    )
 
-    # ages = zoom_stars["age"]
-    # Zs = zoom_stars["metallicity"]
-    # masses = zoom_stars["mass"]
+    ages = zoom_stars["age"]
+    Zs = zoom_stars["metallicity"]
+    masses = zoom_stars["mass"]
 
-    # masses = correct_mass(sim, ages, masses, Zs)
-    # stpos = zoom_stars["pos"]
+    masses = correct_mass(sim, ages, masses, Zs)
+    stpos = zoom_stars["pos"]
 
     # xbins = np.linspace(stpos[:, 1].min(), stpos[:, 1].max(), nstar_bins)
     # ybins = np.linspace(stpos[:, 2].min(), stpos[:, 2].max(), nstar_bins)
@@ -442,41 +448,42 @@ for snap, aexp, time in zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1]):
     # if len(masses) > 0:
     #     vmin_stmass = masses.min() * 5
 
-    # plot_stars(
-    #     fig,
-    #     ax_stars,
-    #     sim,
-    #     aexp,
-    #     [dv1, dv2, dv3],
-    #     nstar_bins,
-    #     masses,
-    #     stpos,
-    #     tgt_pos,
-    #     rad_tgt,
-    #     cb=True,
-    #     vmin=4e4,
-    #     vmax=1e6,
-    #     # vmin=vmin_stmass,
-    # )
-
-    stimg = plot_fields(
-        "stellar mass",
+    plot_stars(
         fig,
         ax_stars,
+        sim,
         aexp,
         [dv1, dv2, dv3],
+        nstar_bins,
+        masses,
+        stpos,
         tgt_pos,
-        rad_tgt / (sim.cosmo.lcMpc * 1e3),
-        sim,
+        rad_tgt,
         cb=True,
-        vmin=stvmin,
-        # vmax=stvmax,
-        transpose=True,
-        cmap="grey",
-        log=True,
-        read_ball_fct=read_part_ball_NH,
-        # debug=True,
+        vmin=1e5,
+        vmax=1e8,
+        log=True
+        # vmin=vmin_stmass,
     )
+
+    # stimg = plot_fields(
+    #     "stellar mass",
+    #     fig,
+    #     ax_stars,
+    #     aexp,
+    #     [dv1, dv2, dv3],
+    #     tgt_pos,
+    #     rad_tgt / (sim.cosmo.lcMpc * 1e3),
+    #     sim,
+    #     cb=True,
+    #     vmin=stvmin,
+    #     # vmax=stvmax,
+    #     transpose=True,
+    #     cmap="grey",
+    #     log=True,
+    #     read_ball_fct=read_part_ball_NH,
+    #     # debug=True,
+    # )
 
     # # fix, should subtract the historical position
     # sink_hist_pos_dv1 = np.dot(sink_hist["position"][:, :] - tgt_pos[:], dv1)
@@ -548,41 +555,42 @@ for snap, aexp, time in zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1]):
     # print(tgt_pos, rad_tgt / (sim.cosmo.lcMpc * 1e3), zdist)
     # print(tgt_pos - tgt_rad * 0.15, tgt_pos + tgt_rad * 0.15)
 
-    # make_amr_img_smooth(
-    #     fig,
-    #     ax_img,
-    #     field,
-    #     snap,
-    #     sim,
-    #     tgt_pos,
-    #     rad_tgt / (sim.cosmo.lcMpc * 1e3),
-    #     # zdist=-1,
-    #     zdist=zdist,
-    #     debug=False,
-    #     vmin=vmin,
-    #     vmax=vmax,
-    #     # vmax=1e-22,
-    #     cb=True,
-    #     direction=dv1,
-    # )
-
-    img = plot_fields(
-        field,
+    make_amr_img_smooth(
         fig,
         ax_img,
-        aexp,
-        [dv1, dv2, dv3],
+        field,
+        snap,
+        sim,
         tgt_pos,
         rad_tgt / (sim.cosmo.lcMpc * 1e3),
-        sim,
-        cb=True,
+        # zdist=-1,
+        zdist=zdist,
+        NH_read=True,
+        debug=False,
         vmin=vmin,
         vmax=vmax,
-        transpose=False,
-        cmap="magma",
-        log=log_color,
-        op=op,
+        # vmax=1e-22,
+        cb=True,
+        direction=dv1,
     )
+
+    # img = plot_fields(
+    #     field,
+    #     fig,
+    #     ax_img,
+    #     aexp,
+    #     [dv1, dv2, dv3],
+    #     tgt_pos,
+    #     rad_tgt / (sim.cosmo.lcMpc * 1e3),
+    #     sim,
+    #     cb=True,
+    #     vmin=vmin,
+    #     vmax=vmax,
+    #     transpose=False,
+    #     cmap="magma",
+    #     log=log_color,
+    #     op=op,
+    # )
 
     if not clean:
 
@@ -626,7 +634,7 @@ for snap, aexp, time in zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1]):
                     legend=legend,
                     color=color,
                     direction=dv1,
-                    transpose=False,
+                    transpose=True,
                 )
 
             # plot zoom halos
@@ -644,7 +652,7 @@ for snap, aexp, time in zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1]):
                     legend=legend,
                     color=color,
                     direction=dv1,
-                    transpose=False,
+                    transpose=True,
                 )
 
             # plot zoom BHs
@@ -661,7 +669,7 @@ for snap, aexp, time in zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1]):
                     annotate=annotate,
                     color=color,
                     direction=dv1,
-                    transpose=False,
+                    transpose=True,
                 )
             except (ValueError, AssertionError):
                 pass
@@ -723,7 +731,7 @@ for snap, aexp, time in zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1]):
     ax_dens.grid()
 
     ax_dens.set_xlabel("redshift")
-    ax_dens.set_ylabel("cloud density, g/cm^3")
+    ax_dens.set_ylabel("cloud density, H/cm^3")
     ax_dens.set_xlim(xmax=max_zed, xmin=sink_hist["zeds"].min())
     ax_dens.invert_xaxis()
 
@@ -746,7 +754,7 @@ for snap, aexp, time in zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1]):
     ax_cs.grid()
 
     ax_cs.set_xlabel("redshift")
-    ax_cs.set_ylabel("vrel, [?]")
+    ax_cs.set_ylabel("vrel, km/s")
     ax_cs.set_xlim(xmax=max_zed, xmin=sink_hist["zeds"].min())
     ax_cs.invert_xaxis()
 

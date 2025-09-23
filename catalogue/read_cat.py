@@ -16,13 +16,11 @@ def read_lvl_h5(f, cat):
     return cat
 
 
-def read_cat(simdir, snap, cat_type, rfact, id, tgt_keys=None):
+def read_cat(simdir, snap, cat_type, rtype, rfact=1.0, id=None, tgt_keys=None):
 
-    rtype = None
-    if cat_type == "galaxy":
-        rtype = "r50"
-    elif cat_type == "halo":
-        rtype = "rvir"
+    assert cat_type in ['galaxy',"halo"], "cat_type must be either galaxy or halo centred"
+    assert rtype in ['r50','r90','reff','rvir'], 'rtype must be either r50, r90, reff, or rvir'        
+        
 
     rfact_str = ("%.1f" % rfact).replace(".", "p")
 
@@ -40,21 +38,41 @@ def read_cat(simdir, snap, cat_type, rfact, id, tgt_keys=None):
         # fill cat with data, copying path of h5py file
         # if id is None, read all TODO
         # else read only id
-        if cat_type == "galaxy":
-            arg = f["galaxy ids"] == id
-        elif cat_type == "halo":
-            arg = f["halo ids"] == id
+        # if cat_type == "galaxy":
+        #     arg = f["galaxy ids"] == id
+        # elif cat_type == "halo":
+        #     arg = f["halo ids"] == id
 
-        key = f"{cat_type:s}_{int(id):07d}"
-
-        if tgt_keys == None:
-            read_lvl_h5(f[key], cat)
+        if id is not None:
+            key = f"{cat_type:s}_{int(id):07d}"
+            if tgt_keys == None:
+                read_lvl_h5(f[key], cat)
+            else:
+                for k in tgt_keys:
+                    cat[k] = f[key][k][()]
         else:
-            for k in tgt_keys:
-                cat[k] = f[key][k][()]
+            
+            if tgt_keys == None:
+                read_lvl_h5(f, cat)
+            else:
+                for obj in f.keys():
+                    cat[obj]={}
+                    for k in tgt_keys:
+                        cat[k] = f[k][()]
 
     return cat
 
+def obj_based_to_table(cat:dict,data_type,key):
+
+    gids = cat['galaxy ids']
+
+    vals = np.zeros_like(gids,dtype=np.float32)
+
+    for igal,gid in enumerate(gids):
+
+        vals[igal] = cat[f"galaxy_{gid:07d}"][data_type][key]
+
+    return vals
 
 if __name__ == "__main__":
 

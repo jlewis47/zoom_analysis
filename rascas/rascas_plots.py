@@ -58,49 +58,35 @@ def plot_spec(wave, spectrum):
 def gen_spec(aexp, spec, lambda_bins, filts, rf=False):
 
     filts_names, filts_wavs, filts_trans = filts
-    # filts_names, filts_wavs, filts_trans = read_transmissions()
 
-    mab_spec = flamb_to_mAB(spec, lambda_bins * aexp)
-    # print(filts_names)
-    # print(mab_spec)
+    if rf:  # lambda_bins are at rest frame
 
-    if rf:
-
-        nircam_spe_wav, nircam_spe = convolve_spe(
-            lambda_bins * aexp, spec, filts_wavs, filts_trans
-        )
-        nircam_mab = flamb_to_mAB(nircam_spe, nircam_spe_wav * aexp)
-
-    else:
-
+        mab_spec = flamb_to_mAB(spec, lambda_bins)
         nircam_spe_wav, nircam_spe = convolve_spe(
             lambda_bins, spec, filts_wavs, filts_trans
         )
-        nircam_mab = flamb_to_mAB(nircam_spe, nircam_spe_wav * aexp)
+        nircam_mab = flamb_to_mAB(nircam_spe, nircam_spe_wav)
 
-    # print(nircam_mab)
-    # print(nircam_spe_wav, wav_ctrs)
+    else:  # lambda_bins are at observed frame
 
-    print(list(zip(filts_names, nircam_mab)))
+        mab_spec = flamb_to_mAB(spec, lambda_bins)
+        nircam_spe_wav, nircam_spe = convolve_spe(
+            lambda_bins, spec, filts_wavs, filts_trans
+        )
+        nircam_mab = flamb_to_mAB(nircam_spe, nircam_spe_wav)
 
-    # mag_err = dumb_constant_mag(band_mags, val=0.01)
-    # mag_err = dumb_constant_mag(band_mags, val=0.01)
-    # _, mag_err, _, _ = get_cl_err(nircam_mab, filts_names)
+    # print(list(zip(filts_names, nircam_mab)))
+
     new_mag, mag_err, _, _ = get_cl_err(nircam_mab, filts_names)
-
-    # print(list(zip(new_mag, nircam_mab)))
-    # print(list(zip(new_mag, nircam_mab)))
 
     return (filts_names, mab_spec, nircam_mab, new_mag, mag_err)
 
 
-def gen_imgs(z, lambda_bins, cube, filts):
+def gen_imgs(z, lambda_bins, cube, filts, rpix=None, verbose=False):
 
     filts_names, filts_wavs, filts_trans = filts
 
-    # wav_ctrs = np.asarray([wav[int(0.5 * len(wav))] for wav in filts_wavs])
-
-    aexp = 1.0 / (1.0 + z)
+    # aexp = 1.0 / (1.0 + z)
 
     max_filt, min_filt = 0, np.inf
 
@@ -110,14 +96,23 @@ def gen_imgs(z, lambda_bins, cube, filts):
         if wav.min() < min_filt:
             min_filt = wav.min()
 
-    # print(cube)
+    if rpix == None:
+        rpix = cube["img_npix"]
 
-    imgs = np.empty((len(filts_names), int(cube["img_npix"]), int(cube["img_npix"])))
+    else:
+
+        half_rpix = int(rpix / 2)
+        half = int(cube["cube"].shape[0] / 2)
+        half_rpix = min(half_rpix, half)
+        rpix = int(half_rpix * 2)
+
+    imgs = np.empty((len(filts_names), rpix, rpix))
     band_ctrs = np.empty(len(filts_names))
 
     for iband, name in enumerate(filts_names):
 
-        print(f"Getting flux in band {name:s}")
+        if verbose:
+            print(f"Getting flux in band {name:s}")
         # if iband != 5:
         # continue
         # if iband == 9:
@@ -127,7 +122,10 @@ def gen_imgs(z, lambda_bins, cube, filts):
             cube["cube"],
             [filts_wavs[iband]],
             [filts_trans[iband]],
+            rpix=rpix,
         )
+
+        # print(rpix, img.shape, imgs.shape)
 
         imgs[iband, :, :] = img  # norm_band(img, name)
 
@@ -142,16 +140,18 @@ def plot_spe_bands(
     spec_mag,
     band_mags,
     band_mag_errs,
-    imgs,
+    mab_imgs,
     band_ctrs,
     filts,
     **kwargs,
 ):
 
+    from collections.abc import Iterable
+
     vmin = kwargs.get("vmin", None)
     vmax = kwargs.get("vmax", None)
 
-    fig = plt.figure(figsize=(20, 7))
+    fig = plt.figure(figsize=(10, 7))
 
     filts_names, filts_wavs, filts_trans = filts
 
@@ -167,18 +167,36 @@ def plot_spe_bands(
     norm_wav_ctrs = (wav_ctrs - wav_ctrs.min()) / (wav_ctrs.max() - wav_ctrs.min())
     filt_colors = plt.get_cmap("coolwarm")(norm_wav_ctrs)
 
-    gs = GridSpec(3, len(filts_names), height_ratios=[2, 3, 1], hspace=0.0)
-    ax0 = [fig.add_subplot(gs[0, i]) for i in range(len(filts_names))]
-    ax1 = fig.add_subplot(gs[1, :])
-    ax2 = fig.add_subplot(gs[2, :], sharex=ax1)
+    nvign = len(filts_names)
+    nvign_row = int(np.ceil(0.5 * (nvign)))
+
+    nplots = nvign_row * 2
+
+    gs = GridSpec(4, nvign_row, height_ratios=[2, 2, 3, 1])
+    ax0 = [fig.add_subplot(gs[0, i]) for i in range(nvign_row)] + [
+        fig.add_subplot(gs[1, i]) for i in range(nvign_row)
+    ]
+    ax1 = fig.add_subplot(gs[2, :])
+    ax2 = fig.add_subplot(gs[3, :], sharex=ax1)
+
+    overshoot = nplots - nvign
+    if overshoot > 0:
+        for a in ax0[-overshoot:]:
+            a.grid("off")
+
+    for a in ax0:
+        a.grid(False)
+    ax1.grid(True)
+    ax2.grid(False)
+
     comb_ax = [ax0, ax1, ax2]
 
     z = 1.0 / aexp - 1.0
 
-    for iband, (name, img) in enumerate(zip(filts_names, imgs)):
+    for iband, (name, mab_img) in enumerate(zip(filts_names, mab_imgs)):
 
-        yband = np.linspace(-rgal[0], +rgal[0], img.shape[0]) * l * 1e3 * aexp
-        zband = np.linspace(-rgal[0], +rgal[0], img.shape[1]) * l * 1e3 * aexp
+        yband = np.linspace(-rgal[0], +rgal[0], mab_img.shape[0]) * l * 1e3 * aexp
+        zband = np.linspace(-rgal[0], +rgal[0], mab_img.shape[1]) * l * 1e3 * aexp
 
         # print(yband.min(), yband.max())
         # print(zband.min(), zband.max())
@@ -187,27 +205,29 @@ def plot_spe_bands(
 
         # print(np.min(img), np.max(img), img.sum())
 
-        ok_vals = img > 0
+        # ok_vals = mab_img > 0
+        not_ok_vals = np.isfinite(mab_img) == False
 
-        if ok_vals.sum() > 0:
-            img[ok_vals == False] = img[ok_vals].min()
-            mab_img = flamb_to_mAB(img, band_ctrs[iband])  # /aexp?
+        mab_img[not_ok_vals] = 999
+
+        if True:
+            # img[ok_vals == False] = img[ok_vals].min()
+            # mab_img = flamb_to_mAB(img, band_ctrs[iband])  # /aexp?
 
             # print(np.min(mab_img), np.max(mab_img), mab_img.sum())
 
             # for visibility, re-normalize between transmissions
 
-            ok_vals = mab_img > -999
+            ok_vals = mab_img < 999
 
-            print(mab_img[ok_vals].max(), mab_img[ok_vals].min())
+            # print(mab_img[ok_vals].max(), mab_img[ok_vals].min())
 
-            hist = np.histogram(mab_img[ok_vals], bins=20)
             # hist = np.histogram(np.log10(img[ok_vals]), bins=50)
-            # print(list(zip(hist[0], hist[1])))
-            cdf = np.cumsum(hist[0]) / np.sum(hist[0])
-            if vmin == None:
+            if np.any(vmin == None) or np.any(vmax == None):
+                hist = np.histogram(mab_img[ok_vals], bins=20)
+                print(list(zip(hist[0], hist[1])))
+                cdf = np.cumsum(hist[0]) / np.sum(hist[0])
                 vmin = hist[1][np.argmin(np.abs(cdf - 0.1))]
-            if vmax == None:
                 vmax = hist[1][np.argmin(np.abs(cdf - 0.9))]
             # vmin = 10 ** hist[1][np.argmin(np.abs(cdf - 0.2))]
             # vmax = 10 ** hist[1][np.argmin(np.abs(cdf - 0.8))]
@@ -227,18 +247,30 @@ def plot_spe_bands(
 
             # if np.sum(img) > 0:
 
-            if np.any(img < vmax):
+            # print(np.median(mab_img))
 
+            if isinstance(vmin, Iterable) and isinstance(vmax, Iterable):
+
+                cur_vmin = vmin[iband]
+                cur_vmax = vmax[iband]
+
+            else:
+
+                cur_vmin = np.min(vmin)
+                cur_vmax = np.max(vmax)
+
+            if np.any(mab_img < cur_vmax):
                 img = comb_ax[0][iband].imshow(
                     # ok_vals,
+                    # mab_img,
                     mab_img.T,
                     # img[0],
                     origin="lower",
                     # vmax=0,
                     # vmin=-80,
                     # norm=LogNorm(vmin=vmin, vmax=vmax),
-                    vmax=vmax,
-                    vmin=vmin,
+                    vmax=cur_vmax,
+                    vmin=cur_vmin,
                     cmap="Greys",
                     extent=[yband[0], yband[-1], zband[0], zband[-1]],
                 )
@@ -249,7 +281,7 @@ def plot_spe_bands(
         # cbar = fig.colorbar(img, ax=comb_ax[0][iband])
 
         comb_ax[0][iband].set_xlim(yband[0], yband[-1])
-        comb_ax[0][iband].set_ylim(zband[0], zband[-1])
+        comb_ax[0][iband].set_ylim(min(zband[0], 29), zband[-1])
 
         comb_ax[0][iband].set_aspect("equal")
 
@@ -258,14 +290,14 @@ def plot_spe_bands(
 
         comb_ax[0][iband].set_title(name)
 
-        if iband == 0:
+        if iband == 0 or iband == nvign_row:
             comb_ax[0][iband].tick_params(
                 axis="both",
                 which="both",
                 bottom=False,
                 labelbottom=False,
             )
-            comb_ax[0][iband].set_ylabel(r"$z, \mathrm{kpc}$")
+            comb_ax[0][iband].set_ylabel(r"$y, \mathrm{kpc}$")
         else:
             comb_ax[0][iband].tick_params(
                 axis="both",
@@ -275,6 +307,9 @@ def plot_spe_bands(
                 left=False,
                 labelleft=False,
             )
+        comb_ax[0][iband].set_xlabel(r"$x, \mathrm{kpc}$")
+
+        comb_ax[0][iband].invert_xaxis()
 
     # hax.legend(framealpha=0.0)
     # hfig.savefig(f"hist_img.png")
@@ -297,9 +332,10 @@ def plot_spe_bands(
 
     comb_ax[1].set_ylim(
         band_mags[np.isfinite(band_mags)].min() - 0.5,
-        max(band_mags[np.isfinite(band_mags)].max(), spec_min) + 0.5,
+        band_mags[np.isfinite(band_mags)].max() + 0.5,
+        # max(band_mags[np.isfinite(band_mags)].max(), spec_min) + 0.5,
     )
-    comb_ax[1].grid()
+    comb_ax[1].grid(True)
 
     comb_ax[1].tick_params(bottom=False, labelbottom=False)
 
@@ -341,7 +377,7 @@ def plot_spe_bands(
     comb_ax[2].set_ylabel("Transmission")
     comb_ax[2].set_yscale("log")
 
-    comb_ax[2].grid()
+    comb_ax[2].grid(True)
 
     for name, wav, tran, color in zip(
         filts_names, filts_wavs, filts_trans, filt_colors
@@ -357,7 +393,8 @@ def plot_spe_bands(
         arg = int(len(wav) / 2.0)
         comb_ax[2].text(
             wav[arg] / 1e4,
-            tran[arg] * 0.9,
+            # tran[arg] * 0.75,
+            0.01,
             name,
             # color=line[0].get_color(),
             color=color,
@@ -376,9 +413,14 @@ def plot_spe_bands(
     return fig, comb_ax
 
 
-def plot_mock_composite(b, g, r, yrascas=None, zrascas=None, **kwargs):
+def plot_mock_composite(
+    b, g, r, yrascas=None, zrascas=None, axs=None, fig=None, **kwargs
+):
 
-    fig, axs = plt.subplots(1, 1, sharex=True, sharey=True)
+    # fig, axs = plt.subplots(1, 1, sharex=True, sharey=True)
+    if axs is None or fig is None:
+        fig, axs = plt.subplots(1, 1, figsize=(8, 8), sharex=True, sharey=True)
+        # fig, axs = plt.subplots(1, 1, figsize=(20, 20), sharex=True, sharey=True)
 
     # pl_img = axs[0].imshow(
     #     bw_img.T, origin="lower", cmap="gray", norm=LogNorm(vmin=1), interpolation=None
@@ -396,7 +438,7 @@ def plot_mock_composite(b, g, r, yrascas=None, zrascas=None, **kwargs):
             # vmin=0,
             # vmax=np.max(),
             # norm=LogNorm(vmin=1),
-            **kwargs,
+            # **kwargs,
         )
     else:
         extent = [yrascas[0], yrascas[-1], zrascas[0], zrascas[-1]]
@@ -408,7 +450,7 @@ def plot_mock_composite(b, g, r, yrascas=None, zrascas=None, **kwargs):
             # vmax=np.max(),
             # norm=LogNorm(vmin=1),
             extent=extent,
-            **kwargs,
+            # **kwargs,
         )
 
         axs.set_xlabel(r"$y, \mathrm{ckpc/h}$")
@@ -473,33 +515,86 @@ def plot_mock_composite(b, g, r, yrascas=None, zrascas=None, **kwargs):
     return fig, axs
 
 
-# def plot_mock_composite_napari(bands, names, colors):
+def plot_mock_composite_vignettes(
+    b, g, r, yrascas=None, zrascas=None, axs=None, fig=None, **kwargs
+):
 
-#     # create viewer instance
-#     viewer = napari.Viewer()
+    # fig, axs = plt.subplots(1, 1, sharex=True, sharey=True)
+    if axs is None or fig is None:
+        fig, axs = plt.subplots(2, 2, figsize=(8, 8), sharex=True, sharey=True)
+        axs = np.ravel(axs)
+        # fig, axs = plt.subplots(1, 1, figsize=(20, 20), sharex=True, sharey=True)
 
-#     # add channels one by one
-#     for iband, (band, c, n) in enumerate(zip(bands, colors, names)):
-#         viewer.add_image(band, colormap=c, name=n, blending="additive")
+    multi_channel = [r, g, b]
 
-#     img_RGB = viewer.layers.RGB_image()
+    if yrascas is None or zrascas is None:
+        extent = None
+    else:
+        extent = [yrascas[0], yrascas[-1], zrascas[0], zrascas[-1]]
+        for iax, (ax, pltimg) in enumerate(zip([multi_channel, r, g, b], axs)):
+            ax.imshow(
+                # color_img_norm,
+                np.transpose(pltimg),
+                origin="lower",
+                # vmin=0,
+                # vmax=np.max(),
+                # norm=LogNorm(vmin=1),
+                # **kwargs,
+            )
 
-#     fig, axs = plt.subplots(1, 1, sharex=True, sharey=True)
+        # axs[0].set_xlabel(r"$y, \mathrm{ckpc/h}$")
+        # axs[0].set_ylabel(r"$z, \mathrm{ckpc/h}$")
 
-#     img_RGB = img_RGB.data / np.max(img_RGB.data)
+        # delta_txt = 5
+        # ruler_len = 5
+        # axs[0].plot(
+        #     [yrascas[0] + delta_txt, yrascas[0] + delta_txt + ruler_len],
+        #     [zrascas[0] + delta_txt, zrascas[0] + delta_txt],
+        #     c="white",
+        #     lw=3,
+        # )
+        # axs[0].text(
+        #     yrascas[0] + delta_txt + ruler_len * 0.5,
+        #     zrascas[0] + delta_txt + 2,
+        #     "5 kpc/h",
+        #     c="white",
+        #     fontsize=8,
+        #     ha="center",
+        # )
 
-#     axs.imshow(
-#         # color_img_norm,
-#         np.transpose(img_RGB),
-#         origin="lower",
-#         vmin=0,
-#         vmax=1,
-#         # norm=LogNorm(vmin=1),
-#     )
+    for a in axs:
+        a.set_facecolor("black")
 
-#     axs.set_facecolor("black")
+    return fig, axs
 
-#     fig.savefig('mock_test_napari.png')
+
+def plot_mock_composite_napari(bands, names, colors):
+
+    # create viewer instance
+    viewer = napari.Viewer()
+
+    # add channels one by one
+    for iband, (band, c, n) in enumerate(zip(bands, colors, names)):
+        viewer.add_image(band, colormap=c, name=n, blending="additive")
+
+    img_RGB = viewer.layers.RGB_image()
+
+    fig, axs = plt.subplots(1, 1, sharex=True, sharey=True)
+
+    img_RGB = img_RGB.data / np.max(img_RGB.data)
+
+    axs.imshow(
+        # color_img_norm,
+        np.transpose(img_RGB),
+        origin="lower",
+        vmin=0,
+        vmax=1,
+        # norm=LogNorm(vmin=1),
+    )
+
+    axs.set_facecolor("black")
+
+    fig.savefig("mock_test_napari.png")
 
 
 def plot_mock_composite_microfilm(bands, colors):

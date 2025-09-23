@@ -8,6 +8,7 @@ from gremlin.read_sim_params import ramses_sim
 
 import argparse
 
+
 def create_sh(
     tmplt,
     tgt_path,
@@ -64,7 +65,7 @@ def create_sh(
 def get_input_template(hm_type="DM"):
     cfg = {}
 
-    fname = f"/home/jlewis/HaloMakerYD/HaloMaker_{hm_type}/input_HaloMaker.dat"
+    fname = f"/home/jlewis/codes/HaloMakerYD/HaloMaker_{hm_type}/input_HaloMaker.dat"
     # print(fname)
 
     with open(fname) as src:
@@ -121,8 +122,9 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_DynBondiGravSinkMass_SE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi/higher_nmax",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi/",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel/",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel/",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag/",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd/",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN/",
@@ -156,6 +158,18 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_lowSN_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data102/jlewis/sims/lvlmax_20/mh1e12/id242756",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_ell_1.5",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_high_sconstant",
+    # "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_Vhigh_sconstant",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_VVhigh_sconstant",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e11/id292074",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
     # # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_nh2/",
@@ -181,14 +195,35 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_coreen",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_model5",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_medSFE_stgNHboost_stricterSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_highSFE_stgNHboost_strictestSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_SEdd2",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_SEdd2",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_XtremeSF_lowSNe",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_MegaSF_lowSNe",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF",
+    # "/home/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe_highAGNeff",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id138140",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF/",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",
     # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242704_lower_nstar",
@@ -225,7 +260,10 @@ sim_dirs = [
 # "/data102/dubois/ZoomIMAGE/Dust/NoAGN",
 # ]
 
-def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out_dir=None,snap=None):
+
+def setup_halo_maker(
+    sim_dirs=sim_dirs, launch=True, zlim=10.0, overwrite=False, out_dir=None, snap=None
+):
 
     # out_dir = "/data101/jlewis/sims/YD_accretion_tests"
     # out_dir = None
@@ -242,10 +280,13 @@ def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out
     # hm_types = ["DM_dust"]
     # hm_types = ["stars2_dp_rec_dust"]
 
+    batch_files = []
+
     for hm_type in hm_types:
 
         for sim_dir in sim_dirs:
 
+            # print(sim_dir)
 
             if os.path.exists(os.path.join(sim_dir, "OUTPUT_DIR")):
                 sim = ramses_sim(sim_dir, nml="cosmo.nml", output_path="OUTPUT_DIR")
@@ -254,7 +295,7 @@ def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out
             print(sim.name)
 
             output_nbs = sim.snap_numbers
-            if snap==None:
+            if snap == None:
                 nsnaps = len(output_nbs)
             else:
                 nsnaps = 1
@@ -284,7 +325,7 @@ def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out
             # output_nbs = sim.snap_numbers[sim_step_args]
             aexps = sim.aexps
             output_nbs = sim.snap_numbers
-            
+
             faexp = aexps[-1]
 
             # print(1.0 / aexps - 1.0)
@@ -298,7 +339,6 @@ def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out
 
                 output_nbs = output_nbs[aexp_filter]
 
-
             if out_dir == None:
                 out_dir = sim_dir
 
@@ -307,7 +347,6 @@ def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out
 
             tmplt0 = get_input_template(hm_type=hm_type)
 
-            
             cfg = configure_input_template(tmplt0, nsnaps, iaexp, faexp)
             cfg_fname = os.path.join(hmaker_dir, "input_HaloMaker.dat")
 
@@ -326,8 +365,12 @@ def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out
                 new_output_nbs = np.setdiff1d(
                     output_nbs, existing_out_nbs, assume_unique=True
                 )
-                if len(existing_out_nbs) > 0: #skip first snaps that don't have galaxies/halos
-                    new_output_nbs = new_output_nbs[existing_out_nbs.min()<new_output_nbs]
+                if (
+                    len(existing_out_nbs) > 0
+                ):  # skip first snaps that don't have galaxies/halos
+                    new_output_nbs = new_output_nbs[
+                        existing_out_nbs.min() < new_output_nbs
+                    ]
             else:
                 new_output_nbs = output_nbs
 
@@ -335,7 +378,7 @@ def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out
                 new_output_nbs = np.intersect1d(new_output_nbs, [snap])
 
             if len(new_output_nbs) == 0:
-                print('No new outputs to process')
+                print("No new outputs to process")
                 continue
 
             write_input_file_steps(
@@ -354,8 +397,12 @@ def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out
                 name=sh_name,
             )
 
+            batch_files.append(os.path.join(hmaker_dir, "run_hm.sh"))
+
             # copy executable
-            src = os.path.join("/home/jlewis/HaloMakerYD/HaloMaker_" + hm_type, "HaloMaker")
+            src = os.path.join(
+                "/home/jlewis/codes/HaloMakerYD/HaloMaker_" + hm_type, "HaloMaker"
+            )
             dst = os.path.join(hmaker_dir, "HaloMaker")
             copyfile(src, dst)
             # make executable
@@ -373,20 +420,33 @@ def setup_halo_maker(sim_dirs=sim_dirs,launch=True,zlim=10.,overwrite=False, out
 
             print("Done!")
 
+    return batch_files
+
 
 if __name__ == "__main__":
 
     argParser = argparse.ArgumentParser()
 
     argParser.add_argument(
-        "-sim_dirs", type=str, help="Path to simulation directories", nargs="+", default = sim_dirs
+        "-sim_dirs",
+        type=str,
+        help="Path to simulation directories",
+        nargs="+",
+        default=sim_dirs,
     )
-    argParser.add_argument("-zlim", type=float, default = 10.)
-    argParser.add_argument("--nolaunch", action="store_true", default = False)
-    argParser.add_argument("--overwrite", action="store_true", default = False)
-    argParser.add_argument("--out_dir", type=str, default = None)
-    argParser.add_argument("--snap", type=int, default = None)
+    argParser.add_argument("-zlim", type=float, default=10.0)
+    argParser.add_argument("--nolaunch", action="store_true", default=False)
+    argParser.add_argument("--overwrite", action="store_true", default=False)
+    argParser.add_argument("--out_dir", type=str, default=None)
+    argParser.add_argument("--snap", type=int, default=None)
 
     args = argParser.parse_args()
 
-    setup_halo_maker(args.sim_dirs, launch=not args.nolaunch, zlim=args.zlim, overwrite=args.overwrite, out_dir=args.out_dir, snap=args.snap)
+    setup_halo_maker(
+        args.sim_dirs,
+        launch=not args.nolaunch,
+        zlim=args.zlim,
+        overwrite=args.overwrite,
+        out_dir=args.out_dir,
+        snap=args.snap,
+    )

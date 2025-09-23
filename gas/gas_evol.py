@@ -1,6 +1,7 @@
 # from f90nml import read
 from time import time_ns
 from f90_tools.star_reader import read_part_ball_NCdust
+from zoom_analysis.read.read_data import read_data_ball
 from zoom_analysis.stars import sfhs
 from zoom_analysis.zoom_helpers import decentre_coordinates, find_starting_position
 from zoom_analysis.halo_maker.read_treebricks import (
@@ -66,10 +67,19 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe_highAGNeff",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
 ]
 
 
@@ -77,7 +87,7 @@ tgt_zed = 2.0
 
 msun_to_g = 1.989e33
 
-overwrite = True
+overwrite = False
 
 # plot of mgas vs time for different sims
 # fbaryon vs time for different sims
@@ -238,32 +248,50 @@ for sdir in sdirs:
             tgt_r = gal_dict["r50"]
 
             # stars = read_zoom_stars(sim, snap, gid)
-            stars = read_part_ball_NCdust(
+            datas = read_data_ball(
                 sim,
                 snap,
                 tgt_pos,
                 tgt_r,
-                tgt_fields=["mass", "birth_time", "metallicity"],
-                fam=2,
+                cur_snap_hid,
+                data_types=["stars", "dm", "gas"],
+                tgt_fields=["mass", "age", "metallicity", "density", "temperature"],
             )
+            # stars = read_part_ball_NCdust(
+            #     sim,
+            #     snap,
+            #     tgt_pos,
+            #     tgt_r,
+            #     tgt_fields=["mass", "birth_time", "metallicity"],
+            #     fam=2,
+            # )
+
+            stars = datas["stars"]
+
+            if stars is None:
+                continue
+            if len(stars["age"]) == 0:
+                continue
 
             ages = stars["age"]
             Zs = stars["metallicity"]
 
             masses = sfhs.correct_mass(hagn_sim, ages, stars["mass"], Zs)
-            dms = read_part_ball_NCdust(
-                sim, snap, tgt_pos, tgt_r, tgt_fields=["mass"], fam=1
-            )
+            # dms = read_part_ball_NCdust(
+            #     sim, snap, tgt_pos, tgt_r, tgt_fields=["mass"], fam=1
+            # )
 
             # star_pos, ctr_stars, extent_stars = find_star_ctr_period(stars["pos"])
 
-            unit_d = sim.unit_d(aexp)
+            # unit_d = sim.unit_d(aexp)
 
-            code_cells = gas_pos_rad(
-                sim, snap, ["density", "temperature"], tgt_pos, tgt_r
-            )
+            # code_cells = gas_pos_rad(
+            #     sim, snap, ["density", "temperature"], tgt_pos, tgt_r
+            # )
 
-            cells = code_to_cgs(sim, aexp, code_cells)
+            # cells = code_to_cgs(sim, aexp, code_cells)
+
+            cells = datas["gas"]
 
             l_hagn_cm_comov = l_hagn * aexp * 1e6 * ramses_pc
             volumes = (2 ** -cells["ilevel"] * l_hagn_cm_comov) ** 3
@@ -276,6 +304,9 @@ for sdir in sdirs:
             )
 
             st_mass = masses.sum()
+
+            dms = datas["dm"]
+
             dm_mass = dms["mass"].sum()
 
             print(istep, zed, dm_mass, st_mass, mG_zoom[istep])
@@ -302,28 +333,37 @@ for sdir in sdirs:
 
     print((1 - fractBaryon_zoom))
 
-    (l,) = ax[0].plot(time_zoom / 1e3, mG_zoom, ls=zoom_ls[isim], label=name)
+    (l,) = ax[0].plot(time_zoom / 1e3, mG_zoom, label=name)
     lines.append(Line2D([0, 1], [0, 1], ls="-", c=l.get_color()))
     labels.append(name)
     ax[0].set_ylim(
         1e5,
     )
 
-    ax[1].plot(time_zoom / 1e3, fractG_zoom, ls=zoom_ls[isim], lw=2.0, c=l.get_color())
+    ax[1].plot(time_zoom / 1e3, fractG_zoom, lw=2.0, c=l.get_color(), ls=":")
     ax[1].plot(
-        time_zoom / 1e3, fractST_zoom, ls=zoom_ls[isim], lw=1.25, c=l.get_color()
+        time_zoom / 1e3,
+        fractST_zoom,
+        # ls=zoom_ls[isim],
+        lw=1.25,
+        c=l.get_color(),
+        ls="--",
     )
     ax[1].plot(
-        time_zoom / 1e3, fractBaryon_zoom, ls=zoom_ls[isim], lw=3, c=l.get_color()
+        time_zoom / 1e3,
+        fractBaryon_zoom,
+        # ls=zoom_ls[isim],
+        lw=3,
+        c=l.get_color(),
     )
     ax[1].set_ylim(1e-2, 1.05)
 
-    ax[2].plot(time_zoom / 1e3, maxT_zoom, ls=zoom_ls[isim], c=l.get_color())
+    ax[2].plot(time_zoom / 1e3, maxT_zoom, c=l.get_color(), ls=":")
     ax[2].set_ylim(
         1e5,
     )
 
-    ax[2].plot(time_zoom / 1e3, meanT_zoom, ls=zoom_ls[isim], c=l.get_color())
+    ax[2].plot(time_zoom / 1e3, meanT_zoom, c=l.get_color())
     ax[2].set_ylim(
         1e3,
     )
@@ -338,7 +378,7 @@ ax[-1].legend(
     lines,
     labels,
     framealpha=0.0,
-    ncol=3,
+    ncol=1,
 )
 ax[-1].axis("off")
 # cur_leg = ax[-1].get_legend()

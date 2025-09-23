@@ -1,5 +1,6 @@
 ###
 # TODO: rewrite in simpler manner: arrays for all stats? then shared via mpi4py
+# TODO: reformat writing format to be faster to parse
 ###
 
 
@@ -8,6 +9,7 @@ from zoom_analysis.halo_maker.assoc_fcts import (
     get_halo_props_snap,
     get_assoc_pties_in_tree,
     smooth_props,
+    has_assoc,
 )
 from zoom_analysis.stars.dynamics import extract_nh_kinematics
 from zoom_analysis.read.read_data import read_data_ball
@@ -38,10 +40,16 @@ parser.add_argument(
     default="galaxy",
 )
 parser.add_argument(
-    "--rball",
+    "--rtype",
+    type=str,
+    help="choice of radii for property extraction",
+    choices=["r50", "reff", "r90", "rvir"],
+)
+parser.add_argument(
+    "--rfact",
     type=float,
-    help="rballxr50 is the radius within which properties are to be measured",
-    default=2.0,
+    help="rfact x rtype is the radius within which properties are to be measured",
+    default=1.0,
 )
 parser.add_argument(
     "--fpure",
@@ -116,23 +124,43 @@ def gas_stats(tgt_f, tgt_pos, aexp, gas_data, sim, thresh_dense=0.1):
 
     density = gas_data["density"]  # g/cc
 
+    if len(density) == 0:
+        return 0
+
     temp = gas_data["temperature"]  # T[K]/mu
     metals = gas_data["metallicity"]
     dust_bin1 = gas_data["dust_bin01"]  # g/cc
     dust_bin2 = gas_data["dust_bin02"]  # g/cc
     dust_bin3 = gas_data["dust_bin03"] / SioverSil  # g/cc
     dust_bin4 = gas_data["dust_bin04"] / SioverSil  # g/cc
-    vels = np.transpose([gas_data["velocity_x"], gas_data["velocity_y"], gas_data["velocity_z"]])/1e5 #km/s
+    vels = (
+        np.transpose(
+            [gas_data["velocity_x"], gas_data["velocity_y"], gas_data["velocity_z"]]
+        )
+        / 1e5
+    )  # km/s
     pos = np.transpose([gas_data["x"], gas_data["y"], gas_data["z"]])
 
-    no_bulk_vels = vels  - np.average(vels, axis=0,weights=density)
-    vel_out = np.sum(no_bulk_vels * (pos-tgt_pos), axis=1)
-    tot_outflow = np.sum(vel_out)
-    mean_outflow_wMass = np.average(vel_out,weights=density)
-
+    no_bulk_vels = vels - np.average(vels, axis=0, weights=density)
+    rad_vels = np.sum(no_bulk_vels * (pos - tgt_pos), axis=1)
+    out_vels = np.sign(rad_vels) > 0
+    vels_in = np.sum(
+        no_bulk_vels[out_vels == False] * (pos[out_vels == False] - tgt_pos), axis=1
+    )
+    vels_out = np.sum(no_bulk_vels[out_vels] * (pos[out_vels] - tgt_pos), axis=1)
+    tot_outflow = np.sum(vels_out)
+    tot_inflow = np.sum(vels_in)
+    if out_vels.sum() > 0:
+        mean_outflow_wMass = np.average(vels_out, weights=density[out_vels])
+    else:
+        mean_outflow_wMass = 0
+    if (out_vels == False).sum() > 0:
+        mean_inflow_wMass = np.average(vels_in, weights=density[out_vels == False])
+    else:
+        mean_inflow_wMass = 0
 
     vols = (
-        (sim.cosmo.lcMpc * ramses_pc * 1e6 * 1e2 * aexp) / 2 ** gas_data["ilevel"]
+        (sim.cosmo.lcMpc * ramses_pc * 1e6 * aexp) / 2 ** gas_data["ilevel"]
     ) ** 3  # cc
 
     dense_gas = (density / (mass_H_cgs)) > thresh_dense  # H/cc
@@ -203,10 +231,26 @@ def gas_stats(tgt_f, tgt_pos, aexp, gas_data, sim, thresh_dense=0.1):
             dense_gas,
         )
 
-        dens_no_bulk_vels = vels[dense_gas]  - np.average(vels[dense_gas], axis=0,weights=density)
-        dens_vel_out = np.sum(no_bulk_vels[dense_gas] * (pos[dense_gas]-tgt_pos), axis=1)
-        dens_tot_outflow = np.sum(vel_out[dense_gas])
-        dens_mean_outflow_wMass = np.average(vel_out[dense_gas],weights=density[dense_gas])
+        # dens_no_bulk_vels = vels[dense_gas]  - np.average(vels[dense_gas], axis=0,weights=density)
+        # dens_vel_out = np.sum(dens_no_bulk_vels * (pos[dense_gas]-tgt_pos), axis=1)
+        # dens_tot_outflow = np.sum(dens_vel_out)
+        dense_outflows = dense_gas[out_vels]
+        dense_inflows = dense_gas[(out_vels == False)]
+        dens_tot_outflow = np.sum(vels_out[dense_outflows])
+        if (dense_gas * out_vels).sum() > 0:
+            dens_mean_outflow_wMass = np.average(
+                vels_out[dense_gas[out_vels]], weights=density[dense_gas * out_vels]
+            )
+        else:
+            dens_mean_outflow_wMass = 0
+        dens_tot_inflow = np.sum(vels_in[dense_inflows])
+        if (dense_gas * (out_vels == False)).sum() > 0:
+            dens_mean_inflow_wMass = np.average(
+                vels_in[dense_gas[out_vels == False]],
+                weights=density[dense_gas * (out_vels == False)],
+            )
+        else:
+            dens_mean_inflow_wMass = 0
 
         vol_dense = np.sum(vols[dense_gas])  # cc
         dense_gas_f = tgt_f.create_group(f"Hpcc>{thresh_dense:0.1f}_gas")
@@ -248,8 +292,18 @@ def gas_stats(tgt_f, tgt_pos, aexp, gas_data, sim, thresh_dense=0.1):
         dense_gas_f.create_dataset("fdepl_C", data=fdC_dense, dtype=np.float32)
         dense_gas_f.create_dataset("vol_cc", data=vol_dense, dtype=np.float64)
 
-        dense_gas_f.create_dataset("tot_outflow_kms", data=tot_outflow, dtype=np.float32)
-        dense_gas_f.create_dataset("mean_outflow_wMass_kms", data=mean_outflow_wMass, dtype=np.float32)
+        dense_gas_f.create_dataset(
+            "tot_outflow_kms", data=dens_tot_outflow, dtype=np.float32
+        )
+        dense_gas_f.create_dataset(
+            "tot_inflow_kms", data=dens_tot_inflow, dtype=np.float32
+        )
+        dense_gas_f.create_dataset(
+            "mean_outflow_wMass_kms", data=dens_mean_outflow_wMass, dtype=np.float32
+        )
+        dense_gas_f.create_dataset(
+            "mean_inflow_wMass_kms", data=dens_mean_inflow_wMass, dtype=np.float32
+        )
 
     mass = np.sum(density * vols) / Msun_cgs  # Msun
 
@@ -311,7 +365,13 @@ def gas_stats(tgt_f, tgt_pos, aexp, gas_data, sim, thresh_dense=0.1):
     gas.create_dataset("vol_tot_cc", data=vol_tot, dtype=np.float64)
 
     gas.create_dataset("tot_outflow_kms", data=tot_outflow, dtype=np.float32)
-    gas.create_dataset("mean_outflow_wMass_kms", data=mean_outflow_wMass, dtype=np.float32)
+    gas.create_dataset("tot_inflow_kms", data=tot_inflow, dtype=np.float32)
+    gas.create_dataset(
+        "mean_outflow_wMass_kms", data=mean_outflow_wMass, dtype=np.float32
+    )
+    gas.create_dataset(
+        "mean_inflow_wMass_kms", data=mean_inflow_wMass, dtype=np.float32
+    )
 
 
 def star_stats(tgt_f, star_data, pos_gal):
@@ -320,27 +380,50 @@ def star_stats(tgt_f, star_data, pos_gal):
     # do basic kinematics
     # fit ellipsoid to stars
 
-    ages = star_data["agepart"]
+    if "agepart" in star_data.keys():
+        ages = star_data["agepart"]
+    elif "age" in star_data.keys():
+        ages = star_data["age"]
+    else:
+        print("couldn't find ages for stars")
+        raise IndexError
 
-    mass = np.sum(star_data["mpart"])
+    if len(ages) == 0:
+        return 0
 
-    metals = np.average(star_data["Zpart"], weights=star_data["mpart"])
-    metals_med = np.median(star_data["Zpart"])
-    metals_max = np.max(star_data["Zpart"])
-    metals_min = np.min(star_data["Zpart"])
+    if "mpart" in star_data.keys():
+        mass = star_data["mpart"]
+    elif "mass" in star_data.keys():
+        mass = star_data["mass"]
+    else:
+        print("couldn't find mass for stars")
+        raise IndexError
 
-    age = np.average(ages, weights=star_data["mpart"])
+    if "Zpart" in star_data.keys():
+        Zpart = star_data["Zpart"]
+    elif "metallicity" in star_data.keys():
+        Zpart = star_data["metallicity"]
+    else:
+        print("couldn't find Z for stars")
+        raise IndexError
+
+    metals = np.average(Zpart, weights=mass)
+    metals_med = np.median(Zpart)
+    metals_max = np.max(Zpart)
+    metals_min = np.min(Zpart)
+
+    age = np.average(ages, weights=mass)
     age_med = np.median(ages)
     age_max = np.max(ages)
     age_min = np.min(ages)
 
-    sfr10 = np.sum(star_data["mpart"][ages < 10]) / 10e6
-    sfr100 = np.sum(star_data["mpart"][ages < 100]) / 100e6
-    sfr500 = np.sum(star_data["mpart"][ages < 500]) / 500e6
-    sfr1000 = np.sum(star_data["mpart"][ages < 1000]) / 1000e6
+    sfr10 = np.sum(mass[ages < 10]) / 10e6
+    sfr100 = np.sum(mass[ages < 100]) / 100e6
+    sfr500 = np.sum(mass[ages < 500]) / 500e6
+    sfr1000 = np.sum(mass[ages < 1000]) / 1000e6
 
     rot_data, kin_sep_data = extract_nh_kinematics(
-        star_data["mpart"], star_data["pos"], star_data["vel"], pos_gal, debug=False
+        mass, star_data["pos"], star_data["vel"], pos_gal, debug=False
     )
 
     vrot = rot_data["Vrot"]  # km/s
@@ -369,7 +452,7 @@ def star_stats(tgt_f, star_data, pos_gal):
     c = abs(np.max(new_pos[:, 2]) - np.min(new_pos[:, 2]))
 
     stars = tgt_f.create_group("stars")
-    stars.create_dataset("Mstar_msun", data=mass, dtype=np.float32)
+    stars.create_dataset("Mstar_msun", data=np.sum(mass), dtype=np.float32)
 
     stars.create_dataset("Zstar", data=metals, dtype=np.float32)
     stars.create_dataset("Zstar_median", data=metals_med, dtype=np.float32)
@@ -405,6 +488,9 @@ def dm_stats(tgt_f, dm_data, pos_gal):
     # fit ellipsoid to stars
 
     mass = np.sum(dm_data["mass"])
+
+    if len(dm_data["mass"]) == 0:
+        return 0
 
     rot_data, kin_sep_data = extract_nh_kinematics(
         dm_data["mass"], dm_data["pos"], dm_data["vel"], pos_gal
@@ -453,7 +539,11 @@ def dm_stats(tgt_f, dm_data, pos_gal):
 
 def sink_stats(sim, snap, tgt_pos, tgt_rad, tgt_file):
 
-    coarse_step = snap_to_coarse_step(snap, sim)
+    coarse_step, found = snap_to_coarse_step(snap, sim)
+
+    if found == False:
+        return 0
+
     sink_file = os.path.join(sim.sink_path, f"sink_{coarse_step:05d}.dat")
 
     sinks = read_sink_bin(sink_file)
@@ -512,10 +602,11 @@ def sink_stats(sim, snap, tgt_pos, tgt_rad, tgt_file):
 
 args = parser.parse_args()
 
-simdirs, cat_type, rfact, fpure_thresh, overwrite, use_mpi4py, snap = (
+simdirs, cat_type, rfact, rtype_choice, fpure_thresh, overwrite, use_mpi4py, snap = (
     args.simdir,
     args.type,
-    args.rball,
+    args.rfact,
+    args.rtype,
     args.fpure,
     args.overwrite,
     args.mpi4py,
@@ -547,24 +638,17 @@ for simdir in simdirs:
         snap_iter = sim.snap_numbers
 
     aexps = sim.get_snap_exps()
-    zeds = 1.0 / aexps - 1
+    times = sim.get_snap_times()
+    zeds = 1.0 / aexps - 1.0
 
-    hids = get_halo_props_snap(simdir, sim.snap_numbers[-1])["hid"]
+    zstt = zeds.min()
+    snap_stt = sim.snap_numbers.max()
 
-    sim_tree_hids, sim_tree_datas, sim_tree_aexps = read_tree_file_rev_correct_pos(
-        os.path.join(sim.path, "TreeMakerDM_dust", "tree_rev.dat"),
-        sim,
-        sim.snap_numbers[-1],
-        os.path.join(sim.path, "TreeMakerDM_dust"),
-        zstart=zeds.min(),
-        tgt_ids=hids,
-        star=False,
-    )
+    for snap in snap_iter[::-1]:
 
-    tree_pties = get_assoc_pties_in_tree(sim, sim_tree_aexps, sim_tree_hids)
-    smooth_pties = smooth_props(tree_pties)
-
-    for snap in snap_iter:
+        if not has_assoc(sim.path, snap):
+            print(f"Snap {snap:d} has no assoc file and maybe no detected galaxies")
+            continue
 
         fdir = os.path.join(simdir, "catalogues")
         if not os.path.exists(fdir) and rank == 0:
@@ -572,20 +656,25 @@ for simdir in simdirs:
         if use_mpi4py:
             comm.barrier()
 
-        rtype = None
-        if cat_type == "galaxy":
-            rtype = "r50"
-        elif cat_type == "halo":
-            rtype = "rvir"
+        snap_aexp = sim.get_snap_exps(snap)[0]
+
+        # rtype = None
+        # if cat_type == "galaxy":
+        #     rtype = "r50"
+        # elif cat_type == "halo":
+        #     rtype = "rvir"
+        rtype = rtype_choice
 
         rfact_str = ("%.1f" % rfact).replace(".", "p")
 
         fname = os.path.join(fdir, f"{cat_type}_{rfact_str}X{rtype}_{snap}.hdf5")
 
-        if overwrite or not os.path.exists(fname):
+        if overwrite:
             mode = "w"
+        # elif overwrite and os.path.exists(fname):
+        # mode = "a"
         else:
-            mode = "a"
+            continue
 
         print(f"Working on snapshot: {snap}")
 
@@ -596,33 +685,88 @@ for simdir in simdirs:
 
                 comm.barrier()
 
+        try:
+            galaxies = get_gal_props_snap(simdir, snap)
+        except (KeyError, FileNotFoundError):
+            print(f"Couldn't read galaxy properties for snap {snap}")
+            continue
+
         with h5py.File(fname, mode) as tgt_f:
 
-            galaxies = get_gal_props_snap(simdir, snap)
-            gids = galaxies["gids"]
+            central_pure = (galaxies["host purity"] > fpure_thresh) * (
+                galaxies["central"]
+            )
+            gids = galaxies["gids"][central_pure]
+            hids = galaxies["host hid"][central_pure]
             # print(galaxies.keys())
 
             halos = get_halo_props_snap(simdir, snap)
+            # pure_with_gals = (halos["fpure"]>fpure_thresh)*(halos['Ngals']>0)
+            # hids = halos['hid'][pure_with_gals]
             # print(halos.keys())
+
+            # get radii
+
+            # sim_tree_hids, sim_tree_datas, sim_tree_aexps = read_tree_file_rev_correct_pos(
+            #     os.path.join(sim.path, "TreeMakerDM_dust", "tree_rev.dat"),
+            #     sim,
+            #     snap,
+            #     os.path.join(sim.path, "TreeMakerDM_dust"),
+            #     zstart=1./snap_aexp-1,
+            #     tgt_ids=[hid],
+            #     star=False,
+            #     fpure_min=fpure_thresh,
+            #     verbose=False
+            # )
+
+            # snap_arg = np.argmin(np.abs(sim_tree_aexps-snap_aexp))
+
+            # tree_pties = get_assoc_pties_in_tree(sim, sim_tree_aexps, sim_tree_hids[0], assoc_fields=[rtype_choice])
+            # smooth_pties = smooth_props(tree_pties)
+
+            # if len(smooth_pties[rtype_choice])==0:
+            #     continue
+            # # else:
+            # #     print(smooth_pties)
+            # #     input('')
+
+            # tgt_r[i] = smooth_pties[rtype_choice][0]
+
+            # print(tgt_r[i])
+
+            match rtype_choice:
+                case "r50":
+                    tgt_r = galaxies["r50"][central_pure]
+                case "r90":
+                    tgt_r = galaxies["r90"][central_pure]
+                case "reff":
+                    tgt_r = galaxies["reff"][central_pure]
+                case "rvir":
+                    tgt_r = np.zeros(len(hids))
+                    for i, hid in enumerate(hids):
+                        hid_key = f"halo_{hid:07d}"
+                        tgt_r[i] = halos[hid_key]["rvir"] * rfact
+
+            tgt_r *= rfact
 
             if cat_type == "galaxy":
                 print("Making galaxy catalogue")
-                tgt_pos = galaxies["pos"].T
-                tgt_r = galaxies["r50"] * rfact
-                mass_obj = galaxies["mass"]
+                tgt_pos = galaxies["pos"].T[central_pure]
+                # tgt_r = galaxies["r50"] * rfact
+                mass_obj = galaxies["mass"][central_pure]
                 ids = gids
-                hids = galaxies["host hid"]
-                fpure = galaxies["host purity"]
+                hids = galaxies["host hid"][central_pure]
+                fpure = galaxies["host purity"][central_pure]
 
-                pure = (fpure > fpure_thresh) * (fpure <= 1.0)  # weird values
+                # pure = (fpure > fpure_thresh) * (fpure <= 1.0)  # weird values
 
-                tgt_pos = tgt_pos[pure]
-                tgt_r = tgt_r[pure]
-                ids = ids[pure]
-                gids = gids[pure]
-                hids = hids[pure]
-                mass_obj = mass_obj[pure]
-                fpure = fpure[pure]
+                # tgt_pos = tgt_pos[central_pure]
+                # tgt_r = tgt_r[central_pure]
+                # ids = ids[central_pure]
+                # gids = gids[central_pure]
+                # hids = hids[central_pure]
+                # mass_obj = mass_obj[central_pure]
+                # fpure = fpure[central_pure]
 
                 tgt_f.create_dataset(
                     "galaxy ids", data=gids, dtype=np.int32, compression="lzf"
@@ -631,23 +775,26 @@ for simdir in simdirs:
                     "pos", data=tgt_pos, dtype=np.float64, compression="lzf"
                 )
                 tgt_f.create_dataset(
-                    "r50", data=tgt_r, dtype=np.float64, compression="lzf"
+                    f"{rtype_choice}x{rfact:.1f}",
+                    data=tgt_r,
+                    dtype=np.float64,
+                    compression="lzf",
                 )
                 tgt_f.create_dataset(
                     "host ids",
-                    data=galaxies["host hid"],
+                    data=hids,
                     dtype=np.int32,
                     compression="lzf",
                 )
                 tgt_f.create_dataset(
                     "host mass",
-                    data=galaxies["host mass"],
+                    data=galaxies["host mass"][central_pure],
                     dtype=np.float32,
                     compression="lzf",
                 )
                 tgt_f.create_dataset(
                     "host purity",
-                    data=galaxies["host purity"],
+                    data=fpure,
                     dtype=np.float32,
                     compression="lzf",
                 )
@@ -655,24 +802,25 @@ for simdir in simdirs:
             elif cat_type == "halo":
                 print("Making halo catalogue")
 
-                hids = halos["hid"]
+                all_hids = halos["hid"]
+                all_hid_args = np.searchsorted(all_hids, hids)
                 tgt_pos = np.zeros((len(hids), 3))
-                tgt_r = np.zeros(len(hids))
+                # tgt_r = np.zeros(len(hids))
                 # tgt_pos = halos["pos"]
                 # tgt_r = halos["rvir"] * rfact
                 for i, hid in enumerate(hids):
                     hid_key = f"halo_{hid:07d}"
                     tgt_pos[i] = halos[hid_key]["pos"]
-                    tgt_r[i] = halos[hid_key]["rvir"] * rfact
-                mass_obj = halos["mvir"]
+                    # tgt_r[i] = halos[hid_key]["rvir"] * rfact
+                mass_obj = halos["mvir"][all_hid_args]
                 ids = hids
 
-                pure = halos["fpure"] > fpure_thresh
-                tgt_pos = tgt_pos[pure]
-                tgt_r = tgt_r[pure]
-                ids = ids[pure]
-                hids = hids[pure]
-                mass_obj = mass_obj[pure]
+                # pure = halos["fpure"] > fpure_thresh
+                # tgt_pos = tgt_pos[pure]
+                # tgt_r = tgt_r[pure]
+                # ids = ids[pure]
+                # hids = hids[pure]
+                # mass_obj = mass_obj[pure]
 
                 tgt_f.create_dataset(
                     "halo ids", data=hids, dtype=np.int32, compression="lzf"
@@ -681,7 +829,10 @@ for simdir in simdirs:
                     "pos", data=tgt_pos, dtype=np.float64, compression="lzf"
                 )
                 tgt_f.create_dataset(
-                    "rvir", data=tgt_r, dtype=np.float64, compression="lzf"
+                    f"{rtype_choice}x{rfact:.1f}",
+                    data=tgt_r,
+                    dtype=np.float64,
+                    compression="lzf",
                 )
             else:
                 raise ValueError("Invalid catalogue type")
@@ -689,7 +840,7 @@ for simdir in simdirs:
             if use_mpi4py:
 
                 # divide up galaxies or halos so that each rank has a subset
-                # of equal mass (-> rouhly equal number of particles and cells)
+                # of equal mass (-> roughly equal number of particles and cells)
                 tot_mass = mass_obj.sum()
 
                 mass_cdf = np.cumsum(mass_obj) / tot_mass
@@ -710,8 +861,6 @@ for simdir in simdirs:
                 ids = ids[arg_low:arg_high]
                 hids = hids[arg_low:arg_high]
 
-                print(len(tgt_pos))
-
                 # old way: equal number per rank
                 # tgt_pos = np.array_split(tgt_pos, size)[rank]
                 # tgt_r = np.array_split(tgt_r, size)[rank]
@@ -719,11 +868,16 @@ for simdir in simdirs:
 
             for i_obj, (pos, r) in enumerate(zip(tgt_pos, tgt_r)):
 
+                if r == 0:
+                    continue
+
                 if use_mpi4py:
 
-                    print(f"Rank {rank} working on object {i_obj}, ID:{ids[i_obj]}")
+                    print(
+                        f"Rank {rank} working on object {i_obj}/{len(tgt_r)}, ID:{ids[i_obj]}"
+                    )
                 else:
-                    print(f"Working on object {i_obj}, ID:{ids[i_obj]}")
+                    print(f"Working on object {i_obj}/{len(tgt_r)}, ID:{ids[i_obj]}")
 
                 if cat_type == "galaxy":
                     gid = ids[i_obj]
@@ -757,13 +911,19 @@ for simdir in simdirs:
                             "dust_bin04",
                             "mpart",
                             "agepart",
+                            "birth_time",
+                            "age",
                             "Zpart",
                             "vel",
                             "pos",
                             "mass",
+                            "velocity_x",
+                            "velocity_y",
+                            "velocity_z",
                         ],
                     )
-                except AssertionError:
+                except (AssertionError, KeyError, FileNotFoundError):
+                    print(f"problem with object")
                     continue
 
                 file_grp = tgt_f.create_group(f"{cat_type}_{ids[i_obj]:07d}")
@@ -771,7 +931,7 @@ for simdir in simdirs:
                 # compute gas stuff
                 if data["gas"] is not None:
                     aexp = sim.get_snap_exps(snap)
-                    gas_stats(file_grp, tgt_pos, aexp, data["gas"], sim)
+                    gas_stats(file_grp, pos, aexp, data["gas"], sim)
 
                 # compute dm stuff
                 if data["dm"] is not None:

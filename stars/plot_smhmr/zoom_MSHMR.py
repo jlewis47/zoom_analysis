@@ -44,9 +44,10 @@ from zoom_analysis.visu.visu_fct import get_gal_props_snap
 
 # fig, ax = sink_histories.setup_bh_plot()
 
-tgt_zed = 3.0
+# tgt_zed = 3.0
+tgt_zed = 3.5
 
-stellar_bins = np.logspace(8, 13, 13)
+stellar_bins = np.logspace(9, 13, 6)
 
 fpure = 1.0 - 1e-4
 
@@ -58,9 +59,9 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_gravSink",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_DynBondiGravSinkMass",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_kicks",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_smooth_ref",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
@@ -75,6 +76,7 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_nh2",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF/",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_vlowSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN",
@@ -95,30 +97,46 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",  # _leastcoarse"
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",  # _leastcoarse"
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",  # _leastcoarse"
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",  # _leastcoarse"
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",  # _leastcoarse"
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",  # _leastcoarse"
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",  # _leastcoarse"
+    # "/data102/jlewis/sims/lvlmax_20/mh1e12/id242756",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe/",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_medSFE_stgNHboost_stricterSF",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_highSFE_stgNHboost_strictestSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_XtremeSF_lowSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_MegaSF_lowSNe",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_256",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_model6_eps0p05",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_model5",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_noHydroDragB4z4merge",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_noHydroDragB4z4merge",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF/",
 ]
-
 # list of all available pyplot markers:
 # https://matplotlib.org/stable/api/markers_api.html
 markers = [
@@ -132,7 +150,6 @@ markers = [
     "P",
     "*",
     "h",
-    "H",
     "X",
     "D",
     "d",
@@ -141,6 +158,9 @@ markers = [
 ]
 
 fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+fig_ratio, ax_ratio = plt.subplots(1, 1, figsize=(8, 8))
+
+sim_names = []
 
 for isim, sim_dir in enumerate(sim_dirs):
 
@@ -150,6 +170,7 @@ for isim, sim_dir in enumerate(sim_dirs):
 
     intID = int(sim.name.split("_")[0][2:])
 
+    sim_names.append(intID)
     # hagn_sim = get_hagn_sim()
     # hagn_snap = hagn_sim.get_closest_snap(zed=tgt_zed)
 
@@ -183,10 +204,8 @@ for isim, sim_dir in enumerate(sim_dirs):
     found = False
     decal = 0
 
-    z_dists = np.abs(1./sim.aexps - 1.0 - tgt_zed)
+    z_dists = np.abs(1.0 / sim.aexps - 1.0 - tgt_zed)
     args = np.argsort(z_dists)
-
-
 
     while not found and decal < len(sim.snap_numbers):
         arg = args[decal]
@@ -198,20 +217,26 @@ for isim, sim_dir in enumerate(sim_dirs):
         found_cond = os.path.isfile(gfile) * (z_dists[arg] < 0.1)
         print(sim_snap, sim_zed, decal, gfile)
 
-
         if found_cond:
             found = True
         else:
-            decal +=1
+            decal += 1
 
     if not found:
         continue
 
     gal_dict = get_gal_props_snap(sim.path, sim_snap, main_stars=False)
-    vol_args,min_vol = check_in_all_sims_vol(gal_dict["pos"].T, sim, sim_dirs)        
+    vol_args, min_vol = check_in_all_sims_vol(gal_dict["pos"].T, sim, sim_dirs)
+
+    # fig,ax = plt.subplots(1,1)
+
+    # ax.scatter((gal_dict["pos"][0,:]-0.5)+sim.zoom_ctr[0],(gal_dict["pos"][1,:]-0.5)+sim.zoom_ctr[1])
+
+    # fig.savefig('test_gal_coords')
 
     # print(gal_dict.keys())
     # print(min_vol,vol_args.sum(),len(vol_args))
+    print(sim.zoom_ctr, gal_dict["pos"].mean(axis=1))
 
     host_purity = gal_dict["host purity"]
     central_cond = gal_dict["central"] == 1
@@ -226,29 +251,41 @@ for isim, sim_dir in enumerate(sim_dirs):
 
     label = sim.name
     if len(sim_dirs) > 1:
-        label += f", z={sim_zed:.2f}"
-        
+        label += f", z={sim_zed:.4f}"
 
     # print(sim.name,np.sum(vol_args))
 
     points = ax.scatter(
         halo_mass, gal_mass, label=label, alpha=0.5, marker=markers[isim]
     )
+    points = ax_ratio.scatter(
+        halo_mass, gal_mass / halo_mass, label=label, alpha=0.5, marker=markers[isim]
+    )
+
+    print(halo_mass, gal_mass)
 
     # get avg values in bins
     bin_means, bin_edges, binnumber = binned_statistic(
         halo_mass, gal_mass, bins=stellar_bins, statistic="mean"
     )
-    bin_width = bin_edges[1:] - bin_edges[:-1]
-    bin_centers = bin_edges[:-1] + bin_width * 0.5
+    bin_mean_ratios, bin_edges, binnumber = binned_statistic(
+        halo_mass, gal_mass / halo_mass, bins=stellar_bins, statistic="mean"
+    )
+    bin_centers, bin_edges, binnumber = binned_statistic(
+        halo_mass, halo_mass, bins=stellar_bins, statistic="median"
+    )
+    # bin_width = bin_edges[1:] - bin_edges[:-1]
+    # bin_centers = bin_edges[:-1] + bin_width * 0.5
 
     # plot
     # ax.errorbar(bin_centers, bin_means, xerr=bin_width/2, color=points.get_facecolor(), ls="none",alpha=1.0)
     ax.plot(bin_centers, bin_means, color=points.get_facecolor(), ls="-", alpha=1.0)
+    ax_ratio.plot(
+        bin_centers, bin_mean_ratios, color=points.get_facecolor(), ls="-", alpha=1.0
+    )
 
 
-
-#now for HAGN
+# now for HAGN
 
 hagn_sim = get_hagn_sim()
 
@@ -256,30 +293,47 @@ hagn_snap = hagn_sim.get_closest_snap(zed=tgt_zed)
 hagn_aexp = hagn_sim.get_snap_exps(hagn_snap)[0]
 hagn_zed = 1.0 / hagn_aexp - 1
 
-hagn_gals = make_super_cat(hagn_snap)
+has_hagn_snap = False
 
-# print(hagn_gals.keys())
+try:
+    hagn_gals = make_super_cat(hagn_snap)
+    has_hagn_snap = True
+except FileNotFoundError:
+    pass
 
-hagn_gal_pos = np.transpose([hagn_gals["x"], hagn_gals["y"], hagn_gals["z"]])
+if has_hagn_snap:
 
-vol_args,min_vol = check_in_all_sims_vol(hagn_gal_pos, hagn_sim, sim_dirs)
+    # print(hagn_gals.keys())
 
-if vol_args.sum() > 0:
-    mhalos = hagn_gals['mhalo'][vol_args]
-    mgals= hagn_gals['mgal'][vol_args]
+    hagn_gal_pos = np.transpose([hagn_gals["x"], hagn_gals["y"], hagn_gals["z"]])
 
+    vol_args, min_vol = check_in_all_sims_vol(hagn_gal_pos, hagn_sim, sim_dirs)
 
-    ax.scatter(mhalos, mgals, alpha=0.5, marker="x",color='k')#, label=f"HAGN, z={hagn_zed:.2f}")
+    if vol_args.sum() > 0:
+        mhalos = hagn_gals["mhalo"][vol_args]
+        mgals = hagn_gals["mgal"][vol_args]
 
-    #now avg stats
-    avg, _, _ = binned_statistic(
-        mhalos,mgals, bins=stellar_bins, statistic=np.nanmean
-    )
-    med_bin, _, _ = binned_statistic(
-        mhalos,mhalos , bins=stellar_bins, statistic=np.nanmedian
-    )
-    ax.plot(med_bin, avg, c="k", lw=1, ls="--",label=f"HAGN, z={hagn_zed:.2f}")    
+        ax.scatter(
+            mhalos, mgals, alpha=0.5, marker="x", color="k"
+        )  # , label=f"HAGN, z={hagn_zed:.2f}")
+        ax_ratio.scatter(
+            mhalos, mgals / mhalos, alpha=0.5, marker="x", color="k"
+        )  # , label=f"HAGN, z={hagn_zed:.2f}")
 
+        # now avg stats
+        avg, _, _ = binned_statistic(
+            mhalos, mgals, bins=stellar_bins, statistic=np.nanmean
+        )
+        avg_ratio, _, _ = binned_statistic(
+            mhalos, mgals / mhalos, bins=stellar_bins, statistic=np.nanmean
+        )
+        med_bin, _, _ = binned_statistic(
+            mhalos, mhalos, bins=stellar_bins, statistic=np.nanmedian
+        )
+        ax.plot(med_bin, avg, c="k", lw=1, ls="--", label=f"HAGN, z={hagn_zed:.2f}")
+        ax_ratio.plot(
+            med_bin, avg_ratio, c="k", lw=1, ls="--", label=f"HAGN, z={hagn_zed:.2f}"
+        )
 
 
 ax.tick_params(
@@ -292,14 +346,28 @@ ax.tick_params(
     right=True,
     direction="in",
 )
+ax_ratio.tick_params(
+    axis="both",
+    which="both",
+    bottom=True,
+    # top=True,
+    top=False,
+    left=True,
+    right=True,
+    direction="in",
+)
 
-ax.grid()
+# ax.grid()
 
 ax.set_ylabel("Stellar mass [M$_\odot$]")
 ax.set_xlabel("Halo mass Mass [M$_\odot$]")
+ax_ratio.set_ylabel("SMHMR")
+ax_ratio.set_xlabel("Halo mass Mass [M$_\odot$]")
 
 ax.set_yscale("log")
 ax.set_xscale("log")
+ax_ratio.set_yscale("log")
+ax_ratio.set_xscale("log")
 title_txt = ""
 if len(sim_dirs) == 1:
     title_txt += f"z={sim_zed:.2f}"
@@ -325,9 +393,19 @@ title_txt += f" fpure > {fpure:.3f}"
 # os.makedirs(outdir)
 xrange = np.linspace(*ax.get_xlim(), 50)
 ax.plot(xrange, xrange * 0.1, ls="--", color="black", label="10%")
+ax_ratio.plot(xrange, np.full_like(xrange, 0.1), ls="--", color="black", label="10%")
 
 ax.legend(framealpha=0.0, title=title_txt)
+ax_ratio.legend(framealpha=0.0, title=title_txt)
+
+fig_name = "zoom_SMHMR"
+
+if len(np.unique(sim_names)) == 1:
+    fig_name += f"_id{sim_names[0]:d}"
+
 if tgt_zed != None:
-    fig.savefig(f"zoom_SMHMR_z{tgt_zed:.2f}.png")
+    fig.savefig(f"{fig_name:s}_z{tgt_zed:.2f}.png")
+    fig_ratio.savefig(f"{fig_name:s}_z{tgt_zed:.2f}_ratio.png")
 else:
-    fig.savefig("zoom_SMHMR.png")
+    fig.savefig(f"{fig_name:s}.png")
+    fig_ratio.savefig(f"{fig_name:s}_ratio.png")

@@ -1,8 +1,7 @@
-from networkx import density
 import numpy as np
 from gremlin.read_sim_params import ramses_sim
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm, rgb2hex
+from matplotlib.colors import LogNorm
 from matplotlib.patches import Circle
 from matplotlib import patheffects as pe
 import os
@@ -39,16 +38,26 @@ from zoom_analysis.visu.visu_fct import (
     plot_zoom_halos,
     # plot_stars,
     plot_fields,
-    colored_line
+    colored_line,
 )
 
-from zoom_analysis.trees.tree_reader import read_tree_file_rev
+from zoom_analysis.trees.tree_reader import (
+    read_tree_file_rev_correct_pos,
+    read_tree_file_rev,
+)
 from scipy.interpolate import UnivariateSpline
 
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_DynBondiGravSinkMass_SE"
 # sim_dir = (
 # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_gravSink_SE"
 # )
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe_highAGNeff"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd_drag"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
@@ -75,12 +84,16 @@ from scipy.interpolate import UnivariateSpline
 # sim_dir = "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05"
 # sim_dir = "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256"
 # sim_dir = "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_drag"
+# sim_dir = "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890"
-sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289"
 # sim_dir = "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt"
+# sim_dir = "/data102/jlewis/sims/lvlmax_20/mh1e12/id242756"
+sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756"
 
 sim = ramses_sim(sim_dir, nml="cosmo.nml")
 
@@ -122,7 +135,8 @@ every_snap = True  # try and interpolate between tree nodes if not found
 
 rad_fact = 5.0  # fraction of radius to use as plot window
 use_r50 = True
-fixed_r_ckpc = 10
+# fixed_r_ckpc = 10
+fixed_r_ckpc = 50
 
 plot_win_str = str(rad_fact).replace(".", "p")
 if fixed_r_ckpc > 0:
@@ -158,69 +172,96 @@ mode = "sum"
 marker_color = "white"
 
 
-smass_args={
-# "field":"stellar mass",
-"transpose":True,
-"cmap":"gray",
-"vmin":6e4,
-"vmax":1e9,
-"marker_color":"r",
-"mode":"sum"}
+smass_args = {
+    # "field":"stellar mass",
+    "transpose": True,
+    "cmap": "gray",
+    "vmin": 6e4,
+    "vmax": 1e9,
+    "marker_color": "r",
+    "mode": "sum",
+}
 
-stage_arg={
+stage_arg = {
     # "field":"stellar age",
-    "transpose":True,
-    "cmap":"Spectral_r",
-    "vmin":1,
-    "vmax":1e4,
-    "marker_color":"grey",
-    "mode":"mean"}
+    "transpose": True,
+    "cmap": "Spectral_r",
+    "vmin": 1,
+    "vmax": 1e4,
+    "marker_color": "grey",
+    "mode": "mean",
+}
 
-sfr_arg={
+sfr_arg = {
     # "field":"stellar age",
-    "transpose":True,
-    "cmap":"hot",
-    "vmin":1e1,
-    "vmax":3e3,
-    "marker_color":"white",
-    "mode":"mean"}
+    "transpose": True,
+    "cmap": "hot",
+    "vmin": 1e1,
+    "vmax": 3e3,
+    "marker_color": "white",
+    "mode": "mean",
+}
 
-density_args={
+density_args = {
     # "field":"density",
-    "cmap":"magma",
-    "transpose":True,
-    "vmin":1e-26,
-    "vmax":1e-20,
-    "marker_color":"white",
-    "mode":"sum"}
+    "cmap": "magma",
+    "transpose": True,
+    "vmin": 1e-26,
+    "vmax": 1e-20,
+    "marker_color": "white",
+    "mode": "sum",
+}
 
-temperature_args={
+temperature_args = {
     # "field":"temperature",
-    "cmap":"plasma",
-    "transpose":True,
-    "vmin":1e3,
-    "vmax":1e7,
-    "marker_color":"white",
-    "mode":"mean"}
+    "cmap": "plasma",
+    "transpose": True,
+    "vmin": 1e3,
+    "vmax": 1e7,
+    "marker_color": "white",
+    "mode": "mean",
+}
 
 vel_args = {
     # "field":"velocity",
-    "cmap":"bwr",
-    "transpose":True,
-    "vmin":-1e3,
-    "vmax":1e3,
-    "subtract_mean":True,
-    "marker_color":"white",
-    "mode":"mean"}
+    "cmap": "bwr",
+    "transpose": True,
+    "vmin": -1e3,
+    "vmax": 1e3,
+    "subtract_mean": True,
+    "marker_color": "white",
+    "mode": "mean",
+}
 
+mach_args = {
+    # "field":"velocity",
+    "cmap": "bwr",
+    "transpose": True,
+    "vmin": 0,
+    "vmax": 2,
+    "log": False,
+    # "subtract_mean":True,
+    "marker_color": "white",
+    "mode": "mean",
+}
 
+alpha_vir_args = {
+    # "field":"velocity",
+    "cmap": "YlGnBu",
+    "transpose": True,
+    # "vmin":-1e3,
+    # "vmax":1e3,
+    # "subtract_mean":True,
+    "marker_color": "white",
+    "mode": "mean",
+}
 
 
 args_main = {
     "cb": True,
     # "transpose":True,
-    "cb_args": {"cb_args_main" :{"location": "right"}}
-    }
+    "cb_args": {"cb_args_main": {"location": "right"}},
+}
 args = {
     "cb": True,
     # "transpose": True,
@@ -234,6 +275,8 @@ stage_arg = {**stage_arg, **args}
 sfr_arg = {**sfr_arg, **args}
 vel_args = {**vel_args, **args}
 temperature_args = {**temperature_args, **args}
+mach_args = {**mach_args, **args}
+alpha_vir_args = {**alpha_vir_args, **args}
 
 
 arg_dicts = [dens_args, smass_args, stage_arg, sfr_arg, temperature_args]
@@ -282,6 +325,8 @@ hid_start, halos, galaxies, start_aexp, found = starting_hid_from_hagn(
 
 start_zed = 1.0 / start_aexp - 1.0
 
+start_snap = sim.get_closest_snap(zed=start_zed)
+
 # print(hid_start, halos, galaxies, start_zed)
 
 # print(hid_start, start_zed)
@@ -315,6 +360,18 @@ directions = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
 tree_name = os.path.join(sim.path, "TreeMakerDM_dust", "tree_rev.dat")
 byte_file = os.path.join(sim.path, "TreeMakerDM_dust")
 
+# tree_hids, tree_datas, tree_aexps = read_tree_file_rev_correct_pos(
+#     tree_name,
+#     sim,
+#     start_snap,
+#     byte_file,
+#     start_zed,
+#     [hid_start],
+#     # tree_type="halo",
+#     tgt_fields=["m", "x", "y", "z", "r"],
+#     verbose=True,
+#     star=False,
+# )
 tree_hids, tree_datas, tree_aexps = read_tree_file_rev(
     tree_name,
     byte_file,
@@ -322,7 +379,7 @@ tree_hids, tree_datas, tree_aexps = read_tree_file_rev(
     [hid_start],
     # tree_type="halo",
     tgt_fields=["m", "x", "y", "z", "r"],
-    debug=False,
+    # verbose=True,
     star=False,
 )
 tree_times = sim.cosmo_model.age(1.0 / tree_aexps - 1.0).value * 1e3  # Myr
@@ -357,7 +414,7 @@ tree_times = tree_times[filt]
 
 # print(tree_datas["r"])
 
-#colors for time of plot
+# colors for time of plot
 # time_colors = plt.cm.viridis(np.linspace(0, 1, len(snaps)))
 sim_times_normed = (sim_times - sim_times.min()) / (sim_times.max() - sim_times.min())
 time_colors = plt.cm.viridis(sim_times_normed)
@@ -451,21 +508,28 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
     #     prev_pos=prev_pos,
     # )
 
+    # fig,axs = plt.subplots(3,3,figsize=(30,30),width_ratios=[1,1,1],height_ratios=[1,1,1], layout="constrained")
+    fig, axs = plt.subplots(
+        2,
+        3,
+        figsize=(30, 30),
+        width_ratios=[1, 1, 1],
+        height_ratios=[1, 1],
+        layout="constrained",
+    )
 
+    # plt.subplots_adjust(wspace=0.1, hspace=0.1)
 
-
-    fig,axs = plt.subplots(2,3,figsize=(30,16),width_ratios=[1,1,1],height_ratios=[1,1], layout="constrained")
-
-    plt.subplots_adjust(wspace=0.1, hspace=0.1)
-
-    ax_dens = axs[0,0]
-    ax_mass = axs[0,1]
-    ax_sfr = axs[0,2]
-    ax_age = axs[1,0]
-    ax_temp = axs[1,1]
+    ax_dens = axs[0, 0]
+    ax_mass = axs[0, 1]
+    ax_sfr = axs[0, 2]
+    ax_age = axs[1, 0]
+    ax_temp = axs[1, 1]
     # ax_vel = axs[1,2]
-    ax_sm_sfr= axs[1,2]
-
+    ax_sm_sfr = axs[1, 2]
+    # ax_alpha_vir = axs[2,0]
+    # ax_mach = axs[2,1]
+    # axs[2,2].axis("off")
 
     # print(cur_hid, cur_gid, tgt_pos, "%e" % hosted_gals["mass"].max(), tgt_rad)
 
@@ -495,7 +559,6 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
     prev_pos = cur_pos
     prev_mass = cur_mass
     # prev_rad = cur_rad
-
 
     # # use grid spec, make a 3x3 grid
     # fig = plt.figure(figsize=(16, 10))  # , layout="constrained")
@@ -527,43 +590,54 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
 
     zdist = rad_tgt / 1 * sim.cosmo.lcMpc * 1e3
 
-    stars = read_data_ball(
-        sim,
-        snap,
-        tgt_pos,
-        rad_tgt,
-        host_halo=cur_hid,
-        data_types=["stars"],
-        tgt_fields=[
-            "pos",
-            "vel",
-            "mass",
-            "age",
-            "metallicity",
-        ],
+    try:
+        stars = read_data_ball(
+            sim,
+            snap,
+            tgt_pos,
+            rad_tgt,
+            host_halo=cur_hid,
+            data_types=["stars"],
+            tgt_fields=[
+                "pos",
+                "vel",
+                "mass",
+                "age",
+                "metallicity",
+            ],
+        )
+    except FileNotFoundError:
+        continue
+
+    stars_in_3r50 = (
+        np.linalg.norm(stars["pos"] - tgt_pos[None, :], axis=1) < 3 * cur_r50
     )
-
-    stars_in_2r50 = np.linalg.norm(stars["pos"] - tgt_pos[None,:], axis=1) < 2 * cur_r50
-
 
     ages = stars["age"]
 
     Zs = stars["metallicity"]
 
-    masses = sfhs.correct_mass(hagn_sim, ages, stars["mass"], Zs)
+    stmasses = sfhs.correct_mass(sim, ages, stars["mass"], Zs)
 
-    mass_in_2r50 = np.sum(masses[stars_in_2r50])
-    sfr100_in_2r50 = np.sum(masses[stars_in_2r50][ages[stars_in_2r50]<100]/100.)
+    mass_in_3r50 = np.sum(stmasses[stars_in_3r50])
+    sfr100_in_3r50 = np.sum(stmasses[stars_in_3r50][ages[stars_in_3r50] < 100] / 100.0)
 
-    stellar_masses[istep] = mass_in_2r50
-    sfrs[istep] = sfr100_in_2r50
+    stellar_masses[istep] = mass_in_3r50
+    sfrs[istep] = sfr100_in_3r50
 
     # ax_sm_sfr.plot(stellar_masses[:istep], sfrs[:istep], color=, label="Stellar mass in 2r50")
-    lines=colored_line(stellar_masses[:istep+1], sfrs[:istep+1], c=sim_times/1e3, ax=ax_sm_sfr, cmap="viridis",lw=3)
+    lines = colored_line(
+        stellar_masses[: istep + 1],
+        sfrs[: istep + 1],
+        c=sim_times / 1e3,
+        ax=ax_sm_sfr,
+        cmap="viridis",
+        lw=3,
+    )
     ax_sm_sfr.scatter(stellar_masses[istep], sfrs[istep], color="k", marker="+", s=150)
 
     star_bulk_vel = np.linalg.norm(
-        np.average(stars["vel"], axis=0, weights=masses)
+        np.average(stars["vel"], axis=0, weights=stmasses)
     )  # km/s
     star_bulk_vel = (
         star_bulk_vel * (3600 * 24 * 365 * 1e6) * (1e3 / 3.08e16 / 1e3)
@@ -575,48 +649,84 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
         print(f"dist travelled cst rate since last snap: {prev_rad:.2f} kpc")
         prev_rad = prev_rad / sim.cosmo.lcMpc / 1e3  # ckpc->code
 
-    ang_mom = compute_ang_mom(masses, stars["pos"], stars["vel"], tgt_pos)
+    ang_mom = compute_ang_mom(stmasses, stars["pos"], stars["vel"], tgt_pos)
     norm_ang_mom = np.linalg.norm(ang_mom)
 
     dir_face_on = ang_mom / norm_ang_mom
     dir_edge_on = np.cross(dir_face_on, directions[0])
     dir_edge_on /= np.linalg.norm(dir_edge_on)
 
-    for arg in [dens_args, smass_args, stage_arg, sfr_arg, temperature_args, vel_args]:
-        arg['hid']=cur_hid
+    possible_dirs = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
+
+    closest_to_face = np.argmax([np.abs(np.dot(dir_face_on, d)) for d in possible_dirs])
+
+    dir_choice = possible_dirs[closest_to_face]
+
+    for arg in [
+        dens_args,
+        smass_args,
+        stage_arg,
+        sfr_arg,
+        temperature_args,
+        vel_args,
+        mach_args,
+        alpha_vir_args,
+    ]:
+        arg["hid"] = cur_hid
 
     img_dens = plot_fields(
-        "density", fig, ax_dens, aexp, dir_face_on, tgt_pos, rad_tgt, sim, **dens_args
+        "density", fig, ax_dens, aexp, dir_choice, tgt_pos, rad_tgt, sim, **dens_args
     )
 
     img_mass = plot_fields(
-        "stellar mass", fig, ax_mass, aexp, dir_face_on, tgt_pos, rad_tgt, sim, **smass_args
+        "stellar mass",
+        fig,
+        ax_mass,
+        aexp,
+        dir_choice,
+        tgt_pos,
+        rad_tgt,
+        sim,
+        **smass_args,
     )
 
     img_sfr = plot_fields(
-        "SFR100", fig, ax_sfr, aexp, dir_face_on, tgt_pos, rad_tgt, sim, **sfr_arg
+        "SFR100", fig, ax_sfr, aexp, dir_choice, tgt_pos, rad_tgt, sim, **sfr_arg
     )
 
     img_age = plot_fields(
-        "stellar age", fig, ax_age, aexp, dir_face_on, tgt_pos, rad_tgt, sim, **stage_arg
+        "stellar age", fig, ax_age, aexp, dir_choice, tgt_pos, rad_tgt, sim, **stage_arg
     )
 
     img_temp = plot_fields(
-        
-        "temperature", fig, ax_temp, aexp, dir_face_on, tgt_pos, rad_tgt, sim, **temperature_args
+        "temperature",
+        fig,
+        ax_temp,
+        aexp,
+        dir_choice,
+        tgt_pos,
+        rad_tgt,
+        sim,
+        **temperature_args,
     )
+    # img_mach = plot_fields(
+
+    #     "mach", fig, ax_mach, aexp, dir_choice, tgt_pos, rad_tgt, sim, **mach_args
+    # )
+    # img_alpha_vir= plot_fields(
+
+    #     "alpha_vir", fig, ax_alpha_vir, aexp, dir_choice, tgt_pos, rad_tgt, sim, **alpha_vir_args
+    # )
 
     # img_vel = plot_fields(
-    #     "velocity", fig, ax_vel, aexp, dir_face_on, tgt_pos, rad_tgt, sim, **vel_args
+    #     "velocity", fig, ax_vel, aexp, dir_choice, tgt_pos, rad_tgt, sim, **vel_args
     # )
 
     # temperature_args_max = temperature_args.copy()
     # temperature_args_max["mode"] = "max"
 
     # img_temp_max = plot_fields(
-    #     "temperature", fig, ax_vel, aexp, dir_face_on, tgt_pos, rad_tgt, sim, **temperature_args_max)
-
-    
+    #     "temperature", fig, ax_vel, aexp, dir_choice, tgt_pos, rad_tgt, sim, **temperature_args_max)
 
     ax_dens.text(
         0.05,
@@ -644,20 +754,19 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
         #     ls="--",
         #     zorder=999,
         # )
-        for iax,ax in enumerate(np.ravel(axs)[:-1]):
+        for iax, ax in enumerate(np.ravel(axs)[:-1]):
             circ = Circle(
                 (
                     (0) * sim.cosmo.lcMpc * 1e3,
                     (0) * sim.cosmo.lcMpc * 1e3,
                 ),
-                cur_r50 * sim.cosmo.lcMpc * 1e3 * 2,
+                cur_r50 * sim.cosmo.lcMpc * 1e3 * 3,
                 fill=False,
                 edgecolor=arg_dicts[iax]["marker_color"],
                 lw=2,
                 ls=":",
                 zorder=999,
             )
-
 
             ax.add_patch(circ)
 
@@ -675,7 +784,7 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
                 hm="HaloMaker_stars2_dp_rec_dust",
                 gal_markers=gal_markers,
                 annotate=annotate,
-                direction=directions[0],
+                direction=dir_choice,
                 # transpose=True,
                 **args,
             )
@@ -692,7 +801,7 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
                 hm="HaloMaker_DM_dust",
                 gal_markers=gal_markers,
                 annotate=annotate,
-                direction=directions[0],
+                direction=dir_choice,
                 # transpose=True,
                 **args,
             )
@@ -706,7 +815,7 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
             tgt_pos,
             rad_tgt,
             zdist,
-            direction=directions[0],
+            direction=dir_choice,
             **args,
         )
         # except (ValueError, AssertionError):
@@ -719,27 +828,28 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
     # ax_face.set_xlabel("")
     # ax_disk.yaxis.set_label_position("right")
 
-    ax_sm_sfr.set_xlabel("Stellar mass in 2r50, [$M_{\odot}$]")
-    ax_sm_sfr.set_ylabel("SFR100 in 2r50, [$M_{\odot}$ Myr$^{-1}$]")
+    ax_sm_sfr.set_xlabel("Stellar mass in 3 x r50, [$M_{\odot}$]")
+    ax_sm_sfr.set_ylabel("SFR100 in 3 x r50, [$M_{\odot}$ Myr$^{-1}$]")
 
     ax_sm_sfr.set_xscale("log")
-    ax_sm_sfr.set_yscale('log')
+    ax_sm_sfr.set_yscale("log")
 
     ax_sm_sfr.grid(True, alpha=0.5)
 
-    ax_sm_sfr.set_xlim(1e7,)
+    ax_sm_sfr.set_xlim(
+        1e7,
+    )
 
-    cb=plt.colorbar(lines,ax=ax_sm_sfr,label="Time [Gyr]")
+    cb = plt.colorbar(lines, ax=ax_sm_sfr, label="Time [Gyr]")
 
-    #give cb dual redshift axis
-    cax = cb.ax
-    cax2 = cax.twinx()
-    cax_ticks = cax.get_yticks()
-    cax_tick_labels = cax.get_yticklabels()
-    cax.set_yticks(cax_ticks)
-    cax2.set_yticks(cax_ticks)
-    cax2.set_yticklabels(["%.1f"%(1./sim_aexps[np.argmin(sim_times-t*1e3)]-1) for t in cax_tick_labels])
-    
+    # #give cb dual redshift axis
+    # cax = cb.ax
+    # cax2 = cax.twinx()
+    # cax_ticks = cax.get_yticks()
+    # cax_tick_labels = cax.get_yticklabels()
+    # cax.set_yticks(cax_ticks)
+    # cax2.set_yticks(cax_ticks)
+    # cax2.set_yticklabels(["%.1f"%(1./sim_aexps[np.argmin(sim_times-float(t.get_text())*1e3)]-1) for t in cax_tick_labels])
 
     print(f"writing {fout}")
 

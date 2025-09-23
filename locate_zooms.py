@@ -60,7 +60,7 @@ if __name__ == "__main__":
         if not os.path.isdir(d):
             continue
         try:
-            sim = ramses_sim(d, nml="cosmo.nml")
+            sim = ramses_sim(d, nml="cosmo.nml",full_check=False)
         except FileNotFoundError:
             print(f"Skipping {d}... there was no .nml")
             continue
@@ -117,7 +117,7 @@ if __name__ == "__main__":
                         fill=False,
                         color=color,
                     )
-                    print("ellip")
+                    # print("ellip")
 
                 elif shape == "rectangle":
 
@@ -132,7 +132,7 @@ if __name__ == "__main__":
                         fill=False,
                         color=color,
                     )
-                    print("rect")
+                    # print("rect")
 
             else:
 
@@ -143,7 +143,7 @@ if __name__ == "__main__":
                     fill=False,
                     color=color,
                 )
-                print("circ")
+                # print("circ")
 
             # print(iax, coord1, coord2, p)
 

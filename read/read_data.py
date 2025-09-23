@@ -6,8 +6,9 @@ from zoom_analysis.halo_maker.assoc_fcts import get_halo_props_snap
 from zoom_analysis.stars.star_reader import convert_star_time
 from scipy.spatial import cKDTree
 import numpy as np
+from zoom_analysis.dust.gas_reader import prepare_mach_alpha, get_alpha_vir, get_mach
 
-from zoom_analysis.zoom_helpers import decentre_coordinates
+# from zoom_analysis.zoom_helpers import decentre_coordinates
 
 
 def read_data_ball(
@@ -21,7 +22,10 @@ def read_data_ball(
     tgt_fields=None,
     minmax=None,
 ):
-    
+
+    if tgt_fields == None:
+        tgt_fields = []
+
     possible_data_types = ["stars", "gas", "dm"]
     if data_types == [] or data_types == None:
         data_types = possible_data_types
@@ -39,10 +43,16 @@ def read_data_ball(
 
     oob = False
     if host_halo != None:
-        halo_dict, _ = get_halo_props_snap(sim.path, snap, hid=host_halo)
-        rvir = halo_dict["rvir"]
-        hpos = halo_dict["pos"]
-        # print(hpos, tgt_pos)
+        halo_dict = get_halo_props_snap(
+            sim.path, snap, hids=host_halo, hosted_gals=False
+        )
+        hkey = f"halo_{host_halo:07d}"
+        # htag = f"halo_{host_halo:07d}"
+        # rvir = halo_dict[htag]["rvir"]
+        # hpos = halo_dict[htag]["pos"]
+        rvir = halo_dict[hkey]["rvir"]
+        hpos = halo_dict[hkey]["pos"]
+        # print(hpos, tg[hkey]t_pos)
         # hpos = decentre_coordinates(halo_dict["pos"], sim.path)
         # tgt_pos = decentre_coordinates(tgt_pos, sim.path)
         # print(hpos, tgt_pos)
@@ -60,7 +70,7 @@ def read_data_ball(
 
             print(oob, tgt_r, 2 * rvir)
 
-        oob=False
+        oob = False
 
         # oob = np.any(np.abs(tgt_r + (tgt_pos - hpos)) > rvir * 2)
         # print(oob, tgt_r, rvir)
@@ -68,11 +78,12 @@ def read_data_ball(
 
     else:
         oob = True
+        # pass
 
     # print(host_halo, oob)
     # print(tgt_pos, hpos)
     # print(np.abs(tgt_r + (tgt_pos - hpos)))
-    # print(check_for_compressd(sim, snap, host_halo), host_halo)
+    # print(check_for_compressd(sim, snap, host_halo), host_halo, oob)
 
     if (not check_for_compressd(sim, snap, host_halo)) or oob or (host_halo == None):
         # if (
@@ -80,6 +91,10 @@ def read_data_ball(
         #     and snap in sim.get_snaps(full_snaps=True, mini_snaps=False)[1]
         # ):
         print("No compressed file")
+        if oob:
+            print("out of bounds")
+        if host_halo == None:
+            print("undefined halo target")
 
         if "gas" in data_types:
             if minmax is not None:
@@ -113,7 +128,7 @@ def read_data_ball(
                 tgt_fields=tgt_fields,
                 fam=2,
             )
-            
+
             if "age" in tgt_fields and "birth_time" in datas["stars"]:
                 datas["stars"]["age"] = convert_star_time(
                     datas["stars"]["birth_time"], sim, sim.get_snap_exps(snap)
@@ -145,11 +160,43 @@ def read_data_ball(
                 tgt_fields.append("density")
             if not "ilevel" in tgt_fields:
                 tgt_fields.extend(["ilevel"])
-            if 'velocity' in tgt_fields:
-                tgt_fields.extend(['velocity_x', 'velocity_y', 'velocity_z'])
+            if "velocity" in tgt_fields:
+                tgt_fields.extend(["velocity_x", "velocity_y", "velocity_z"])
+            if "mach" in tgt_fields or "alpha_vir" in tgt_fields:
+                tgt_fields.extend(
+                    [
+                        "velocity_x",
+                        "velocity_y",
+                        "velocity_z",
+                        "temperature",
+                        "density",
+                        "ilevel",
+                    ]
+                )
+            if (
+                "DTM" in tgt_fields
+                or "DTMC" in tgt_fields
+                or "DTMCs" in tgt_fields
+                or "DTMCl" in tgt_fields
+                or "DTMSi" in tgt_fields
+                or "DTMSis" in tgt_fields
+                or "DTMSil" in tgt_fields
+            ):
+                tgt_fields.extend(
+                    [
+                        "density",
+                        "metallicity",
+                        "dust_bin01",
+                        "dust_bin02",
+                        "dust_bin03",
+                        "dust_bin04",
+                    ]
+                )
         if "stars" in data_types or "dm" in data_types:
             if not "pos" in tgt_fields:
                 tgt_fields.append("pos")
+
+        tgt_fields = np.unique(tgt_fields).tolist()
 
         read_datas = read_compressed_target(
             sim,
@@ -161,6 +208,8 @@ def read_data_ball(
             # pos=tgt_pos,
             # rad=tgt_r,
         )
+
+        assert read_datas != None, "No data read"
 
         if "stars" in read_datas:
             stars = read_datas["stars"]
@@ -196,6 +245,107 @@ def read_data_ball(
 
         if "gas" in read_datas:
             cells = read_datas["gas"]
+
+            if "mach" in tgt_fields or "alpha_vir" in tgt_fields:
+                aexp = sim.get_snap_exps(snap)[0]
+                cells["pressure"] = (
+                    cells["temperature"] / sim.unit_T(aexp) * cells["density"]
+                )
+
+                Gfact_cgs, dx_cm, sigma_v2, snd_speed = prepare_mach_alpha(
+                    sim, aexp, cells
+                )
+
+                print("Sound speed", snd_speed.min(), snd_speed.max(), snd_speed.mean())
+                print("Sigma V2", sigma_v2.min(), sigma_v2.max(), sigma_v2.mean())
+
+                if "mach" in tgt_fields:
+                    cells["mach"] = get_mach(sigma_v2, snd_speed)
+                    print(
+                        "Mach number",
+                        cells["mach"].min(),
+                        cells["mach"].max(),
+                        cells["mach"].mean(),
+                    )
+                if "alpha_vir" in tgt_fields:
+                    cells["alpha_vir"] = get_alpha_vir(
+                        sim, aexp, cells, Gfact_cgs, dx_cm, sigma_v2, snd_speed
+                    )
+                    print(
+                        "Alpha virial",
+                        cells["alpha_vir"].min(),
+                        cells["alpha_vir"].max(),
+                        cells["alpha_vir"].mean(),
+                    )
+
+            if "DTM" in tgt_fields:
+                cells["DTM"] = (
+                    cells["dust_bin01"]
+                    + cells["dust_bin02"]
+                    + cells["dust_bin03"]
+                    + cells["dust_bin04"]
+                ) / (
+                    cells["dust_bin01"]
+                    + cells["dust_bin02"]
+                    + cells["dust_bin03"]
+                    + cells["dust_bin04"]
+                    + cells["metallicity"]
+                )
+
+            if "DTMC" in tgt_fields:
+                cells["DTMC"] = (cells["dust_bin01"] + cells["dust_bin02"]) / (
+                    cells["dust_bin01"]
+                    + cells["dust_bin02"]
+                    + cells["dust_bin03"]
+                    + cells["dust_bin04"]
+                    + cells["metallicity"]
+                )
+
+            if "DTMCs" in tgt_fields:
+                cells["DTMC"] = (cells["dust_bin01"]) / (
+                    cells["dust_bin01"]
+                    + cells["dust_bin02"]
+                    + cells["dust_bin03"]
+                    + cells["dust_bin04"]
+                    + cells["metallicity"]
+                )
+
+            if "DTMCl" in tgt_fields:
+                cells["DTMCl"] = (+cells["dust_bin02"]) / (
+                    cells["dust_bin01"]
+                    + cells["dust_bin02"]
+                    + cells["dust_bin03"]
+                    + cells["dust_bin04"]
+                    + cells["metallicity"]
+                )
+
+            if "DTMSi" in tgt_fields:
+                cells["DTMSi"] = (cells["dust_bin03"] + cells["dust_bin04"]) / (
+                    cells["dust_bin01"]
+                    + cells["dust_bin02"]
+                    + cells["dust_bin03"]
+                    + cells["dust_bin04"]
+                    + cells["metallicity"]
+                )
+
+            if "DTMSis" in tgt_fields:
+                cells["DTMSis"] = (cells["dust_bin03"]) / (
+                    cells["dust_bin01"]
+                    + cells["dust_bin02"]
+                    + cells["dust_bin03"]
+                    + cells["dust_bin04"]
+                    + cells["metallicity"]
+                )
+
+            if "DTMSil" in tgt_fields:
+                cells["DTMSil"] = (cells["dust_bin04"]) / (
+                    cells["dust_bin01"]
+                    + cells["dust_bin02"]
+                    + cells["dust_bin03"]
+                    + cells["dust_bin04"]
+                    + cells["metallicity"]
+                )
+
             datas["gas"] = cells
             # keep only cells within tgt_r of tgt_pos
             cell_tree = cKDTree(
@@ -205,8 +355,6 @@ def read_data_ball(
 
             for field in cells:
                 cells[field] = np.float64(cells[field][cell_pos_args])
-
-
 
             if (
                 type(cells["density"]) in [np.float64, np.float32]

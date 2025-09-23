@@ -98,16 +98,23 @@ import argparse
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe"
+sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF"
+# sim_dir="/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099_inter"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_noHydroDragB4z4merge"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE"
+# sim_dir = "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289"
-sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh"
@@ -161,7 +168,7 @@ sim_snaps = sim.snap_numbers
 
 
 zstt = 2.0
-tgt_zed = 2.0
+# tgt_zed = 2.0
 max_zed = 10.0
 
 # delta_t = 5  # Myr
@@ -232,6 +239,17 @@ h_snaps = find_snaps_with_halos(snaps, sim.path)[:-1]
 h_aexps = sim.get_snap_exps(h_snaps)
 h_times = sim.get_snap_times(h_snaps)
 
+print(h_snaps)
+
+
+# print(h_snaps[closest_arg], h_aexps[closest_arg], hid_start)
+if hid_tgt != None:
+    print(f"Using specified halo id: {hid_tgt:d}")
+    assert ztgt != None, "Need to specify target redshift alongside halo id"
+
+decal = len(h_aexps) - 1
+if ztgt == None:
+    ztgt = 1.0 / h_aexps[decal] - 1
 
 sink_files = os.listdir(sim.sink_path)
 sink_fnbs = np.asarray([int(f.split("_")[1].split(".")[0]) for f in sink_files])
@@ -249,26 +267,18 @@ last_sink_zed = 1.0 / last_sink_aexp - 1.0
 # mass_arg = np.where(mass == mass_order[-4])[0][0]
 # sid = last_sinks["identity"][mass_arg]
 
-find_sink_zed = max(tgt_zed, last_sink_zed)
+find_sink_zed = max(ztgt, last_sink_zed)
 
 hagn_sim = get_hagn_sim()
 
 
 last_snap_aexp = h_aexps[-2]
 last_snap_zed = 1.0 / last_snap_aexp - 1.0
-find_sink_zed = max(tgt_zed, last_snap_zed)
+
 
 print(last_snap_zed, find_sink_zed)
 
 
-# print(h_snaps[closest_arg], h_aexps[closest_arg], hid_start)
-if hid_tgt != None:
-    print(f"Using specified halo id: {hid_tgt:d}")
-    assert ztgt != None, "Need to specify target redshift alongside halo id"
-
-decal = len(h_aexps) - 1
-if ztgt == None:
-    ztgt = 1.0 / h_aexps[decal] - 1
 
 
 found = False

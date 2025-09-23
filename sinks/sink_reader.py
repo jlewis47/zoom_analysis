@@ -170,10 +170,11 @@ def snap_to_coarse_step(snap, sim, max_iter=200, delta_aexp=1e-6, **kwargs):
     # inspect = int(0.5 * nfiles)
 
     found = False
+    coarse_nb = -1
 
     # print(fnbs.max(), nfiles, len(fnbs))
 
-    # print(aexp)
+    # print(snap,aexp)
 
     # print(len(fnbs))
 
@@ -223,9 +224,9 @@ def snap_to_coarse_step(snap, sim, max_iter=200, delta_aexp=1e-6, **kwargs):
         istep += 1
 
     # print(istep, max_iter)
-    assert istep < max_iter, "Failed to find coarse step"
+    # assert istep < max_iter, "Failed to find coarse step"
 
-    return coarse_nb
+    return coarse_nb, found
 
 
 def coarse_step_to_snap(coarse_nb, sim, **kwargs):
@@ -377,7 +378,10 @@ def convert_sink_units(sinks, aexp, sim: ramses_sim, coarse_info=None):
     # )
 
     if "dMBH_coarse" in sinks:
-        sinks["dMBH_coarse"] *= unit_m / unit_t * (3600.0 * 24 * 365)  # msun/yr
+        sinks["dMBH_coarse"] *= unit_m / (unit_t * (3600.0 * 24 * 365))  # msun/yr
+
+    found=True
+
     if "dMsmbh" in sinks:
         sinks["dMsmbh"] *= unit_m  # msun
         if coarse_info == None:
@@ -385,14 +389,26 @@ def convert_sink_units(sinks, aexp, sim: ramses_sim, coarse_info=None):
         else:
             coarse_steps, coarse_zeds, coarse_times = coarse_info
 
-        cur_coarse_step = snap_to_coarse_step(sim.get_closest_snap(aexp), sim)
-        cur_t = coarse_times[coarse_steps == cur_coarse_step][0]
-        prev_t = coarse_times[coarse_steps == cur_coarse_step - 1][0]
-        sinks["dMsmbhdt_coarse"] = sinks["dMsmbh"] / (cur_t - prev_t)  # msun/yr
+        # print(coarse_steps, coarse_zeds, coarse_times)
+
+        # print(aexp)
+
+        cur_coarse_step,found = snap_to_coarse_step(sim.get_closest_snap(aexp), sim)
+
+        if not found:
+            print("Failed to find coarse step")
+            return
+
+        if cur_coarse_step > coarse_steps.min():
+            cur_arg=np.where(coarse_steps == cur_coarse_step)[0]
+            cur_t = coarse_times[cur_arg][0]
+            prev_t = coarse_times[cur_arg - 1][0]
+            sinks["dMsmbhdt_coarse"] = sinks["dMsmbh"] / (cur_t - prev_t)  # msun/yr
 
     if "dMEd_coarse" in sinks:
-        sinks["dMEd_coarse"] *= unit_m / unit_t * (3600.0 * 24 * 365)  # msun/yr
+        sinks["dMEd_coarse"] *= unit_m / (unit_t * (3600.0 * 24 * 365))  # msun/yr
 
+    return found
 
 def find_massive_sink(
     pos, snap, sim: ramses_sim, rmax=None, all_sinks=False, verbose=False, **kwargs
@@ -404,7 +420,12 @@ def find_massive_sink(
     if "tgt_fields" not in kwargs.keys():
         kwargs["tgt_fields"] = ["identity", "mass", "position"]
 
-    coarse_step = snap_to_coarse_step(snap, sim)
+    coarse_step,found = snap_to_coarse_step(snap, sim)
+
+    if found==False or coarse_step == -1:
+        print("Failed to find coarse step")
+        return {}
+
     # print(snap, coarse_step)
     # sink_f = sink_files[coarse_step == sink_fnbs][0]
     # print(sink_files, coarse_step, sink_f)
@@ -465,7 +486,7 @@ def get_sink(sid, snap, sim: ramses_sim, **kwargs):
     # sink_files = np.asarray(os.listdir(sim.sink_path))
     # sink_fnbs = np.asarray([int(f.split("_")[-1].split(".")[0]) for f in sink_files])
 
-    coarse_step = snap_to_coarse_step(snap, sim)
+    coarse_step,found = snap_to_coarse_step(snap, sim)
     # print(snap, coarse_step)
     # sink_f = sink_files[coarse_step == sink_fnbs][0]
     # print(sink_files, coarse_step, sink_f)
@@ -510,7 +531,7 @@ def get_sink_mhistory(
     snaps = sim.snaps
     snap_nbs = sim.snap_numbers
 
-    start_coarse = snap_to_coarse_step(snap, sim)
+    start_coarse,found = snap_to_coarse_step(snap, sim)
 
     coarse_info = get_coarse_dts(sim)
 
@@ -603,7 +624,10 @@ def get_sink_mhistory(
 
         aexp = sink["aexp"]
 
-        convert_sink_units(sink, aexp, sim, coarse_info=coarse_info)
+        found_step=convert_sink_units(sink, aexp, sim, coarse_info=coarse_info)
+
+        if not found_step:
+            continue
 
         if (1.0 / aexp - 1.0) > max_z:
             for k in bh_data.keys():
@@ -711,7 +735,7 @@ def gid_to_sid(sim: ramses_sim, gid, sim_snap, gdict=None):
     while (not found) and (rsearch < rmax):
         # print(found, rsearch, rmax)
         # try:
-        sim_massive_sid = find_massive_sink(
+        massive_sink = find_massive_sink(
             gpos,
             sim_snap,
             sim,
@@ -720,20 +744,26 @@ def gid_to_sid(sim: ramses_sim, gid, sim_snap, gdict=None):
             # sim_snap,
             # sim,
             # rmax=rmax,
-        )["identity"]
-        # print(sim_massive_sid)
-        if type(sim_massive_sid) in [np.ndarray, list]:
-            if len(sim_massive_sid) > 0:
+        )
+
+        # print(massive_sink)
+        if massive_sink != {}:
+
+            sim_massive_sid = massive_sink["identity"]
+
+            # print(sim_massive_sid)
+            if type(sim_massive_sid) in [np.ndarray, list]:
+                if len(sim_massive_sid) > 0:
+                    found = True
+            elif type(sim_massive_sid) in [
+                int,
+                float,
+                np.int32,
+                np.int64,
+                np.float32,
+                np.float64,
+            ]:
                 found = True
-        elif type(sim_massive_sid) in [
-            int,
-            float,
-            np.int32,
-            np.int64,
-            np.float32,
-            np.float64,
-        ]:
-            found = True
         # print(sim_massive_sid, found)
         # print(type(sim_massive_sid))
         # print(type(sim_massive_sid) in [np.ndarray, list])
@@ -748,14 +778,14 @@ def gid_to_sid(sim: ramses_sim, gid, sim_snap, gdict=None):
 def hid_to_sid(sim: ramses_sim, hid, sim_snap, debug=False):
 
     gid, gdict = get_central_gal_for_hid(sim, hid, sim_snap)
-    # print(gid, gdict)
+    if debug:print(gid, gdict)
     if gid == None:
         return None, False
 
     sim_massive_sid, found = gid_to_sid(sim, gid, sim_snap, gdict=gdict)
 
     if debug and found:
-        # print(sim_massive_sid, found)
+        print(sim_massive_sid, found)
         print(f"found sink {sim_massive_sid:d} in halo {hid:d}")
     return sim_massive_sid, found
 

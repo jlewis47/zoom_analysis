@@ -34,7 +34,7 @@ from zoom_analysis.visu.visu_fct import (
 )
 
 from hagn.tree_reader import read_tree_rev
-from hagn.io import read_hagn_snap_brickfile, read_hagn_sink_bin
+# from hagn.io import read_hagn_snap_brickfile, read_hagn_sink_bin
 from hagn.utils import get_hagn_sim
 
 import mpi4py.MPI as MPI
@@ -50,7 +50,10 @@ size = comm.Get_size()
 # # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704"
 # # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_eagn_T0p15"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099_inter"
-sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_model5"
+# sim_dir =     "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_256"
+sim_dir =     "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_model6_eps0p05"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_evenlesscoarse"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_leastcoarse"
@@ -66,7 +69,8 @@ sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099"
 #     names=True,
 #     delimiter=",",
 # )['hids']
-tgt_z = 2.0
+# tgt_z = 2.0
+tgt_z = 6.58
 
 # halos with galaxies that are not quite quenched at z=2 but are for 1Gyr by z=1.6
 # hids = [242756, 37686, 68373, 22851, 13310, 142760, 237150]
@@ -109,8 +113,11 @@ field = "density"
 # vmin = 10  # k
 # vmax = 1e5
 # field = "density"
-vmin = None
-vmax = None
+# vmin = None
+# vmax = None
+
+vmin=1e-26
+vmax=1e-21
 # tree_hids, tree_datas, tree_aexps = read_tree_rev(
 #     tree_path, tgt_zed, tree_type="halo", target_fields=["m", "x", "y", "z", "r"]
 # )
@@ -180,16 +187,17 @@ for gid in gids:
     make_amr_img_smooth(
         fig,
         ax,
+        field,
         snap,
         sim,
         gal_pos,
         rad_tgt,
         # zdist=-1,
         zdist=zdist,
-        field=field,
         debug=False,
         vmin=vmin,
         vmax=vmax,
+        hid=tgt_hid,
         # vmax=1e-22,
     )
 

@@ -60,7 +60,9 @@ do
 
     #what to do it no existing gal_bricks ? will minbricks be 9999?
 
-    run=0
+    run_hm=0
+    run_gm=0
+    run_compress=0
 
     # echo $outdir
     # echo $outnum_int
@@ -69,17 +71,26 @@ do
     then
         echo "HaloMaker output already exists for output "$outnum_int
     else
-        run=$(($run+1))
+        run_hm=1
     fi
 
     if test -f $(printf "%s/HaloMaker_stars2_dp_rec_dust/tree_bricks%03d\n" "$simdir" "$outnum_int")
     then
         echo "GalaxyMaker output already exists for output "$outnum_int
     else
-        run=$(($run+2))
+        run_gm=1
     fi
 
+    if test -f $simdir"/halogal_data/halo_data_"$outnum_int".h5"
+    then
+        echo "Compressed already exists for output "$outnum_int
+    else
+        run_compress=1  
+    fi    
+
     # echo $run
+
+    run=$(($run_hm+$run_gm+$run_compress))
 
     if [ $run -gt 0 ]
     then
@@ -116,48 +127,47 @@ do
             cd /home/jlewis/zoom_analysis/halo_maker
         fi
 
-        python -u setup_halo_maker.py -sim_dirs $simdir --nolaunch --snap $outnum_int
-
-        if [ $(($run%2)) -ne 0 ]
-        then
-            cd $simdir"/HaloMaker_DM_dust"
-            echo "Running HaloMaker for output "$outnum_int
-            ./HaloMaker
-        fi
-
-        if [ $run -gt 1 ]
-        then
-            cd $simdir"/HaloMaker_stars2_dp_rec_dust"
-            echo "Running GalaxyMaker for output "$outnum_int
-            ./HaloMaker
-        fi
-
-        #now run association if needed !!!
-        if ! test -f $simdir"/association/.h5"
-        then
-            cd /home/jlewis/zoom_analysis/halo_maker
-            python -u /home/jlewis/zoom_analysis/halo_maker/assoc.py --sim_dirs $simdir
-        fi
-
-
-        echo "Compressing output "$outnum_int
-
-
-        if ! test -f $simdir"/halogal_data/halo_data_"$outnum_int".h5"
-        then
-            cd /home/jlewis/compress_zoom
-            python -u /home/jlewis/compress_zoom/compress_zoom.py $simdir --snaps $outnum_int
-        fi
-
-        if test -f $simdir"/halogal_data/halo_data_"$outnum_int".h5"
-        then
-            echo "Cleaning up output "$outnum_int
-            find $simdir -mindepth 2 -maxdepth 2 -type f -path *output* ! -name "*.txt" ! -name "*.tar" -exec rm -f {} +;
-        fi
-
-        cd $SLURM_SUBMIT_DIR
-
     fi
+
+    if [ $run_hm == 1 ]
+    then
+        python -u /home/jlewis/zoom_analysis/halo_maker/setup_halo_maker.py -sim_dirs $simdir --nolaunch --snap $outnum_int
+        cd $simdir"/HaloMaker_DM_dust"
+        echo "Running HaloMaker for output "$outnum_int
+        ./HaloMaker
+    fi
+
+    if [ $run_gm == 1 ]
+    then
+        python -u /home/jlewis/zoom_analysis/halo_maker/setup_halo_maker.py -sim_dirs $simdir --nolaunch --snap $outnum_int
+        cd $simdir"/HaloMaker_stars2_dp_rec_dust"
+        echo "Running GalaxyMaker for output "$outnum_int
+        ./HaloMaker
+    fi
+
+    #now run association if needed !!!
+    if ! test -f $(printf "%s/association/assoc_%03d_halo_lookup.h5\n" "$simdir" "$outnum_int")
+    then
+        echo "Running association for output "$outnum_int
+        cd /home/jlewis/zoom_analysis/halo_maker
+        python -u /home/jlewis/zoom_analysis/halo_maker/assoc.py --sim_dirs $simdir  --snaps $outnum_int
+    fi
+
+    if [ $run_compress == 1 ]
+    then
+        echo "Compressing output "$outnum_int
+        cd /home/jlewis/compress_zoom
+        python -u /home/jlewis/compress_zoom/compress_zoom.py $simdir --snaps $outnum_int
+    fi
+
+    if test -f $simdir"/halogal_data/halo_data_"$outnum_int".h5"
+    then
+        echo "Cleaning up output "$outnum_int
+        find $outdir -maxdepth 2 -type f -path *output* ! -name "*.txt" ! -name "*.tar" -exec rm -f {} +;
+    fi
+
+    cd $SLURM_SUBMIT_DIR
+
 done
 
 echo "done"

@@ -31,12 +31,13 @@ def decentre_coordinates(coords, sim_path):
 
         return new_coords
 
-def recentre_coordinates(coords, sim_path,sim_ctr):
+
+def recentre_coordinates(coords, sim_path, sim_ctr):
 
     old_ctr = get_old_ctr(sim_path)
     if np.any(old_ctr == -1):
-        delta = sim_ctr-0.5
-        new_coords = coords - delta    
+        delta = sim_ctr - 0.5
+        new_coords = coords - delta
     else:
         # print(old_ctr)
         new_coords = np.copy(coords) + old_ctr - 0.5  # new centre is 0.5,0.5,0.5
@@ -70,6 +71,8 @@ def find_starting_position(
     hagn_tree_times,
     avail_times,
     delta_t=5,
+    debug=False,
+    rmax=3.0,
 ):
     decal = -1
     found = False
@@ -101,6 +104,7 @@ def find_starting_position(
             decal -= 1
             continue
 
+        # print(hagn_ctr, hagn_rvir * 2.5)
         hagn_ctr = decentre_coordinates(hagn_ctr, sim.path)
 
         # print(hagn_ctr, hagn_rvir * 2.5)
@@ -113,8 +117,8 @@ def find_starting_position(
                 sim.get_closest_snap(aexp=avail_aexps[decal]),
                 tgt_mass=hagn_mass_sim_snap,
                 tgt_ctr=hagn_ctr,
-                tgt_rad=hagn_rvir * 3.0,
-                debug=True,
+                tgt_rad=hagn_rvir * rmax,
+                debug=debug,
             )
             found = True
         except (FileNotFoundError, ValueError):
@@ -133,7 +137,15 @@ def find_starting_position(
 
 
 def starting_hid_from_hagn(
-    zstt, sim, hagn_sim, intID, avail_aexps, avail_times, ztgt=None
+    zstt,
+    sim,
+    hagn_sim,
+    intID,
+    avail_aexps,
+    avail_times,
+    ztgt=None,
+    debug=False,
+    rmax=3.0,
 ):
     """
     look for intID in hagn tree at zstt, find starting hid in sim halo tree at ztgt
@@ -141,7 +153,7 @@ def starting_hid_from_hagn(
 
     if ztgt is None:
         # ztgt = zstt
-        ztgt = 1.0 / avail_aexps[-1] - 1.0
+        ztgt = 1.0 / np.max(avail_aexps) - 1.0
 
     hagn_sim.init_cosmo()
 
@@ -171,6 +183,10 @@ def starting_hid_from_hagn(
 
     lim_zeds = avail_aexps <= (1 / (ztgt + 1.0))
 
+    # print(hagn_tree_hids)
+
+    # print(1./avail_aexps[lim_zeds]-1, 1./hagn_tree_aexps-1)
+
     hid_start, halo_dict, gal_dict, found, start_aexp = find_starting_position(
         sim,
         avail_aexps[lim_zeds],
@@ -178,6 +194,8 @@ def starting_hid_from_hagn(
         hagn_tree_datas,
         hagn_tree_times,
         avail_times[lim_zeds],
+        delta_t=20,
+        rmax=rmax
     )
 
     return hid_start, halo_dict, gal_dict, start_aexp, found
@@ -259,58 +277,66 @@ def check_if_in_zoom(pos, sim):
 
         return r_ell.sum(axis=1) < 1
 
-def check_in_all_sims_vol(pos_to_check,cur_sim,sim_dirs):
 
-    vol_args=None
+def check_in_all_sims_vol(pos_to_check, cur_sim, sim_dirs):
+
+    vol_args = None
 
     min_vol = np.inf
 
     # print(cur_sim.name)
 
-    for isim, test_sim_dir  in enumerate(sim_dirs):
+    for isim, test_sim_dir in enumerate(sim_dirs):
         test_sim = ramses_sim(test_sim_dir, nml="cosmo.nml")
 
-        vol,check_vol = test_sim.get_volume()
+        vol, check_vol = test_sim.get_volume()
+
+        # print(test_sim_dir)
+        # print(vol)
 
         if vol < min_vol:
             min_vol = vol
 
-        if hasattr(cur_sim,"zoom_ctr"):
+        if hasattr(cur_sim, "zoom_ctr"):
             cur_sim_ctr = cur_sim.zoom_ctr
         else:
             test_old_ctr = get_old_ctr(test_sim.path)
             cur_sim_ctr = test_old_ctr
 
-
         # print(cur_sim_ctr,test_sim.zoom_ctr)
 
-        if np.all(test_sim.zoom_ctr==[0.5,0.5,0.5]):
-            if np.all(cur_sim_ctr==[0.5,0.5,0.5]):
-                coords_for_test=np.copy(pos_to_check)
+        if np.all(test_sim.zoom_ctr == [0.5, 0.5, 0.5]):
+            if np.all(cur_sim_ctr == [0.5, 0.5, 0.5]):
+                coords_for_test = np.copy(pos_to_check)
                 # print('one')
                 # print(coords_for_test.mean(axis=0),pos_to_check.mean(axis=0))
             else:
-                coords_for_test = recentre_coordinates(pos_to_check,cur_sim.path,cur_sim_ctr)
+                # print(pos_to_check.mean(axis=0),test_old_ctr,cur_sim_ctr)
+                coords_for_test = recentre_coordinates(
+                    pos_to_check, cur_sim.path, cur_sim_ctr
+                )
                 # print('two')
                 # print(coords_for_test.mean(axis=0),pos_to_check.mean(axis=0))
         else:
-            if np.all(cur_sim_ctr==[0.5,0.5,0.5]):
-                
-                coords_for_test = recentre_coordinates(pos_to_check,cur_sim.path,cur_sim_ctr)
+            if np.all(cur_sim_ctr == [0.5, 0.5, 0.5]):
+
+                coords_for_test = recentre_coordinates(
+                    pos_to_check, cur_sim.path, cur_sim_ctr
+                )
                 # print('thee')
                 # print(cur_sim_ctr,test_sim.zoom_ctr)
                 # print(recentre_coordinates(cur_sim_ctr,cur_sim.path,cur_sim_ctr),test_sim.zoom_ctr)
                 # print(coords_for_test.mean(axis=0),pos_to_check.mean(axis=0))
             else:
-                coords_for_test=np.copy(pos_to_check)
+                coords_for_test = np.copy(pos_to_check)
                 # print('four')
                 # print(coords_for_test.mean(axis=0),pos_to_check.mean(axis=0))
 
         if vol_args is None:
             vol_args = check_vol(coords_for_test)
         else:
-            vol_args*=check_vol(coords_for_test)
+            vol_args *= check_vol(coords_for_test)
 
         # print(test_sim.name,vol_args.sum())
 
-    return vol_args,min_vol
+    return vol_args, min_vol

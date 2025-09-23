@@ -12,6 +12,7 @@ def get_timing_from_log(fpath):
     found = False
 
     with open(fpath, "r") as src:
+        # print(src)
         for lnb, line in enumerate(src):
 
             if "running" in line:
@@ -107,13 +108,18 @@ def get_sim_lvlmax(sim_path):
 def get_sim_proc_count(sim_path):
 
     # get a log file
-    log_files = [f for f in os.listdir(sim_path) if f.endswith(".log")]
+    log_files = np.asarray([f for f in os.listdir(sim_path) if f.endswith(".log")])
+    log_file_nbs = np.asarray([int(f.split("_")[1].split(".")[0]) for f in log_files])
 
-    pick_log = log_files[0]
+    # print(log_files)
+
+    pick_log = log_files[log_file_nbs == np.min(log_file_nbs)][0]
 
     with open(os.path.join(sim_path, pick_log), "r") as src:
 
         for lnb, line in enumerate(src):
+
+            # print(line)
 
             if "Working with nproc =" in line:
 
@@ -196,7 +202,12 @@ def plot_timing_of_dir_sims(ds, tgt_z=None):
 
                 sim_name = dir_in_dir.rstrip("/").split("/")[-1]
 
-                table_rows_heads.append(sim_name)
+                if len(sim_name) > 10:
+                    print_sim_name = sim_name[:8] + "..." + sim_name[-8:]
+                else:
+                    print_sim_name = sim_name
+
+                table_rows_heads.append(print_sim_name)
 
                 # print(dir_in_dir, sim_name)
 
@@ -216,7 +227,7 @@ def plot_timing_of_dir_sims(ds, tgt_z=None):
                     # [np.asarray(run) / (3600 / sim_procs) for run in runs],
                     zeds,
                     # aexps,
-                    label=f"{sim_name:s}, lvlmax={sim_res:d}, ncores={sim_procs:d}",
+                    label=f"{print_sim_name:s},\n lvlmax={sim_res:d},\n ncores={sim_procs:d}",
                 )
 
                 if tgt_z != None:

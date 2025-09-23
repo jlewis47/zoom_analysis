@@ -43,7 +43,7 @@ from astropy import units as u
 # fig, ax = sink_histories.setup_bh_plot()
 
 
-tgt_zed = 2.25
+tgt_zed = 4.5
 fpure = 1.0 - 1e-4
 
 HAGN_gal_dir = f"/data40b/Horizon-AGN/STARS"
@@ -88,8 +88,12 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nrg_SN",
     "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
     "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
     "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe/",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
@@ -178,7 +182,7 @@ for isim, sim_dir in enumerate(sim_dirs):
     # c = l[0].get_color()
     # find last assoc_file
 
-    coarse_step = sink_reader.snap_to_coarse_step(snap, sim)
+    coarse_step,found = sink_reader.snap_to_coarse_step(snap, sim)
 
     # sim_coarse_steps, sim_coarse_zeds, sim_coarse_times = sink_reader.get_coarse_dts(
     #     sim
@@ -238,7 +242,7 @@ tgt_hagn_aexp = hagn_aexps[np.argmin(np.abs(hagn_aexps - aexp))]
 tgt_hagn_zed = 1.0 / tgt_hagn_aexp - 1
 
 try:
-    coarse_step = sink_reader.snap_to_coarse_step(tgt_hagn_snap, hagn_sim)
+    coarse_step,found = sink_reader.snap_to_coarse_step(tgt_hagn_snap, hagn_sim)
 except AssertionError:
     print(f"Failed to get coarse step for snap {tgt_hagn_snap}")
 

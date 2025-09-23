@@ -10,6 +10,9 @@ import os
 from hagn.utils import get_hagn_sim
 
 from zoom_analysis.constants import *
+from zoom_analysis.read.read_data import read_data_ball
+from zoom_analysis.stars import sfhs
+from zoom_analysis.stars.dynamics import compute_ang_mom
 from zoom_analysis.zoom_helpers import starting_hid_from_hagn
 
 from zoom_analysis.halo_maker.assoc_fcts import (
@@ -144,9 +147,37 @@ vmax = 1e-20
 # sim_dir = "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt"
 
 sim_dirs = [
-    "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05",
-    "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
+    # ]
+    # sim_dirs = [
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+    #     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+    #     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
+    #     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_medSFE_stgNHboost_stricterSF",
+    #     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_highSFE_stgNHboost_strictestSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
 ]
+# sim_dirs = [
+#     "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05",
+#     "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
+# ]
+# sim_dirs = [
+# "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+# "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_noHydroDragB4z4merge/",
+# "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
+# ]
 
 delta_t = 4  # Myr
 every_snap = True  # try and interpolate between tree nodes if not found
@@ -236,16 +267,19 @@ if only_main_stars:
 else:
     main_st_str = ""
 
+all_sim_names = [ramses_sim(sim_d).name for sim_d in sim_dirs]
+# all_sim_names_str = "_".join(all_sim_names)
+
+sim_dir_chain = all_sim_names
+
 outdir = os.path.join(
     data_path,
+    *sim_dir_chain,
     "maps_own_tree",
     "halo",
     f"{plot_win_str}{rgal:s}",
     f"{main_st_str:s}",
 )
-
-all_sim_names = [ramses_sim(sim_d).name for sim_d in sim_dirs]
-all_sim_names_str = "_".join(all_sim_names)
 
 
 for iz, tgt_z in enumerate(common_zs):
@@ -254,15 +288,30 @@ for iz, tgt_z in enumerate(common_zs):
 
     fout = os.path.join(
         outdir,
-        f"{field.replace(' ','_')}_{all_sim_names_str:s}_{iz:03d}.png",
+        f"{field.replace(' ','_')}_{iz:03d}.png",
     )
 
     if os.path.isfile(fout) and not overwrite:
         continue
 
+    sq_side = int(np.ceil(np.sqrt(nb_sims)))
+    nrows = sq_side
+    ncols = nb_sims // sq_side
+    if ncols * sq_side < nb_sims:
+        ncols += 1
+
+    overlap = nb_sims - nrows * ncols
+
     fig, ax = plt.subplots(
-        nb_sims, 1, figsize=(8, 16), dpi=800
+        nrows, ncols, figsize=(ncols * 6, nrows * 6), dpi=800
     )  # , layout="constrained")
+
+    ax = np.ravel(ax)
+
+    if overlap > 0:
+        for i in range(overlap):
+            ax[-(i + 1)].axis("off")
+
     plt.subplots_adjust(0, 0, 1, 1, wspace=0.0, hspace=0.0)
 
     plt.axis("tight")
@@ -336,6 +385,7 @@ for iz, tgt_z in enumerate(common_zs):
         for snap, aexp, time in zip(sim_snaps, sim_aexps, sim_times):
 
             if snap != closest_snap_to_tgt or snap in done_snaps[isim]:
+                print(f"{snap:d}: incorrect or already processed")
                 continue
 
             # print(avail_aexps)
@@ -351,9 +401,11 @@ for iz, tgt_z in enumerate(common_zs):
                     zstt, sim, hagn_sim, intID, avail_aexps, avail_times, ztgt=2.0
                 )
             except IndexError:
+                print("index error when looking for starting hid")
                 continue
 
             if not found:
+                print("didnt find an appropriate starting halo")
                 continue
 
             start_zed = 1.0 / start_aexp - 1.0
@@ -407,6 +459,7 @@ for iz, tgt_z in enumerate(common_zs):
 
             smooth_gal_props = smooth_props(gal_props_tree)
             if not os.path.exists(get_halo_assoc_file(sim.path, snap)):
+                print("no assoc file at requested snap")
                 continue
 
             # zed = 1.0 / aexp - 1.0
@@ -436,6 +489,10 @@ for iz, tgt_z in enumerate(common_zs):
             #     sim_dir, snap, cur_gid, main_stars=only_main_stars
             # )
 
+            if len(gal_props_tree["aexps"]) == 0:
+                print("no snaps with gal props")
+                continue
+
             aexp_arg = np.argmin(np.abs(aexp - gal_props_tree["aexps"]))
 
             cur_r50 = smooth_gal_props["r50"][aexp_arg]
@@ -454,6 +511,47 @@ for iz, tgt_z in enumerate(common_zs):
 
             rad_tgt = cur_rad * rad_fact
 
+            try:
+                stars = read_data_ball(
+                    sim,
+                    snap,
+                    tgt_pos,
+                    rad_tgt,
+                    host_halo=cur_hid,
+                    data_types=["stars"],
+                    tgt_fields=[
+                        "pos",
+                        "vel",
+                        "mass",
+                        "age",
+                        "metallicity",
+                    ],
+                )
+            except FileNotFoundError:
+                continue
+
+            if stars is None:
+                continue
+
+            stmasses = sfhs.correct_mass(
+                sim, stars["age"], stars["mass"], stars["metallicity"]
+            )
+
+            ang_mom = compute_ang_mom(stmasses, stars["pos"], stars["vel"], tgt_pos)
+            norm_ang_mom = np.linalg.norm(ang_mom)
+
+            dir_face_on = ang_mom / norm_ang_mom
+            dir_edge_on = np.cross(dir_face_on, directions[0])
+            dir_edge_on /= np.linalg.norm(dir_edge_on)
+
+            possible_dirs = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
+
+            closest_to_face = np.argmax(
+                [np.abs(np.dot(dir_face_on, d)) for d in possible_dirs]
+            )
+
+            dir_choice = possible_dirs[closest_to_face]
+
             if fixed_r_ckpc > 0:
                 rad_tgt = fixed_r_ckpc / (sim.cosmo.lcMpc * 1e3)
 
@@ -464,14 +562,14 @@ for iz, tgt_z in enumerate(common_zs):
 
                 ax[isim].plot(
                     [-18, -18 + dist_bar],
-                    [-13, -13],
+                    [-12, -12],
                     color="white",
                     lw=3.5,
                     zorder=999,
                 )
                 ax[isim].text(
                     -18 + dist_bar / 2,
-                    -12.33,
+                    -11.33,
                     f"{dist_bar} ckpc",
                     color="white",
                     ha="center",
@@ -501,13 +599,13 @@ for iz, tgt_z in enumerate(common_zs):
                     fig,
                     ax[isim],
                     aexp,
-                    directions,
+                    dir_choice,
                     tgt_pos,
                     rad_tgt,
                     sim,
                     **args,
                 )
-            except AssertionError:
+            except (AssertionError, FileNotFoundError, TypeError):
                 continue
 
             ax[isim].set_ylabel("")
@@ -581,7 +679,7 @@ for iz, tgt_z in enumerate(common_zs):
                         hm="HaloMaker_stars2_dp_rec_dust",
                         gal_markers=gal_markers,
                         annotate=annotate,
-                        direction=directions[0],
+                        direction=dir_choice,
                         max_mass=max_gal_mass,
                         min_mass=min_gal_mass,
                         # transpose=True,
@@ -600,7 +698,7 @@ for iz, tgt_z in enumerate(common_zs):
                         hm="HaloMaker_DM_dust",
                         gal_markers=gal_markers,
                         annotate=annotate,
-                        direction=directions[0],
+                        direction=dir_choice,
                         # transpose=True,
                         **args,
                     )
@@ -614,7 +712,7 @@ for iz, tgt_z in enumerate(common_zs):
                         tgt_pos,
                         rad_tgt,
                         zdist,
-                        direction=directions[0],
+                        direction=dir_choice,
                         max_mass=max_bh_mass,
                         min_mass=min_bh_mass,
                         **args,
@@ -627,6 +725,9 @@ for iz, tgt_z in enumerate(common_zs):
 
     if plotted == nb_sims:
         print(f"writing {fout}")
+
+        for a in ax:
+            a.grid(False)
 
         fig.savefig(
             fout,

@@ -26,7 +26,7 @@ from zoom_analysis.halo_maker.assoc_fcts import (
     # find_zoom_tgt_halo,
     get_halo_assoc_file,
     get_assoc_pties_in_tree,
-    smooth_props
+    smooth_props,
 )
 
 # from zoom_analysis.sinks.sink_histories import get_cat_hids
@@ -35,6 +35,7 @@ from zoom_analysis.trees.tree_reader import read_tree_file_rev_correct_pos
 from zoom_analysis.rascas.read_rascas import read_PFS_dump
 
 from gremlin.read_sim_params import ramses_sim
+
 # from zoom_analysis.zoom_helpers import decentre_coordinates
 
 
@@ -140,7 +141,6 @@ debug = True
 overwrite_CDD = True
 overwrite_PFS = True
 overwrite = True
-overwrite = True
 
 # sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/small_rgal/id74099"
 # sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
@@ -148,7 +148,11 @@ overwrite = True
 # sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel"
 # sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel"
 # sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"
-sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
+# sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
+sim_path = "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130"
+# sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
+# sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE"
+# sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost"
 # sim_path='/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF'
 # target_hid = 203
 zed_target = 2.0
@@ -166,15 +170,21 @@ ndir_hp = 1  # number of directions... should be one or 2^N for healpy; 1-> 12 d
 # if pos or rad are none we look for treebricks and setup rascas
 # mlim = 1e10
 hm = "HaloMaker_stars2_dp_rec_dust/"
-zmax = 6.0
+zmax = 7.0
 zstt = 2.0
 # zmax = 4.0
+zed_targets = None
+# zed_targets = [2.0]
 
-snap_targets = None
-# snap_targets = [169]
-snap_targets = [205]
+# snap_targets = None
+snap_targets = np.arange(144, 160)
+# snap_targets = [207]
+# snap_targets = [214,210,206,202,198,194,190,186,182,178,174,170,166,162,158,154,150]
 # snap_targets =[82,90,131,159,182]
 # snap_targets =[64, 105, 140, 168, 175]
+# snap_targets=[58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,
+# 76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,
+# 94,95,97,98,99,100,101,102,103,105,106,107,108,109,110,111,112,113]
 
 # run_name = "ignoreDust"
 # run_name = "zoom_tgt_bpass_kroupa100"
@@ -182,8 +192,8 @@ snap_targets = [205]
 # run_name = "zoom_tgt_bpass_kroupa100_broken_metals"
 # run_name = "zoom_tgt_bpass_kroupa100_wlya"
 # run_name = "zoom_tgt_bc03_chabrier100"
-# run_name = "zoom_tgt_bc03_chabrier100_wlya"
-# run_name = "zoom_tgt_bc03_chabrier100_wlya_ndust"
+run_name = "zoom_tgt_bc03_chabrier100_wlya_SMC"
+# run_name = "zoom_tgt_bc03_chabrier100_wlya_ndust_SMC"
 # run_name = "zoom_tgt_bc03_chabrier100_wlya_YD"
 # run_name = "zoom_tgt_bc03_chabrier100_wlya_MW"
 # run_name = "zoom_tgt_bc03_chabrier100_wlya_noDust"
@@ -197,11 +207,12 @@ snap_targets = [205]
 # make sure run on fat 128 node + use all procs (incl. first step)
 
 # PFS
-nphot = 500000
-# obs_lamb_min = 100  # Ang obs frame
-# obs_lamb_max = 55000  # Ang obs frame
-obs_lamb_min = 1000  # Ang obs frame
-obs_lamb_max = 55000 # Ang obs frame
+# nphot = 500000
+nphot = 1000000
+# obs_lamb_min = 100# Ang obs frame
+# obs_lamb_max = 55000# Ang obs frame
+obs_lamb_min = 800  # Ang obs frame
+obs_lamb_max = 55000  # Ang obs frame
 # spec_dir = "/data101/jlewis/BPASS/BPASSV221/chabrier_100/reformatted"
 # spec_dir = "/data101/jlewis/BPASS/BPASSV221/kroupa_100/reformatted"
 spec_dir = "/automnt/data101/jlewis/BC03/bin/reformatted"
@@ -213,10 +224,11 @@ spec_dir = "/automnt/data101/jlewis/BC03/bin/reformatted"
 nscatter = 2
 
 # DUST
-dust_albedo = 0.32
-g_dust = 0.73
+# dust_albedo = 0.32
+# g_dust = 0.73
 ext_law = "SMC"
-# dust_model = "scaling_Z"
+dust_model = "scaling_Z"
+draine_table = "./draine01_SMC.txt"
 # dust_model = "ndust"
 # dust_model = "lookup"
 # dust_model = "MW"
@@ -230,14 +242,21 @@ ncube = None  # 128
 
 sim = ramses_sim(sim_path, nml="cosmo.nml")
 
+
 print(f"Working on {sim.name:s}")
 
 sim_aexps = sim.get_snap_exps()  # [::-1]
+sim_zeds = 1.0 / sim_aexps - 1
+# snap_targets= sim.snap_numbers[sim_zeds<=7.0]
 
-tgt_res = sim.cosmo.lcMpc*1e6/2**sim.levelmax #pc
+# print(snap_targets)
+
+# tgt_res = sim.cosmo.lcMpc*1e6/2**sim.levelmax #pc
+# take half of the resolution of the simulation
+tgt_res = sim.cosmo.lcMpc * 1e6 / 2 ** (sim.levelmax) * 2  # pc
 
 
-# lamb_max = obs_lamb_max 
+# lamb_max = obs_lamb_max
 # lamb_min = obs_lamb_min
 
 # aexp2 = 1/(2+1.)
@@ -255,9 +274,10 @@ wt = "24:00:00"
 cdd_params = {}
 cdd_params["gas_composition"] = {}
 cdd_params["gas_composition"]["ignoreDust"] = ignoreDust
-cdd_params["gas_composition"]["dust_model"] = dust_model
 cdd_params["dust"] = {}
 cdd_params["dust"]["dust_model"] = dust_model
+cdd_params["dust"]["ext_law"] = ext_law
+
 
 pfs_params = {}
 pfs_params["PhotonsFromStars"] = {}
@@ -272,15 +292,15 @@ rascas_params["master"] = {}
 rascas_params["master"]["dt_backup"] = 7200  # 2h between backups
 
 rascas_params["dust"] = {}
-rascas_params["dust"]["albedo"] = dust_albedo
-rascas_params["dust"]["g_dust"] = g_dust
+# rascas_params["dust"]["albedo"] = dust_albedo
+# rascas_params["dust"]["g_dust"] = g_dust
 rascas_params["dust"]["dust_model"] = dust_model
 rascas_params["dust"]["ext_law"] = ext_law
+rascas_params["dust"]["fname_draine_table"] = draine_table
 
 rascas_params["gas_composition"] = {}
 rascas_params["gas_composition"]["ignoreDust"] = ignoreDust
 rascas_params["gas_composition"]["nscatterer"] = nscatter
-
 
 # go through all dict keys and convert bools to one letter strings as understood by rascas
 dict_conv_bools(pfs_params)
@@ -326,6 +346,7 @@ if not hasattr(sim, "cosmo_model"):
     sim.init_cosmo()
 
 rascas_paths = []
+output_dirs = []
 run_pfss = []
 run_cdds = []
 
@@ -353,8 +374,23 @@ avail_aexps = np.intersect1d(
 )
 avail_times = sim.cosmo_model.age(1.0 / avail_aexps - 1.0).value * 1e3
 
+_, data_snaps = sim.get_snaps(tar_snaps=True, full_snaps=True, mini_snaps=False)
+data_snap_aexps = sim.get_snap_exps(data_snaps)
+close_tol = 1e-3
 
-hid_start, _, _, true_start_aexp,found = starting_hid_from_hagn(
+
+if zed_targets is not None:
+    snap_target_args = np.asarray(
+        [np.argmin(np.abs(data_snap_aexps - 1.0 / (z + 1.0))) for z in zed_targets]
+    )
+    snap_targets = data_snaps[snap_target_args]
+    err = data_snap_aexps[snap_target_args] - 1.0 / (np.asarray(zed_targets) + 1.0)
+    snap_targets = snap_targets[np.abs(err) < close_tol]
+
+print(f"Targets are {snap_targets}")
+
+
+hid_start, _, _, true_start_aexp, found = starting_hid_from_hagn(
     zstt, sim, hagn_sim, intID, avail_aexps, avail_times
 )
 # target_gid = galaxies["gids"][galaxies["mass"].argmax()]
@@ -372,7 +408,7 @@ tree_hids, tree_datas, tree_aexps = read_tree_file_rev_correct_pos(
     [hid_start],
     # tree_type="halo",
     tgt_fields=["m", "x", "y", "z", "r"],
-    debug=False,
+    verbose=False,
     star=False,
 )
 
@@ -403,6 +439,8 @@ poss = gal_props_tree["pos"]
 hids = gal_props_tree["host hid"]
 
 smooth_gal_props = smooth_props(gal_props_tree)
+
+print(snap_targets)
 
 
 for i, (snap, aexp, time) in enumerate(
@@ -452,7 +490,6 @@ for i, (snap, aexp, time) in enumerate(
 
     # cur_gid = int(hosted_gals["gids"][np.argmax(hosted_gals["mass"])])
 
-
     # _, cur_gal_props = get_gal_props_snap(sim_path, snap, cur_gid)
 
     aexp_arg = np.argmin(np.abs(aexp - gal_props_tree["aexps"]))
@@ -460,15 +497,13 @@ for i, (snap, aexp, time) in enumerate(
     cur_gid = gal_props_tree["gids"][aexp_arg]
 
     if tgt_gid is None:
-       tgt_gid = cur_gid
+        tgt_gid = cur_gid
 
     # print(cur_gal_props["pos"], snap, cur_gid, cur_gal_props["mass"])
     cur_rmax = gal_props_tree["rmax"][aexp_arg]
     cur_rmax_ppc = cur_rmax * sim.cosmo.lcMpc * 1e6 * aexp
     # cur_r50 = cur_gal_props["r50"]
     cur_pos = gal_props_tree["pos"][aexp_arg]
-
-
 
     print(f"...Setting up rascas for galaxy {cur_gid} in snap {snap}")
     print(f"Has mass {gal_props_tree['mass'][aexp_arg]} and rmax {cur_rmax}")
@@ -491,8 +526,8 @@ for i, (snap, aexp, time) in enumerate(
     if ncube is None or tgt_res is not None:
         ncube = int(np.ceil(cur_rmax_ppc / tgt_res))
 
-    #get wavs that cover z=0 filters at aexp
-    lamb_min = max(obs_lamb_min * aexp,50) #implicit division by aexp=1 [z=0]
+    # get wavs that cover z=0 filters at aexp
+    lamb_min = obs_lamb_min * aexp  # mult by aexp=1/(1+z) to observed frame
     lamb_max = obs_lamb_max * aexp
 
     print(f"\lambda min: {lamb_min}, \lambda max: {lamb_max} \AA")
@@ -522,11 +557,15 @@ for i, (snap, aexp, time) in enumerate(
     # rascas_path = create_dirs(sim.path, snap, gal_id=cur_gid, run_name=run_name)
     start_dir = ""  # this is "" so we just write straight to the dir
     rascas_path = create_dirs(
-        p=sim.path, snap=snap, gal_id=tgt_gid, run_name=run_name, start_dir=start_dir
+        p=sim.path, snap=snap, gal_id=cur_gid, run_name=run_name, start_dir=start_dir
     )
 
     print(rascas_path)
     copy_exec(rascas_path)
+
+    if dust_model == "scaling_Z":
+
+        copy_draine_table(draine_table, rascas_path)
 
     make_rascas_params(rascas_path, ndir, rascas_params)
 
@@ -583,6 +622,7 @@ for i, (snap, aexp, time) in enumerate(
         run_cdds.append(run_CDD)
         run_pfss.append(run_PFS)
         rascas_paths.append(rascas_path)
+        output_dirs.append(f"output_{snap:05d}")
     # print(rascas_paths, rascas_path)
     # run_PFS(rascas_path)
 
@@ -604,6 +644,7 @@ create_sh_multi(
     wt=wt,
     run_pfss=run_pfss,
     run_cdds=run_cdds,
+    output_dirs=output_dirs,
 )
 
 # break

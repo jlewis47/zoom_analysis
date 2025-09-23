@@ -12,10 +12,10 @@ from zoom_analysis.halo_maker.read_treebricks import (
 )
 from zoom_analysis.read.read_data import read_data_ball
 
-# from zoom_analysis.trees.tree_reader import read_tree_file_rev as read_tree_fev_sim
+# from zoom_analysis.trees.tree_reader import read_tree_file_rev as read_tree_rev_sim
 from zoom_analysis.trees.tree_reader import (
     convert_adaptahop_pos,
-    read_tree_file_rev_correct_pos as read_tree_fev_sim,
+    read_tree_file_rev_correct_pos as read_tree_rev_sim,
 )
 from zoom_analysis.constants import ramses_pc
 from zoom_analysis.halo_maker.assoc_fcts import (
@@ -112,20 +112,30 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_norvel_lowerSFE_highAGNtherm",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704",  # _leastcoarse",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",  # _leastcoarse",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",  # _leastcoarse",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",  # _leastcoarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
+    "/data102/jlewis/sims/lvlmax_20/mh1e12/id242756,  # _leastcoarse",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",  # _leastcoarse",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",  # _leastcoarse",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_medSFE_stgNHboost_stricterSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_highSFE_stgNHboost_strictestSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099",
-    "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05",
-    "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288",
+    # "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05",
+    # "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost_lowerSFE",
@@ -136,6 +146,9 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data103/jlewis/sims//lvlmax_22/mh1e12/id180130",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
 ]
@@ -242,7 +255,7 @@ for sdir in sdirs:
 
     sim = ramses_sim(sdir, nml="cosmo.nml")
 
-    sim_snaps = sim.get_snaps(mini_snaps=True)[1]
+    sim_snaps = sim.get_snaps()[1]
     sim_aexps = sim.get_snap_exps()
     sim_times = sim.get_snap_times()
     sim.init_cosmo()
@@ -440,7 +453,7 @@ for sdir in sdirs:
         #     tgt_ids=[hid_start],
         #     star=False,
         # )
-        sim_tree_hids, sim_tree_datas, sim_tree_aexps = read_tree_fev_sim(
+        sim_tree_hids, sim_tree_datas, sim_tree_aexps = read_tree_rev_sim(
             sim_halo_tree_rev_fname,
             sim,
             start_snap,
@@ -448,6 +461,9 @@ for sdir in sdirs:
             zstart=1.0 / start_aexp - 1.0,
             tgt_ids=[hid_start],
             star=False,
+            verbose=True,
+            # speed_lim=np.inf,
+            # fpure_min=0.99
         )
 
         found_steps = sim_tree_hids[0] > 0
@@ -522,11 +538,11 @@ for sdir in sdirs:
 
         smooth_gal_props = smooth_props(gal_props_tree)
 
-
+        sim_tree_snaps = [sim.get_closest_snap(aexp=a) for a in sim_tree_aexps]
 
         # # zoom loop
         for istep, (snap, aexp, time) in enumerate(
-            zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1])
+            zip(sim_tree_snaps, sim_tree_aexps, sim_tree_times)
         ):
             # if time < sim_tree_times.min() - 5:
             # continue
@@ -590,7 +606,8 @@ for sdir in sdirs:
             # print(np.linalg.norm(tgt_pos - prev_pos))
             prev_pos = tgt_pos
             # tgt_r = gal_dict["r50"] * 3
-            tgt_r = smooth_gal_props["r50"][sim_tree_arg] * 3
+            # tgt_r = smooth_gal_props["r50"][sim_tree_arg] * 3
+            tgt_r = smooth_gal_props["rvir"][sim_tree_arg] * 0.2
 
             # print(zed, snap, cur_snap_hid)
 

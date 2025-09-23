@@ -1,4 +1,3 @@
-from unittest import skip
 import numpy as np
 import os
 
@@ -21,14 +20,18 @@ def read_transmission(fin):
     return wav, trans
 
 
-def read_transmissions(tgt_bands=None, IB=False, NB=False, MIRI=False, YJHK=True):
-    root = "/home/jlewis/zoom_analysis/rascas/filts"
+def read_transmissions(
+    tgt_bands=None, IB=False, NB=False, MIRI=False, YJHK=True, NISP=True
+):
+    root = "/home/jlewis/codes/zoom_analysis/rascas/filts"
 
     filters_files = [
         f
         for f in os.listdir(root)
         if not ".py" in f and os.path.isfile(os.path.join(root, f))
     ]
+
+    # print(filters_files)
 
     if IB == False:
         filters_files = [f for f in filters_files if "IB" not in f]
@@ -41,6 +44,8 @@ def read_transmissions(tgt_bands=None, IB=False, NB=False, MIRI=False, YJHK=True
         filters_files = [f for f in filters_files if not f.startswith("J.")]
         filters_files = [f for f in filters_files if not f.startswith("H.")]
         filters_files = [f for f in filters_files if not f.startswith("K.")]
+    if NISP == False:
+        filters_files = [f for f in filters_files if not f.startswith("NISP.")]
 
     filters_names = [f.split(".")[0] for f in filters_files]
     # print(filters_names)
@@ -56,6 +61,8 @@ def read_transmissions(tgt_bands=None, IB=False, NB=False, MIRI=False, YJHK=True
 
         filters_wavs.append(wav)
         filters_trans.append(trans)
+
+    # print(filters_names)
 
     return filters_names, filters_wavs, filters_trans
 
@@ -96,14 +103,61 @@ def convolve_spe(spe_wav, spe_flux, filts_wav, filts_trans):
     return ctr, out  # / px_weights
 
 
-def convolve_cube(spe_wav, spe_cube, filts_wav, filts_trans):
+def convolve_cube(spe_wav, spe_cube, filts_wav, filts_trans, rpix=None):
 
-    # print(filts_wav, filts_trans)
+    left_half = int(np.floor(rpix * 0.5))
+    right_half = int(np.ceil(rpix * 0.5))
+    half = int(np.floor(spe_cube.shape[0] / 2))
 
     # incoming cubes are dims x,y,wav
-    out_cube = np.zeros((len(filts_wav), spe_cube.shape[0], spe_cube.shape[1]))
+    if rpix == None:
+        rpix = spe_cube.shape[0]
+    out_cube = np.zeros((len(filts_wav), rpix, rpix))
     ctr = np.zeros(len(filts_wav))
     # px_weights = np.zeros_like(spe_flux)
+
+    # xs = np.arange(spe_cube.shape[0])
+    # ys = np.arange(spe_cube.shape[1])
+
+    # Xs,Ys = np.meshgrid(xs, ys)
+
+    # args =np.where(np.logical_and(np.abs(Xs-0.5*spe_cube.shape[0])<=int(rpix/2), np.abs(Ys-0.5*spe_cube.shape[1])<=int(rpix/2)))[0]
+
+    # # print(np.ravel(Ys))
+
+    # Yargs= np.ravel(Ys)[args]
+    # Xargs= np.ravel(Xs)[args]
+
+    # # print(args)
+    # # print(args.shape)
+
+    # # print(xs)
+
+    # xshape = np.sum(np.abs(xs-0.5*spe_cube.shape[0])<=rpix/2)
+    # yshape = np.sum(np.abs(ys-0.5*spe_cube.shape[1])<=rpix/2)
+
+    # # print(xs)
+
+    # # print(np.abs(xs)<=rpix/2)
+
+    # # # print(rpix, xargs)
+
+    # # print(np.abs(Xs)<=rpix/2)
+    # # print(np.sum(np.abs(Xs)<=rpix/2),Xs.shape)
+
+    # print(len(Xargs),xshape)
+    # print(len(Yargs),yshape)
+
+    # xargs = np.abs(np.arange(spe_cube.shape[0])-0.5*spe_cube.shape[0])<=rpix/2
+    # yargs = np.abs(np.arange(spe_cube.shape[1])-0.5*spe_cube.shape[1])<=rpix/2
+
+    # print(xargs, yargs)
+
+    # print(xargs.shape)
+
+    # print(spe_cube.shape)
+
+    # print(spe_cube[xargs, yargs, :].shape)
 
     ifilt = 0
 
@@ -117,13 +171,22 @@ def convolve_cube(spe_wav, spe_cube, filts_wav, filts_trans):
         if np.sum(bin_filt_trans) == 0:
             continue
 
+        # print(half, rpix, half_rpix, half+half_rpix, half-half_rpix)
+
         # convolve spectrum with filter
         # px_weights[:-1] += np.int32(bin_filt_trans > 0)
         out_cube[ifilt, :, :] = simpson(
-            spe_cube[:, :, :] * bin_filt_trans[np.newaxis, np.newaxis, :],
+            spe_cube[
+                half - left_half : half + right_half,
+                half - left_half : half + right_half,
+                :,
+            ]
+            * bin_filt_trans[np.newaxis, np.newaxis, :],
             spe_wav[:],
             axis=2,
         ) / simpson(bin_filt_trans, spe_wav[:])
+
+        # print(filt_wav)
 
         ctr[ifilt] = np.median(filt_wav)
 
