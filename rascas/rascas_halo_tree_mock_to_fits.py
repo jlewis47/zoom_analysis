@@ -9,10 +9,11 @@ from astropy import units as u
 from astropy.io import fits
 from reproject import reproject_interp
 
+from matplotlib.backends.backend_pdf import PdfPages
+
 # from matplotlib.colors import LogNorm
 # from scipy.stats import binned_statistic_2d
 import os
-
 
 from zoom_analysis.rascas.rascas_steps import filt_file_to_dict, get_directions_cart
 from zoom_analysis.read.read_data import read_data_ball
@@ -94,32 +95,59 @@ from zoom_analysis.rascas.filts.filts import (
 from zoom_analysis.rascas.rascas_plots import *
 
 
-def write_mock_imgs(fname, aexp, time, z, aper_sr, names, imgs, st_img):
+def band_to_zpt(bands):
 
-    with h5py.File(
-        fname,
-        "w",
-    ) as f:
-        hdr = f.create_group("header")
+    if type(bands) is str:
+        bands = [bands]
 
-        hdr.attrs["redshift"] = z
-        hdr.attrs["aexp"] = aexp
-        hdr.attrs["time_Myr"] = time
-        hdr.attrs["aperture_sr"] = aper_sr
-        hdr.attrs["img_shape"] = imgs[0].shape
-        hdr.attrs["flux_units"] = "MJy.sr^-1"
-        hdr.attrs["stellar_surface_density_units"] = "M_sun.as^-2"
-        hdr.attrs["stellar_surface_density_help"] = (
-            "computed as a 2d histogram of the stellar particles in the aperture, taking stars that are in [-0.5,0.5] around the image in the projection direction"
+    test_bands = np.asarray([band.lower() for band in bands])
+
+    zpts = np.zeros(len(bands))
+
+    for i, band in enumerate(test_bands):
+        if band in ["f814w", "f115w", "f150w", "f277w", "f444w"]:
+            zpts[i] = 28.09
+        elif band in ["f777w"]:
+            zpts[i] = 26.58132
+        else:
+            zpts[i] = 28.9
+
+    return zpts
+
+
+def resc_flux(fls, bands, base_zpt=8.9):
+
+    new_zpts = band_to_zpt(bands)
+
+    if len(fls.shape) == 2:
+        fls = [fls]
+    elif len(fls.shape) != 3:
+        raise ValueError(
+            "flux array must be 2D (n_bands,n_gals) or 3D (n_bands,n_gals,n_dirs)"
         )
 
-        for i, (band_name, img) in enumerate(zip(names, imgs)):
-            f.create_dataset(band_name, data=img, compression="lzf")
+    for ifl, (fl, band, new_zpt) in enumerate(zip(fls, bands, new_zpts)):
 
-        f.create_dataset("stellar_surface density", data=st_img, compression="lzf")
+        fls[ifl] = -2.5 * np.log10(10 ** (fl / -2.5) - base_zpt + new_zpt)
+
+    return fls
 
 
 if __name__ == "__main__":
+
+    # filt_wav_dict={
+    #     "f115w": 1.150,
+    #     "f150w": 1.501,
+    #     "f277w": 2.760,
+    #     "f444w": 4.400,
+    #     "HST-F814W": 0.820,
+    #     "CFHT-u": 0.386,
+    #     "HSC-g": 0.475,
+    #     "HSC-r": 0.623,
+    #     "HSC-i": 0.770,
+    #     "HSC-z": 0.890,
+    #     "HSC-y": 1.000,
+    # }
 
     hagn_sim = get_hagn_sim()
 
@@ -151,9 +179,9 @@ if __name__ == "__main__":
     # sim_id = "id242704_novrel"
     # sim_id = "id21892_novrel"
     dsims = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/"
-    # sim_id = "id26646"
-    sim_id = "id52380"
-    # sim_id = "id180130" 
+    sim_id = "id26646"
+    # sim_id = "id52380"
+    # sim_id = "id180130"
     sim_path = os.path.join(dsims, sim_id)
     zed_targets = None
     snap_targets = None
@@ -364,11 +392,17 @@ if __name__ == "__main__":
     all_mgals = []
     all_r50s = []
     all_m_r50s = []
+    all_m_2xr50s = []
     all_sfrs_10 = []
     all_sfrs_10_r50 = []
+    all_sfrs_10_2xr50 = []
     band_names = []
     band_sums_mag = []
+    band_sums_mag_noise = []
     band_sums_mag_r50 = []
+    band_sums_mag_r50_noise = []
+    band_sums_mag_2xr50 = []
+    band_sums_mag_2xr50_noise = []
     img_size = []
     # sfr10s=[]
     # sfr100s=[]
@@ -412,29 +446,9 @@ if __name__ == "__main__":
             continue
         print(f"found tree data for snap {snap:d}")
 
-        tree_arg = np.argmin(np.abs(time - tree_times))
-
-        print(sim_path, snap, tree_hids[tree_arg])
-
-        hdict, hosted_gals = get_halo_props_snap(
-            sim_path, snap, tree_hids[tree_arg], hosted_gals=True
-        )
-
-        if hosted_gals == {}:
-            print(f"no hosted gals for snap {snap:d}")
-            continue
-        print(f"found hosted gals for snap {snap:d}")
-
         aexp_arg = np.argmin(np.abs(aexp - gal_props_tree["aexps"]))
 
         gid = gal_props_tree["gids"][aexp_arg]
-
-        # if final_gid is None:
-        # final_gid = gid
-
-        _, cur_gal_props = get_gal_props_snap(sim_path, snap, gid)
-
-        # print(cur_gal_props["pos"], snap, gid, cur_gal_props["mass"])
 
         rascas_dir = os.path.join(rascas_path, f"output_{snap:05d}", f"gal_{gid:07d}")
 
@@ -449,6 +463,26 @@ if __name__ == "__main__":
             print(f"no mock_test.spectrum in {rascas_dir}")
             continue
         print(f"found mock_test.spectrum in {rascas_dir}")
+
+        tree_arg = np.argmin(np.abs(time - tree_times))
+
+        # print(sim_path, snap, tree_hids[tree_arg])
+
+        hdict, hosted_gals = get_halo_props_snap(
+            sim_path, snap, tree_hids[tree_arg], hosted_gals=True
+        )
+
+        if hosted_gals == {}:
+            print(f"no hosted gals for snap {snap:d}")
+            continue
+        print(f"found hosted gals for snap {snap:d}")
+
+        # if final_gid is None:
+        # final_gid = gid
+
+        _, cur_gal_props = get_gal_props_snap(sim_path, snap, gid)
+
+        # print(cur_gal_props["pos"], snap, gid, cur_gal_props["mass"])
 
         last_time = time
 
@@ -504,11 +538,11 @@ if __name__ == "__main__":
         )
 
         aper_cm = rgal * 2 * l * (1e6 * ramses_pc)
-        # distl = sim.cosmo_model.luminosity_distance(z).value * (1e6 * ramses_pc)
-        # aper_as = np.arctan(aper_cm / distl) * 180.0 / np.pi * 3600.0
-        aper_as = (rgal * 2 * l * 1e3) * sim.cosmo_model.arcsec_per_kpc_comoving(
-            z
-        ).value
+        distl = sim.cosmo_model.luminosity_distance(z).value * (1e6 * ramses_pc)
+        aper_as = np.arctan(aper_cm / distl) * 180.0 / np.pi * 3600.0
+        # aper_as = (rgal * 2 * l * 1e3) * sim.cosmo_model.arcsec_per_kpc_comoving(
+        #     z
+        # ).value
 
         # fstar = os.path.join(sim.path, hm, f"GAL_{snap:05d}", f"gal_stars_{gid:07d}")
         # print(fstar)
@@ -518,13 +552,15 @@ if __name__ == "__main__":
         # sfh, sfr, ssfr, t_sfr, _ = sfhs.get_sf_stuff(stars, z, sim, deltaT=10.0)
 
         try:
-            stars_ball = read_data_ball(sim,
-                                        snap,
-                                        gal_props_tree["pos"][aexp_arg],
-                                        rgal,
-                                        int(gal_props_tree['host hid'][aexp_arg]),
-                                        data_types=['stars'],
-                                        tgt_fields=["age","mass", "birth_time", "metallicity", "pos"],)
+            stars_ball = read_data_ball(
+                sim,
+                snap,
+                gal_props_tree["pos"][aexp_arg],
+                rgal,
+                int(gal_props_tree["host hid"][aexp_arg]),
+                data_types=["stars"],
+                tgt_fields=["age", "mass", "birth_time", "metallicity", "pos"],
+            )
         except FileNotFoundError:
             print("Couldn't find data files")
             print("skipping")
@@ -543,18 +579,24 @@ if __name__ == "__main__":
 
         print(stars_ball["pos"].shape)
 
-
-        dist_to_ctr = np.linalg.norm(stars_ball["pos"] - gal_props_tree["pos"][aexp_arg],axis=1)
-
-        st_in_r50 = dist_to_ctr <= r50
-
-        stars_ball_r50 = {k:stars_ball[k][st_in_r50] for k in stars_ball.keys()}
-
-        sfh_ball_r50, sfr_ball_r50, ssfr_ball_r50, t_sfr_ball_r50, _ = sfhs.get_sf_stuff(
-            stars_ball_r50, z, sim, deltaT=10.0
+        dist_to_ctr = np.linalg.norm(
+            stars_ball["pos"] - gal_props_tree["pos"][aexp_arg], axis=1
         )
 
+        st_in_r50 = dist_to_ctr <= r50
+        st_in_2xr50 = dist_to_ctr <= 2 * r50
 
+        stars_ball_r50 = {k: stars_ball[k][st_in_r50] for k in stars_ball.keys()}
+
+        sfh_ball_r50, sfr_ball_r50, ssfr_ball_r50, t_sfr_ball_r50, _ = (
+            sfhs.get_sf_stuff(stars_ball_r50, z, sim, deltaT=10.0)
+        )
+
+        stars_ball_2xr50 = {k: stars_ball[k][st_in_2xr50] for k in stars_ball.keys()}
+
+        sfh_ball_2xr50, sfr_ball_2xr50, ssfr_ball_2xr50, t_sfr_ball_2xr50, _ = (
+            sfhs.get_sf_stuff(stars_ball_2xr50, z, sim, deltaT=10.0)
+        )
 
         # gal_dict = {}
         # gal_dict["mass"] = sfh
@@ -594,6 +636,8 @@ if __name__ == "__main__":
             galaxy_ids.append(gid)
             all_sfrs_10.append(sfr_ball.sum())
             all_sfrs_10_r50.append(sfr_ball_r50.sum())
+            all_sfrs_10_2xr50.append(sfr_ball_2xr50.sum())
+            all_m_2xr50s.append(stmasses[st_in_2xr50].sum())
             all_m_r50s.append(stmasses[st_in_r50].sum())
             # sfr10s.append(sfr10)
             # sfr100s.append(sfr100)
@@ -613,10 +657,24 @@ if __name__ == "__main__":
         "CFHT-u": "u_new",
     }
 
+    filt_wav_dict = {
+        "f115w": 1.150,
+        "f150w": 1.501,
+        "f277w": 2.760,
+        "f444w": 4.400,
+        "HST-F814W": 0.820,
+        "CFHT-u": 0.386,
+        "HSC-g": 0.475,
+        "HSC-r": 0.623,
+        "HSC-i": 0.770,
+        "HSC-z": 0.890,
+        "HSC-y": 1.000,
+    }
+
     all_rgals = np.asarray(all_rgals)
 
     tile_code, tile_shape_px, found_pos_px, all_rgals_px, found_all, wcs = (
-        gals_to_fit_pos(all_rgals * 1.1, niter=len(all_rgals) * 100000)
+        gals_to_fit_pos(all_rgals * 1.1, niter=len(all_rgals) * 25)
     )
 
     found_pos_deg = wcs.pixel_to_world(found_pos_px[:, 0], found_pos_px[:, 1])
@@ -645,20 +703,29 @@ if __name__ == "__main__":
 
     f444_hdr, _ = read_fits(fname_res)
 
+    ang_per_ckpc = sim.cosmo_model.arcsec_per_kpc_comoving(z).value
 
-    for ifilt,filt in enumerate([
+    filt_list = [
         "CFHT-u",
         "HSC-g",
-        "HSC-i",
         "HSC-r",
-        "HSC-y",
-        "HSC-z",
+        "HSC-i",
         "HST-F814W",
+        "HSC-z",
+        "HSC-y",
         "f115w",
         "f150w",
         "f277w",
         "f444w",
-    ]):
+    ]
+
+    fig, ax = plt.subplots(
+        len(filt_list), 3, layout="constrained", figsize=(3 * 4, 4 * len(filt_list))
+    )
+
+    # correct zero points
+
+    for ifilt, filt in enumerate(filt_list):
         # for ifile,filt in enumerate(["f277w"]):
 
         band_names.append(filt)
@@ -673,36 +740,62 @@ if __name__ == "__main__":
 
         # resolution_hdr_mas = res_hdr["CDELT1"]*3600*1e3
 
+        instr_name = filt.split("-")[0]
+
         resolution_hdr_mas = get_hdr_res(res_hdr) * 1e3
 
         # resolution_hdr_mas = psf_dict[filt_dict[filt]]["res_as"] * 1e3
 
         # res_data = array, footprint = reproject_interp(res_hdu, f444_hdr)
 
-        res_data = res_data.T
+        res_data = np.copy(res_data.T)
+        # res_data = np.copy(res_data.T) * 1e-2
+        # print("warning: empty residuals")
+        # res_data = np.zeros_like(res_data.T)
 
         out_flats_fname = os.path.join(out_dir, f"out_flat_{filt:s}_{tile_code}.fits")
 
         filt_sum_mag = []
+        filt_sum_mag_noise = []
         filt_sum_mag_r50 = []
+        filt_sum_mag_r50_noise = []
+        filt_sum_mag_2xr50 = []
+        filt_sum_mag_2xr50_noise = []
 
-        for fname, rgal, rgal_as, r50_as, found_pos in zip(
-            fnames[:],
-            all_rgals_px[:],
-            all_rgals[:],
-            all_r50s[:],
-            np.transpose([found_pos_deg.ra.value, found_pos_deg.dec.value])[:],
+        for igal, (fname, rgal, rgal_as, r50_as, found_pos) in enumerate(
+            zip(
+                fnames[:],
+                all_rgals_px[:],
+                all_rgals[:],
+                all_r50s[:],
+                np.transpose([found_pos_deg.ra.value, found_pos_deg.dec.value])[:],
+            )
         ):
 
             with h5py.File(fname, "r") as src:
                 try:
                     img_gal = src[filt_dict[filt]][()]
-                    px_as = src["header"].attrs["pixel_res_as"]
+                    px_as = {
+                        n: dx
+                        for n, dx in zip(
+                            src["header"].attrs["band_names"],
+                            src["header"].attrs["pixel_res_as"],
+                        )
+                    }[filt_dict[filt]]
+                    # cur_aperture_sr = {
+                    #     n: aper
+                    #     for n, aper in zip(
+                    #         src["header"].attrs["band_names"],
+                    #         src["header"].attrs["aperture_sr"],
+                    #     )
+                    # }
                 except KeyError:
                     print(f"error reading {filt_dict[filt]} from {fname}")
                     continue
 
             size = img_gal.shape
+
+            resc_flux(img_gal, filt_dict[filt])
 
             xrgal = int(size[0] * 0.5)
             yrgal = int(size[1] * 0.5)
@@ -718,11 +811,25 @@ if __name__ == "__main__":
             xmin = int(cur_found_pos_px[0]) - xrgal
             ymin = int(cur_found_pos_px[1]) - yrgal
 
-            # this way might be a pixel off but who cares for what I'm doing
-            res_data[xmin : xmin + size[0], ymin : ymin + size[1]] += img_gal
+            rgal_cm = rgal_as / ang_per_ckpc * 1e3 * ramses_pc
 
-            # aper_sr = np.pi * (aper_as / 3600 / 180 * np.pi) ** 2
-            rgal_sr = np.pi * (2 * rgal_as / 3600 / 180 * np.pi) ** 2
+            org_residuals = np.copy(
+                res_data[xmin : xmin + size[0], ymin : ymin + size[1]]
+            )
+
+            px_sr = px_as**2 * (np.pi / 3600.0 / 180.0) ** 2
+
+            # this way might be a pixel off but who cares for what I'm doing
+            res_data[xmin : xmin + size[0], ymin : ymin + size[1]] = (
+                res_data[xmin : xmin + size[0], ymin : ymin + size[1]] + img_gal
+            )
+            # print('warning: no noise!!!!!')
+            # res_data[xmin : xmin + size[0], ymin : ymin + size[1]] = img_gal
+
+            # aper_sr = (aper_as / 3600 / 180 * np.pi) ** 2
+            rgal_sr = (2 * rgal_as / 3600 / 180 * np.pi) ** 2
+            # rgal_sr = get_aper_sr(sim.cosmo_model.luminosity_distance, z, rgal_cm)
+
             rgal_px = abs(
                 int(
                     np.ceil(
@@ -736,8 +843,11 @@ if __name__ == "__main__":
                 )
             )
 
-            r50_sr = np.pi * (2 * r50_as / 3600 / 180 * np.pi) ** 2
-            r50_px = rgal_px * r50_as/rgal_as
+            # r50_cm = r50_as / ang_per_ckpc * 1e3 * ramses_pc
+            # r50_sr = get_aper_sr(sim.cosmo_model.luminosity_distance, z, r50_cm)
+            r50_sr = (2 * r50_as / 3600 / 180 * np.pi) ** 2
+
+            r50_px = rgal_px * r50_as / rgal_as
             # aper_ratio = r50_as / aper_as
             # aper_size_px = aper_ratio * img_gal.shape[0]
             # r_select_px = int(0.5 * aper_size_px)
@@ -746,40 +856,125 @@ if __name__ == "__main__":
             Ximg, Yimg = (
                 np.mgrid[0 : img_gal.shape[0], 0 : img_gal.shape[1]] - half_size_px
             )
-            select_circ = np.linalg.norm([Ximg, Yimg], axis=0) < rgal_px
+
+            select_circ = np.linalg.norm([Ximg, Yimg], axis=0) <= rgal_px
+
+            # px_sr=rgal_sr / select_circ.sum()
 
             aper_mag = (
-                -2.5
-                * np.log10(
-                    np.sum(img_gal[select_circ]) * 1e6 * (rgal_sr / (rgal_px * 2) ** 2)
-                )
+                -2.5 * np.log10(np.sum(img_gal[select_circ]) * 1e6 * px_sr) + 8.90
+            )
+
+            img_gal_w_noise = res_data[xmin : xmin + size[0], ymin : ymin + size[1]]
+
+            aper_mag_w_noise = (
+                -2.5 * np.log10(np.sum(img_gal_w_noise[select_circ]) * 1e6 * px_sr)
                 + 8.90
             )
 
             filt_sum_mag.append(aper_mag)
+            filt_sum_mag_noise.append(aper_mag_w_noise)
 
-            if r50_px >= 1 : 
+            if r50_px >= 0.5:
 
-                r50_px = int(np.ceil(r50_px))
-
-                select_circ_r50 = np.linalg.norm([Ximg, Yimg], axis=0) < r50_px
+                select_circ_r50 = np.linalg.norm([Ximg, Yimg], axis=0) <= r50_px
 
                 aper_mag_r50 = (
+                    -2.5 * np.log10(np.sum(img_gal[select_circ_r50]) * 1e6 * px_sr)
+                    + 8.90
+                )
+                aper_mag_r50_noise = (
                     -2.5
-                    * np.log10(
-                        np.sum(img_gal[select_circ]) * 1e6 * (r50_sr / (r50_px * 2) ** 2)
-                    )
+                    * np.log10(np.sum(img_gal_w_noise[select_circ_r50]) * 1e6 * px_sr)
                     + 8.90
                 )
 
             else:
 
                 flux_central_px = img_gal[half_size_px, half_size_px]
-                aper_mag_r50 = -2.5*np.log10(flux_central_px * r50_px**2 * 1e6 * (r50_sr / (r50_px * 2) ** 2)) + 8.90
+                flux_central_px_noise = img_gal_w_noise[half_size_px, half_size_px]
+
+                aper_mag_r50 = (
+                    -2.5 * np.log10(flux_central_px * r50_px**2 * np.pi * 1e6 * px_sr)
+                    + 8.90
+                )
+                aper_mag_r50_noise = (
+                    -2.5
+                    * np.log10(flux_central_px_noise * r50_px**2 * np.pi * 1e6 * px_sr)
+                    + 8.90
+                )
 
             filt_sum_mag_r50.append(aper_mag_r50)
+            filt_sum_mag_r50_noise.append(aper_mag_r50_noise)
 
-            print(filt, aper_mag, aper_mag_r50)
+            if (r50_px * 2) >= 0.5:
+
+                select_circ_2xr50 = np.linalg.norm([Ximg, Yimg], axis=0) <= (r50_px * 2)
+
+                aper_mag_2xr50 = (
+                    -2.5 * np.log10(np.sum(img_gal[select_circ_2xr50]) * 1e6 * px_sr)
+                    + 8.90
+                )
+                aper_mag_2xr50_noise = (
+                    -2.5
+                    * np.log10(np.sum(img_gal_w_noise[select_circ_2xr50]) * 1e6 * px_sr)
+                    + 8.90
+                )
+
+            else:
+
+                flux_central_px = img_gal[half_size_px, half_size_px]
+                aper_mag_2xr50 = (
+                    -2.5
+                    * np.log10(
+                        flux_central_px * (r50_px * 2) ** 2 * np.pi * 1e6 * px_sr
+                    )
+                    + 8.90
+                )
+                flux_central_px_noise = img_gal_w_noise[half_size_px, half_size_px]
+                aper_mag_2xr50_noise = (
+                    -2.5
+                    * np.log10(
+                        flux_central_px_noise * (r50_px * 2) ** 2 * np.pi * 1e6 * px_sr
+                    )
+                    + 8.90
+                )
+
+            filt_sum_mag_2xr50.append(aper_mag_2xr50)
+            filt_sum_mag_2xr50_noise.append(aper_mag_2xr50_noise)
+
+            print(
+                filt,
+                aper_mag,
+                aper_mag_w_noise,
+                aper_mag_r50,
+                aper_mag_2xr50,
+                aper_mag_2xr50_noise,
+                px_sr,
+            )
+
+            if igal == 5:
+
+                ax[ifilt, 0].set_ylabel(filt)
+
+                img1 = ax[ifilt, 0].imshow(
+                    org_residuals.T, origin="lower", vmin=-0.25, vmax=0.25, cmap="bwr"
+                )
+                # plt.colorbar(img1,ax=ax[0])
+                img2 = ax[ifilt, 1].imshow(
+                    img_gal.T, origin="lower", vmin=-0.25, vmax=0.25, cmap="bwr"
+                )
+                # plt.colorbar(img2,ax=ax[1])
+                img3 = ax[ifilt, 2].imshow(
+                    img_gal_w_noise.T, origin="lower", vmin=-0.25, vmax=0.25, cmap="bwr"
+                )
+                # plt.colorbar(img3,ax=ax[2])
+
+            # JWST_flux_units = u.MJy / u.sr
+            # img_flux_tot = img_gal[select_circ].sum() * JWST_flux_units * rgal_sr / (rgal_px * 2) ** 2 * u.sr
+            # img_mag_tot_uast = img_flux_tot.to(u.ABmag)
+
+            # print(img_flux_tot, img_mag_tot_uast)
 
             if debug:
 
@@ -805,7 +1000,7 @@ if __name__ == "__main__":
 
                 fig.savefig(dfig_name)
 
-            print(rgal, img_gal.shape)
+            # print(rgal, img_gal.shape)
 
             # input('')
 
@@ -815,10 +1010,27 @@ if __name__ == "__main__":
 
         band_sums_mag.append(filt_sum_mag)
         band_sums_mag_r50.append(filt_sum_mag_r50)
+        band_sums_mag_2xr50.append(filt_sum_mag_2xr50)
+        band_sums_mag_noise.append(filt_sum_mag_noise)
+        band_sums_mag_r50_noise.append(filt_sum_mag_r50_noise)
+        band_sums_mag_2xr50_noise.append(filt_sum_mag_2xr50_noise)
 
         # res_hdr["BAND"] = filt
 
         save_fits(out_flats_fname, res_hdr, res_data, overwrite=True)
+
+    plt.colorbar(img3, ax=ax, label="MJy/sr")
+
+    ax[0, 0].set_title("Residual image")
+    ax[0, 1].set_title("Mock image")
+    ax[0, 2].set_title("Zoom flat")
+    for a in np.ravel(ax):
+        a.grid()
+
+    fig.savefig(f"tests/test_integration_and_noise_{igal:d}")
+
+    # print(img_gal.sum(),img_gal.mean(),img_gal.std())
+    # print(org_residuals.sum(),org_residuals.mean(),org_residuals.std())
 
     # res_data[:,-800:]=50 # top
     # res_data[4500:5500,7750:14000]=50 # in field middle
@@ -826,9 +1038,10 @@ if __name__ == "__main__":
     # res_data[9000:9750,-2300:]=50 # in field middle
     # res_data[13750:14000,10500:13000]=50 # in field middle
 
-    font = {"family": "normal", "weight": "bold", "size": 50}
+    # font = {"family": "normal", "weight": "bold", "size": 50}
+    # font = {"weight": "bold", "size": 50}
 
-    matplotlib.rc("font", **font)
+    # matplotlib.rc("font", **font)
 
     fig, ax = plt.subplots(1, 1, figsize=(100, 100))
 
@@ -882,15 +1095,84 @@ if __name__ == "__main__":
                 galaxy_ids,
                 all_mgals,
                 all_m_r50s,
+                all_m_2xr50s,
                 all_sfrs_10,
                 all_sfrs_10_r50,
+                all_sfrs_10_2xr50,
                 *band_sums_mag,
                 *band_sums_mag_r50,
+                *band_sums_mag_2xr50,
                 # sfr100s,
                 # sfr1000s,
             ]
         ),
         # fmt="%.6e",
-        header=("x(px) y(px) rgal(px) ra dec rgal(deg) r50(deg) z snapshot galid mgal(msun) m_r50(msun) sfr_10Myr(msun/Myr) sfr_10Myr_r50(msun/Myr)"
-        + " ".join([b + "_rgal(magAB)" for b in band_names]) + " ".join([b + "_r50(magAB)" for b in band_names])),
+        header=(
+            "x(px) y(px) rgal(px) ra(deg) dec(deg) rgal(deg) r50(deg) z snapshot galid mgal(msun) m_r50(msun) m_2xr50(msun) sfr_10Myr(msun/Myr) sfr_10Myr_r50(msun/Myr) sfr_10Myr_2xr50(msun/Myr) "
+            + " ".join([b + "_rgal(magAB)" for b in band_names])
+            + " "
+            + " ".join([b + "_r50(magAB)" for b in band_names])
+            + " "
+            + " ".join([b + "_2xr50(magAB)" for b in band_names])
+        ),
     )
+
+    if debug:
+
+        with PdfPages("debug_spectra.pdf") as pp:
+
+            for igal in range(len(np.transpose(band_sums_mag))):
+
+                fig, ax = plt.subplots(1, 1)
+
+                wavs = np.asarray([filt_wav_dict[k] for k in filt_list])
+
+                order = np.argsort(wavs)
+
+                (l1,) = ax.plot(
+                    wavs[order],
+                    np.transpose(band_sums_mag)[igal][order],
+                    label="Noiseless, in rgal",
+                )
+                ax.plot(
+                    wavs[order],
+                    np.transpose(band_sums_mag_noise)[igal][order],
+                    label="Noisy, in rgal",
+                    color=l1.get_color(),
+                    ls="--",
+                )
+                (l2,) = ax.plot(
+                    wavs[order],
+                    np.transpose(band_sums_mag_r50)[igal][order],
+                    label="Noiseless, in r50",
+                )
+                ax.plot(
+                    wavs[order],
+                    np.transpose(band_sums_mag_r50_noise)[igal][order],
+                    label="Noisy, in r50",
+                    color=l2.get_color(),
+                    ls="--",
+                )
+                (l3,) = ax.plot(
+                    wavs[order],
+                    np.transpose(band_sums_mag_2xr50)[igal][order],
+                    label="Noiseless, in 2xr50",
+                )
+                ax.plot(
+                    wavs[order],
+                    np.transpose(band_sums_mag_2xr50_noise)[igal][order],
+                    label="Noisy, in 2xr50",
+                    color=l3.get_color(),
+                    ls="--",
+                )
+
+                ax.set_ylabel("AB magnitude")
+                ax.set_xlabel("wav, microns")
+
+                ax.set_xscale("log")
+
+                ax.invert_yaxis()
+
+                ax.legend()
+
+                pp.savefig(fig)

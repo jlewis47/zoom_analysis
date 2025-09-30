@@ -62,6 +62,8 @@ from zoom_analysis.rascas.filts.filts import (
     fnu_to_mAB,
 )
 
+import astropy.units as u
+
 # from zoom_analysis.trees.tree_reader import read_tree_file_rev
 from zoom_analysis.trees.tree_reader import read_tree_file_rev_correct_pos
 
@@ -79,6 +81,7 @@ from f90_tools.star_reader import read_part_ball_NCdust
 # from zoom_analysis.rascas.errs import dumb_constant_mag, get_cl_err
 
 from zoom_analysis.rascas.rascas_steps import read_params
+
 from zoom_analysis.rascas.read_rascas import (
     cube_to_erg_s_A_cm2_as2,
     read_mock_dump,
@@ -96,9 +99,11 @@ from zoom_analysis.rascas.filts.filts import (
 from zoom_analysis.rascas.rascas_plots import *
 
 
-def rescale_image_flux_conserving(image, scale_factor):
+def rescale_image_flux_conserving(image, scale_factor, order=2):
     # Rescale image using zoom
-    rescaled_image = zoom(image, 1 / scale_factor, order=1)  # linear interpolation
+    rescaled_image = zoom(
+        image, 1 / scale_factor, order=order
+    )  # binomial interpolation
 
     # Conserve flux: scale intensity by (scale_factor)^2
     # rescaled_image *= scale_factor**2
@@ -233,7 +238,7 @@ if __name__ == "__main__":
     sim_path = os.path.join(dsims, sim_id)
     zed_targets = None
     snap_targets = None
-    # snap_targets=[205]
+    # snap_targets=[191]
     # gid=1
     # snap_targets=[206]
     # gid=2
@@ -256,7 +261,7 @@ if __name__ == "__main__":
     # zed_target = 2.64  # bc03 all sauces
     # zed_target = 3.5  # bc03 nodust
     # zed_target = 3.5  # bc03 nodust no lya
-    # zed_target = 2
+    # zed_target = sr
     zmax = 6.0
     # zmax = 4.0
     deltaT = 50  # Myr
@@ -310,7 +315,7 @@ if __name__ == "__main__":
 
     filt_dict = filt_file_to_dict()
 
-    print(filt_dict)
+    # print(filt_dict)
 
     sim = ramses_sim(sim_path, nml="cosmo.nml")
 
@@ -453,7 +458,7 @@ if __name__ == "__main__":
 
                 continue
 
-        print(i, snap, aexp, time)
+        # print(i, snap, aexp, time)
         if 1.0 / aexp - 1 > zmax:
             print(f"skipping snap {snap:d} at z={1.0/aexp-1:.2f}")
             continue
@@ -485,7 +490,7 @@ if __name__ == "__main__":
 
         tree_arg = np.argmin(np.abs(time - tree_times))
 
-        print(sim_path, snap, tree_hids[tree_arg])
+        # print(sim_path, snap, tree_hids[tree_arg])
 
         hdict, hosted_gals = get_halo_props_snap(
             sim_path, snap, tree_hids[tree_arg], hosted_gals=True
@@ -554,6 +559,7 @@ if __name__ == "__main__":
 
         # continue
         rgal = [gal_props_tree["rmax"][aexp_arg] * rfact]
+        r50 = [gal_props_tree["r50"][aexp_arg] * rfact]
         mgal = gal_props_tree["mass"][aexp_arg]
         agegal = cur_gal_props["max age"]
 
@@ -668,6 +674,168 @@ if __name__ == "__main__":
 
         ang_per_ckpc = sim.cosmo_model.arcsec_per_kpc_comoving(z).value
 
+        fig, ax = plt.subplots(3, 4)
+
+        ax = np.ravel(ax)
+
+        # for idir in range(ndir):
+
+        #     outf = os.path.join(outp, f"mock_spectrum_{idir}.h5")
+
+        #     if not overwrite and os.path.exists(outf):
+        #         continue
+
+        #     spec = mocks_spe[f"direction_{idir:d}"]
+        #     # spec2 = mocks_spe[f"direction_{idir:d}"]
+        #     cube = mocks_cube[f"direction_{idir:d}"]
+
+        #     # load spectrum
+        #     # aper_cm = spec["aperture"] * l
+        #     aper_as2 = aper_as**2
+        #     aper_sr = aper_as2 * (np.pi/180/3600)**2
+
+        #     # R_obj = aper_cm * 0.5
+        #     # aper_sr = get_aper_sr(sim.cosmo_model.luminosity_distance, z, R_obj)
+
+        #     wavs = [1.15, 1.5, 2.77, 4.44]  # microns
+
+        #     px_sr = aper_sr / np.prod(np.shape(cube["cube"])[:2])
+        #     px_as2 = aper_as2 / np.prod(np.shape(cube["cube"])[:2])
+        #     # px_ckpc = px_as / ang_per_ckpc
+
+        #     # print("aper_sr:", aper_sr)
+
+        #     cur_dir = rascas_dirs[idir]
+
+        #     basis = basis_from_vect(cur_dir)
+        #     # print(cur_dir, basis)
+
+        #     rgal_ckpc = 2 * rgal[0] * l * 1e3
+
+        #     pixel_as = rgal_ckpc * ang_per_ckpc / cube["cube"].shape[0]
+
+        #     lmin = spec["lambda_min"]
+        #     lmax = spec["lambda_max"]
+        #     nlamb = int(spec["lambda_npix"])
+        #     lambda_bins_rf = np.linspace(lmin, lmax, nlamb)
+        #     lambda_bins = lambda_bins_rf * (1.0 + z)
+
+        #     spec_obs = spec_to_erg_s_A_cm2(spec, pfs_path, z)
+
+        #     spec_rf = spec_to_erg_s_A_cm2(spec, pfs_path, 0.0)
+        #     # spec_rf = spec_rf / (
+        #     #     4 * np.pi * dist_10pc**2
+        #     # )  # at 10 pc from the galaxy for absolute magnitudes ?????
+
+        #     # print(lmin, lmax)
+        #     # print(spec["spectrum"].max(), spec["spectrum"].min())
+
+        #     # fig, ax = plt.subplots(1, 1)
+
+        #     # ax.plot(lambda_bins, spec["spectrum"])
+        #     # apply IGM absorption
+
+        #     spec_obs_igm = spec_obs * T_IGM_Inoue2014(lambda_bins, z)
+
+        #     # fig.savefig("test")
+
+        #     # print(lambda_bins[0], lambda_bins[-1])
+
+        #     # ditch filters outside of spectral coverage
+        #     names = [
+        #         names_all[i]
+        #         for i in range(len(names_all))
+        #         if np.all(wavs_all[i] <= lmax * (1.0 + z))
+        #         and np.all(wavs_all[i] >= lmin * (1 + z))
+        #         and names_all[i] in filter_select
+        #     ]
+
+        #     trans = [
+        #         trans_all[i]
+        #         for i in range(len(names_all))
+        #         if np.all(wavs_all[i] <= lmax * (1.0 + z))
+        #         and np.all(wavs_all[i] >= lmin * (1 + z))
+        #         and names_all[i] in filter_select
+        #     ]
+
+        #     wavs = [
+        #         wavs_all[i]
+        #         for i in range(len(names_all))
+        #         if np.all(wavs_all[i] <= lmax * (1.0 + z))
+        #         and np.all(wavs_all[i] >= lmin * (1 + z))
+        #         and names_all[i] in filter_select
+        #     ]
+
+        #     # print(lmax * (1.0 + z))
+        #     # print(lmin * (1.0 + z))
+
+        #     # print(list(zip(names_all,wavs_all)))
+        #     # print(names_all)
+        #     # print(names)
+
+        #     wav_ctrs = np.asarray([wav[int(0.5 * len(wav))] for wav in wavs])
+
+        #     wav_order = np.argsort(wav_ctrs)
+
+        #     wavs = [wavs[order] for order in wav_order]
+        #     names = [names[order] for order in wav_order]
+        #     trans = [trans[order] for order in wav_order]
+
+        #     # load cube
+
+        #     dx_box = cube["cube_side"] / cube["cube"].shape[0]
+        #     dx_cm = dx_box * sim.unit_l(sim.aexp_stt) / sim.aexp_stt
+
+        #     # print(cube["cube"].max())
+        #     cube_to_erg_s_A_cm2_as2(cube, pfs_path, z, aper_as2)
+
+        #     filt_names, mag_spec, mags_no_err, mags, mag_errs = gen_spec(
+        #         aexp, spec_obs_igm, lambda_bins, [names, wavs, trans], rf=False
+        #     )
+        #     filt_names_rf, mag_spec_rf, mags_no_err_rf, mags_rf, mag_errs_rf = gen_spec(
+        #         1.0, spec_obs, lambda_bins_rf, [names, wavs, trans], rf=True
+        #     )
+
+        #     print("spec mags:", list(zip(names, mags_no_err)))
+
+        #     print("done integrating on spectrum")
+
+        #     _, band_ctrs, imgs = gen_imgs(z, lambda_bins, cube, [names, wavs, trans])
+
+        #     Ts = np.asarray([T_IGM_Inoue2014(band_ctr, z) for band_ctr in band_ctrs])
+
+        #     imgs_MJy = [
+        #         flamb_fnu(img, band_ctr) * (aper_as2) / aper_sr / 1e-23 / 1e6
+        #         for band_ctr, img in zip(band_ctrs, imgs)
+        #     ]  # MJy/sr
+        #     imgs_MJy_wIGM = [
+        #         flamb_fnu(img, band_ctr)
+        #         * (aper_as2)
+        #         / aper_sr
+        #         / 1e-23
+        #         / 1e6
+        #         * T
+        #         for img, band_ctr, T in zip(imgs, band_ctrs, Ts)
+        #     ]
+
+        #     img=ax[idir].imshow(imgs_MJy[-1].T,origin="lower",norm=LogNorm(vmin=1e-4,vmax=1e0))
+
+        #     fnu_imgs = (
+        #         flamb_fnu(np.nansum(imgs, axis=(1, 2)), band_ctrs)
+        #         * Ts
+        #         * (aper_as2 / np.prod(imgs.shape[1:]))
+        #     )
+
+        #     mags_imgs_fnu = -2.5 * np.log10(fnu_imgs) - 48.60
+
+        #     print("integrated img mags:", mags_imgs_fnu)
+
+        #     print(idir, mags_imgs_fnu-mags_no_err)
+
+        # plt.colorbar(img,ax=ax)
+
+        # fig.savefig('test_images_bad_integrations')
+
         for idir in range(ndir):
 
             outf = os.path.join(outp, f"mock_spectrum_{idir}.h5")
@@ -681,13 +849,17 @@ if __name__ == "__main__":
 
             # load spectrum
             # aper_cm = spec["aperture"] * l
-            aper_sr = np.pi * (aper_as / 3600 / 180 * np.pi) ** 2
+            aper_as2 = aper_as**2
+            aper_sr = aper_as2 * (np.pi / 180 / 3600) ** 2
+
+            # R_obj = aper_cm * 0.5
+            # aper_sr = get_aper_sr(sim.cosmo_model.luminosity_distance, z, R_obj)
 
             wavs = [1.15, 1.5, 2.77, 4.44]  # microns
 
             px_sr = aper_sr / np.prod(np.shape(cube["cube"])[:2])
-            px_as = aper_as / cube["cube"].shape[0]
-            px_ckpc = px_as / ang_per_ckpc
+            px_as2 = aper_as2 / np.prod(np.shape(cube["cube"])[:2])
+            # px_ckpc = px_as / ang_per_ckpc
 
             # print("aper_sr:", aper_sr)
 
@@ -697,10 +869,10 @@ if __name__ == "__main__":
             # print(cur_dir, basis)
 
             rgal_ckpc = 2 * rgal[0] * l * 1e3
-            tgt_res = 1.0 * (l * 1e3 / 2 ** sim.namelist["amr_params"]["levelmax"])
-            tgt_nbins = int(rgal_ckpc / tgt_res)
+            # tgt_res = 1.0 * (l * 1e3 / 2 ** sim.namelist["amr_params"]["levelmax"])
+            # tgt_nbins = int(rgal_ckpc / tgt_res)
 
-            real_res = rgal_ckpc / tgt_nbins
+            # real_res = rgal_ckpc / tgt_nbins
             # pixel_as = (
             #     (
             #         np.arctan(
@@ -714,7 +886,13 @@ if __name__ == "__main__":
             #     * 2
             # )
 
-            pixel_as = tgt_res * ang_per_ckpc
+            pixel_as = rgal_ckpc * ang_per_ckpc / cube["cube"].shape[0]
+
+            # tgt_res_cm = rgal_ckpc / cube["cube"].shape[0] * 1e3 * ramses_pc
+
+            # aper_px_sr = get_aper_sr(sim.cosmo_model.luminosity_distance,z,tgt_res_cm*0.5)
+            # aper_px_sr = get_aper_sr(sim.cosmo_model.luminosity_distance,z,rgal_ckpc * 1e3 * ramses_pc) / cube["cube"].shape[0]**2
+            # aper_px_as2 = aper_px_sr * (180./np.pi*3600)**2
 
             # print(pixel_as)
 
@@ -737,8 +915,8 @@ if __name__ == "__main__":
                 sim,
                 aexp,
                 basis,
-                tgt_nbins,
-                stmasses / pixel_as**2,
+                cube["cube"].shape[0] * 2.0,  # twice as good as mock resolution
+                stmasses / px_as2,
                 stars_ball["pos"],
                 gal_props_tree["pos"][aexp_arg],
                 rgal[0] * l * 1e3,
@@ -842,7 +1020,7 @@ if __name__ == "__main__":
             dx_cm = dx_box * sim.unit_l(sim.aexp_stt) / sim.aexp_stt
 
             # print(cube["cube"].max())
-            cube_to_erg_s_A_cm2_as2(cube, pfs_path, z, aper_as)
+            cube_to_erg_s_A_cm2_as2(cube, pfs_path, z, aper_as2)
             # print(cube["cube"].max())
 
             # print(np.max(spec["spectrum"]))
@@ -873,43 +1051,51 @@ if __name__ == "__main__":
             # fnus = flamb_fnu(imgs.sum(axis=(1, 2)), band_ctrs * aexp)
             # ms = fnu_to_mAB(fnus / np.prod(imgs[0].shape))
             # print("integrated img map:", list(zip(names, ms)))
+            Ts = np.asarray([T_IGM_Inoue2014(band_ctr, z) for band_ctr in band_ctrs])
 
             imgs_MJy = [
-                flamb_fnu(img, band_ctr) * aper_as**2 / aper_sr / 1e-23 / 1e6
+                flamb_fnu(img, band_ctr) * (aper_as2) / aper_sr / 1e-23 / 1e6
                 for band_ctr, img in zip(band_ctrs, imgs)
             ]  # MJy/sr
             imgs_MJy_wIGM = [
-                flamb_fnu(img, band_ctr)
-                * aper_as**2
-                / aper_sr
-                / 1e-23
-                / 1e6
-                * T_IGM_Inoue2014(band_ctr, z)
-                for img, band_ctr in zip(imgs, band_ctrs)
+                flamb_fnu(img, band_ctr) * (aper_as2) / aper_sr / 1e-23 / 1e6 * T
+                for img, band_ctr, T in zip(imgs, band_ctrs, Ts)
             ]
 
-            Ts = np.asarray([T_IGM_Inoue2014(band_ctr, z) for band_ctr in band_ctrs])
-
-            mags_img_MJy = (
-                -2.5
-                * np.log10(
-                    np.nansum(imgs_MJy, axis=(1, 2))
-                    * Ts
-                    * (aper_sr / np.prod(imgs.shape))
-                    * 1e6
-                )
-                + 8.9
-            )
+            # mags_img_MJy = (
+            #     -2.5
+            #     * np.log10(
+            #         np.nansum(imgs_MJy, axis=(1, 2))
+            #         * Ts
+            #         * (aper_sr / np.prod(np.shape(imgs_MJy)[1:]))
+            #         * 1e6
+            #     )
+            #     + 8.9
+            # )
             # print("integrated img mags", mags_img_MJy)
+
             fnu_imgs = (
                 flamb_fnu(np.nansum(imgs, axis=(1, 2)), band_ctrs)
                 * Ts
-                * (aper_as**2 / np.prod(imgs.shape))
+                * (aper_as2 / np.prod(imgs.shape[1:]))
             )
+
             mags_imgs_fnu = -2.5 * np.log10(fnu_imgs) - 48.60
+
             print("integrated img mags:", mags_imgs_fnu)
 
             print("done integrating on cube")
+
+            # assert np.all(np.abs(mags_imgs_fnu-mags_no_err)<0.5), "something is wrong, spectra magntidudes don't match those integrated from images"
+
+            if not np.all(np.abs(mags_imgs_fnu - mags_no_err) < 1.0):
+                print(
+                    "something is wrong, spectra magntidudes don't match those integrated from images"
+                )
+                print(f"idir:{idir} snap:{snap}, sim:{sim.name}")
+                print(np.abs(mags_imgs_fnu - mags_no_err))
+                print("Most likely: nearby object entering/exiting field")
+                # raise ValueError
 
             img_dir = os.path.join(outp, "MJy_images")
 
@@ -920,8 +1106,11 @@ if __name__ == "__main__":
                 img_dir,
                 f"mock_images_{sim_id}_{snap}_{gid}_{idir:d}_noIGM.h5",
             )
+
+            # px_as2 = [aper_as2/np.prod(img.shape) for img in imgs_MJy]
+
             write_mock_imgs(
-                fname, aexp, time, z, aper_sr, px_as, names, imgs_MJy, st_img
+                fname, aexp, time, z, aper_sr, pixel_as, names, imgs_MJy, st_img
             )
 
             fname = os.path.join(
@@ -930,7 +1119,7 @@ if __name__ == "__main__":
                 f"mock_images_{sim_id}_{snap}_{gid}_{idir:d}_wIGM.h5",
             )
             write_mock_imgs(
-                fname, aexp, time, z, aper_sr, px_as, names, imgs_MJy_wIGM, st_img
+                fname, aexp, time, z, aper_sr, pixel_as, names, imgs_MJy_wIGM, st_img
             )
 
             print("applying psf")
@@ -939,7 +1128,8 @@ if __name__ == "__main__":
             psfs = [load_psf(filt_dict[name]["psf_fname"]) for name in names[:]]
             print([(names[ipsf], psf[1]) for ipsf, psf in enumerate(psfs)])
             psfs_rebinned = [
-                dilate(psf[0], psf[1] / px_as) / (psf[1] / px_as) ** 2
+                dilate(psf[0], psf[1] / pixel_as) / (psf[1] / pixel_as) ** 2
+                # dilate(psf[0], psf[1] / pixel_as)
                 for ipsf, psf in enumerate(psfs)
             ]
             # psfs_rebinned = [
@@ -962,29 +1152,67 @@ if __name__ == "__main__":
                 fftconvolve(img, psf) for img, psf in zip(imgs_MJy_wIGM, psfs_rebinned)
             ]
 
+            # reduce sizes - cut zero filled edges
+
+            for iband in range(len(names)):
+
+                cur_img = imgs_MJy_wIGM_wPSF[iband]
+
+                decal = 0
+
+                while np.sum(cur_img[decal:-decal, decal:-decal]) == 0:
+                    decal += 1
+
+                imgs_MJy_wIGM_wPSF[iband] = cur_img[decal:-decal, decal:-decal]
+
+            # r50_as = r50[0] * l * 1e3 * ang_per_ckpc * 0.5
+            # r50_npx = r50_as / pixel_as
+
+            # r50_img_flux = [img[int(img.shape[0]*0.5-r50_npx):int(img.shape[0]*0.5+r50_npx),int(img.shape[1]*0.5-r50_npx):int(img.shape[1]*0.5+r50_npx)] for img in imgs_MJy_wIGM]
+            # r50_img_flux_wpsf = [img[int(img.shape[0]*0.5-r50_npx):int(img.shape[0]*0.5+r50_npx),int(img.shape[1]*0.5-r50_npx):int(img.shape[1]*0.5+r50_npx)] for img in imgs_MJy_wIGM_wPSF]
+
+            # r50_mags = [-2.5*np.log10(np.sum(fl)*aper_sr/np.prod(fl.shape)) + 8.9 for fl in r50_img_flux]
+            # r50_mags_wpsf = [-2.5*np.log10(np.sum(fl)*aper_sr/np.prod(fl.shape)) + 8.9 for fl in r50_img_flux_wpsf]
+
+            # print(r50_mags)
+            # print(r50_mags_wpsf)
+
             # print([img.sum() for img in imgs_MJy_wIGM_wPSF])
             # print([img.sum() for img in imgs_MJy_wIGM])
 
-            convolved_sizes = np.asarray([img.shape for img in imgs_MJy_wIGM_wPSF])
+            convolved_sizes = np.asarray([i.shape[0] for i in imgs_MJy_wIGM_wPSF])
+            convolved_sizes_as = convolved_sizes * pixel_as
+            # convolved_sizes_ckpc = convolved_sizes * pixel_as / ang_per_ckpc
+            # convolved_sizes_cm = convolved_sizes_ckpc * 1e3 * ramses_pc
 
-            convolved_aper_as = convolved_sizes[:,0] * px_as
-            convolved_aper_sr = np.pi * (convolved_aper_as / 3600 / 180 * np.pi) ** 2
+            # convolved_sizes_sr = np.asarray([get_aper_sr(sim.cosmo_model.luminosity_distance, z, size_cm * 0.5) for size_cm in convolved_sizes_cm])
+
+            convolved_sizes_as2 = convolved_sizes_as**2
+            convolved_sizes_sr = convolved_sizes_as2 * (np.pi / 3600.0 / 180.0) ** 2.0
+
+            # convolved_aper_sr = np.pi * (convolved_aper_as / 3600 / 180 * np.pi) ** 2
 
             print("convolved with psfs")
-
 
             # print(
             #     "img mags, psf:", list(zip(names, [-2.5*np.log10(np.nansum(10**(np.asarray(img)/-2.5))) for img in imgs_MJy_wIGM_wPSF]))
             # )
 
             write_mock_imgs(
-                fname, aexp, time, z, convolved_aper_sr, px_as, names, imgs_MJy_wIGM_wPSF, st_img
+                fname,
+                aexp,
+                time,
+                z,
+                convolved_sizes_sr,
+                pixel_as,
+                names,
+                imgs_MJy_wIGM_wPSF,
+                st_img,
             )
 
             print("rebinning to correct resolution")
 
             imgs_MJy_wIGM_wPSF_rebinned = []
-
 
             # ress = np.asarray(
             #     [filt_dict[name]["res_as"] for name, w in zip(names[:], wavs[:])]
@@ -999,7 +1227,7 @@ if __name__ == "__main__":
                 tgt_res = ress[iband]
 
                 cur_size = np.asarray(list(img.shape))
-                cur_res_as = px_as
+                cur_res_as = pixel_as
 
                 # print(tgt_res,cur_res_as)
 
@@ -1044,8 +1272,10 @@ if __name__ == "__main__":
                     # imgs_MJy_wIGM_wPSF_rebinned.append(binned_statistic_2d(np.ravel(cur_X),np.ravel(cur_Y),np.ravel(img_smooth),"sum",bins=tgt_size)[0])
                     # imgs_MJy_wIGM_wPSF_rebinned.append(rebin_flux_conserving(img,cur_res_as,tgt_res))
                     imgs_MJy_wIGM_wPSF_rebinned.append(
-                        rescale_image_flux_conserving(img, bin_fact) # actually not conserving !!!
-                    ) 
+                        rescale_image_flux_conserving(
+                            img, bin_fact, order=4
+                        )  # actually not conserving !!!
+                    )
 
                     # print(img.sum(),imgs_MJy_wIGM_wPSF_rebinned[-1].sum())
 
@@ -1071,12 +1301,13 @@ if __name__ == "__main__":
                 "MJy_images",
                 f"mock_images_{sim_id}_{snap}_{gid}_{idir:d}_wIGM_wPSF_rebinned.h5",
             )
+
             write_mock_imgs(
                 fname,
                 aexp,
                 time,
                 z,
-                convolved_aper_sr,
+                convolved_sizes_sr,
                 real_ress,
                 names,
                 imgs_MJy_wIGM_wPSF_rebinned,
@@ -1145,56 +1376,61 @@ if __name__ == "__main__":
             # fig_spe.savefig(png_fig.replace(".png", ".pdf"), format="pdf")
 
             mag_imgs_wpsf = [
-                -2.5
-                * np.log10(img_MJy * 1e6 *(cur_aper_sr / np.prod(img_MJy.shape)))
+                -2.5 * np.log10(img_MJy * 1e6 * (cur_aper_sr / np.prod(img_MJy.shape)))
                 + 8.9
-                for img_MJy, cur_aper_sr in zip(imgs_MJy_wIGM_wPSF, convolved_aper_sr)
+                for img_MJy, cur_aper_sr in zip(imgs_MJy_wIGM_wPSF, convolved_sizes_sr)
             ]
 
-            print(
-                "img mags, psf:", list(zip(names, [-2.5*np.log10(np.nansum(10**(np.asarray(img)/-2.5))) for img in mag_imgs_wpsf]))
-            )
+            spec_psf = [
+                -2.5 * np.log10(np.nansum(10 ** (np.asarray(img) / -2.5)))
+                for img in mag_imgs_wpsf
+            ]
 
-
+            print("img mags, psf:", list(zip(names, spec_psf)))
 
             mag_imgs_wpsf_rebinned = [
-                -2.5
-                * np.log10(img_MJy * 1e6 *(cur_aper_sr / np.prod(img_MJy.shape)))
+                -2.5 * np.log10(img_MJy * 1e6 * (cur_aper_sr / np.prod(img_MJy.shape)))
                 + 8.9
-                for img_MJy, cur_aper_sr in zip(imgs_MJy_wIGM_wPSF_rebinned, convolved_aper_sr)
+                for img_MJy, cur_aper_sr in zip(
+                    imgs_MJy_wIGM_wPSF_rebinned, convolved_sizes_sr
+                )
             ]
 
-            print(
-                "img mags, psf+rebinned:", list(zip(names, [-2.5*np.log10(np.nansum(10**(np.asarray(img)/-2.5))) for img in mag_imgs_wpsf_rebinned]))
-            )
+            # print(list(zip(names,real_ress,[cur_aper_sr / np.prod(img_MJy.shape) for img_MJy, cur_aper_sr in zip(imgs_MJy_wIGM_wPSF_rebinned, convolved_sizes_sr)])))
 
+            spec_psf_rebinned = [
+                -2.5 * np.log10(np.nansum(10 ** (np.asarray(img) / -2.5)))
+                for img in mag_imgs_wpsf_rebinned
+            ]
 
-            # cut to right sizes
-            mag_imgs_wpsf_rebinned_right_size = []
+            print("img mags, psf+rebinned:", list(zip(names, spec_psf_rebinned)))
 
-            for iband in range(len(names)):
+            # # cut to right sizes
+            # mag_imgs_wpsf_rebinned_right_size = []
 
-                # pixel_size_as = filt_dict[names[iband]]["res_as"]
-                # pixel_size_as = psfs[iband][1]
-                pixel_size_as = real_ress[iband]
+            # for iband in range(len(names)):
 
-                d_A = sim.cosmo_model.angular_diameter_distance(1.0 / aexp - 1.0).value
-                theta = pixel_size_as
-                theta_radian = theta * np.pi / 180 / 3600
-                pixel_size_kpc = d_A * theta_radian * 1e3 / aexp
+            #     # pixel_size_as = filt_dict[names[iband]]["res_as"]
+            #     # pixel_size_as = psfs[iband][1]
+            #     pixel_size_as = real_ress[iband]
 
-                half_size = int(0.5 * mag_imgs_wpsf_rebinned[iband].shape[0])
+            #     d_A = sim.cosmo_model.angular_diameter_distance(1.0 / aexp - 1.0).value
+            #     theta = pixel_size_as
+            #     theta_radian = theta * np.pi / 180 / 3600
+            #     pixel_size_kpc = d_A * theta_radian * 1e3 / aexp
 
-                cur_image = np.copy(mag_imgs_wpsf_rebinned[iband])
+            #     half_size = int(0.5 * mag_imgs_wpsf_rebinned[iband].shape[0])
 
-                nb_pixels = int(0.5 * rgal_ckpc / pixel_size_kpc)
+            #     cur_image = np.copy(mag_imgs_wpsf_rebinned[iband])
 
-                cur_image = cur_image[
-                    half_size - nb_pixels : half_size + nb_pixels,
-                    half_size - nb_pixels : half_size + nb_pixels,
-                ]
+            #     nb_pixels = int(0.5 * rgal_ckpc / pixel_size_kpc)
 
-                mag_imgs_wpsf_rebinned_right_size.append(cur_image)
+            #     cur_image = cur_image[
+            #         half_size - nb_pixels : half_size + nb_pixels,
+            #         half_size - nb_pixels : half_size + nb_pixels,
+            #     ]
+
+            #     mag_imgs_wpsf_rebinned_right_size.append(cur_image)
 
             fig_spe, ax_spe = plot_spe_bands(
                 aexp,
@@ -1204,12 +1440,15 @@ if __name__ == "__main__":
                 mag_spec,
                 mags,
                 mag_errs,
-                mag_imgs_wpsf_rebinned_right_size,
+                mag_imgs_wpsf_rebinned,
                 band_ctrs,
                 [names, wavs, trans],
                 vmax=mag_lims,
                 vmin=np.full_like(mag_lims, 20),
             )
+
+            ax_spe[1].plot(band_ctrs / 10000, spec_psf, c="k", ls="--")
+            ax_spe[1].plot(band_ctrs / 10000, spec_psf_rebinned, c="k", ls=":")
 
             weighted_age = gal_dict["age_wmstar"]
 
@@ -1242,10 +1481,83 @@ if __name__ == "__main__":
 
             print("output magnitudes dump")
 
+            # rbins_as = np.logspace(-2, np.log10(rgal_ckpc * ang_per_ckpc * 2), 50)
+
+            # profs = np.zeros((len(names), len(rbins_as) - 1))
+
+            # fig, ax = plt.subplots(
+            #     len(names), 1, figsize=(6, 3 * len(names)), layout="constrained",
+            #     sharex=True,sharey=True
+            # )
+
+            # for img_name, cur_px_as, img in zip(
+            #     ["IGM", "IGMxPSF", "IGMxPSFxresolution"],
+            #     [pixel_as, pixel_as, real_ress],
+            #     [imgs_MJy_wIGM, imgs_MJy_wIGM_wPSF, imgs_MJy_wIGM_wPSF_rebinned],
+            # ):
+
+            #     for iband in range(len(names)):
+
+            #         img_band = img[iband]
+
+            #         img_size = img_band.shape[0]
+            #         img_center = int(0.5 * img_size)
+
+            #         Y, X = np.mgrid[0:img_size, 0:img_size]
+
+            #         if type(cur_px_as) is list:
+            #             band_px_as = cur_px_as[iband]
+            #         else:
+            #             band_px_as = cur_px_as
+
+            #         band_px_sr = band_px_as**2 * (np.pi / 180 / 3600) ** 2
+
+            #         for ir, r in enumerate(rbins_as[1:]):
+
+            #             r_out = rbins_as[ir + 1]
+
+            #             r_out_px = r_out / band_px_as
+            #             r_in_px = rbins_as[ir] / band_px_as
+
+            #             dist = np.linalg.norm([X - img_center, Y - img_center], axis=0)
+
+            #             # cond = (dist < r_out_px) * (dist >= r_in_px) * (img_band > 0)
+            #             cond = dist < r_out_px
+
+            #             profs[iband, ir] = (np.nansum(img_band[cond])) * band_px_sr
+            #             # profs[iband, ir] = np.nansum(img_band[cond]) * band_px_sr
+
+            #         profs = -2.5 * np.log10(profs * 1e6) + 8.9
+
+            #         (l,) = ax[iband].plot(
+            #             0.5 * (rbins_as[1:] + rbins_as[:-1]),
+            #             profs[iband, :],
+            #             label=img_name,
+            #         )
+
+            #         ax[iband].axvline(
+            #             band_px_as, ls="--", label="dx", color=l.get_color()
+            #         )
+
+            # ax[0].set_ylabel("Flux [MJy/sr]")
+            # for a in ax:
+            #     a.set_xlabel("Radius [as]")
+            #     a.set_xscale("log")
+            #     a.invert_yaxis()
+
+            # for a, band in zip(ax, names):
+            #     a.set_title(band)
+            #     a.set_ylabel("mag AB(<r)")
+            #     a.axvline(r50[0] * sim.cosmo.lcMpc * 1e3 * ang_per_ckpc, ls=":", color="k", label="r50")
+            #     a.axvline(rgal_ckpc *  ang_per_ckpc, ls="--", color="k", label="rgal")
+
+            # ax[0].legend()
+            # fig.savefig(os.path.join(outp,f"mock_spectrum_profiles_{sim_id}_{snap}_{gid}_{idir:d}.png"))
+
             mock_spe_dump(
                 outf,
                 z,
-                aper_as,
+                rgal_ckpc / ang_per_ckpc,
                 names,
                 lambda_bins,
                 mag_spec,

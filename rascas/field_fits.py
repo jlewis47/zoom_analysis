@@ -2,12 +2,14 @@
 # import astropy.cosmology
 from astropy import wcs
 from astropy.coordinates import SkyCoord
+from astropy.wcs.utils import proj_plane_pixel_scales
 from astropy.io import fits
 import astropy.units as u
 from h11 import Data
 from matplotlib.patches import Circle
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal import fftconvolve
 
 # from astropy.cosmology import FlatLambdaCDM
 import os
@@ -60,27 +62,44 @@ def save_fits(fname, hdr, data, **kwargs):
 
 def get_hdr_res(hdr):
 
-    keys = list(hdr.keys())
+    # keys = list(hdr.keys())
 
     # print(hdr)
     # print(keys)
 
-    if (
-        "CDELT1" in keys and abs(hdr["CDELT1"]) != 1.0
-    ):  # don't know why but sometimes empty
-        as_to_px = abs(hdr["CDELT1"]) * 3600.0
-    elif "PC1_1" in keys:
-        as_to_px = abs(hdr["PC1_1"]) * 3600.0
-    elif "CRDELT1" in keys:
-        as_to_px = abs(hdr["CRDELT1"]) * 3600.0
-    elif "CD1_1" in keys:
-        as_to_px = abs(hdr["CD1_1"]) * 3600.0
-    else:
-        raise KeyError("couldn't find pixel resolution in header")
+    # if (
+    #     "CDELT1" in keys and abs(hdr["CDELT1"]) != 1.0
+    # ):  # don't know why but sometimes empty
+    #     as_to_px = abs(hdr["CDELT1"]) * 3600.0
+    # # elif "PC1_1" in keys:
+    # #     as_to_px = abs(hdr["PC1_1"]) * 3600.0
+    # # elif "CRDELT1" in keys:
+    # #     as_to_px = abs(hdr["CRDELT1"]) * 3600.0
+    # # elif "CD1_1" in keys:
+    # #     as_to_px = abs(hdr["CD1_1"]) * 3600.0
+    # # else:
+    # #     raise KeyError("couldn't find pixel resolution in header")
+    # else: #hardcoded can't find solution here...
+    #     print("else")
+    #     as_to_px={
+    #     "HST":0.05, #as
+    #     "HSC":0.168,
+    #     "CFHT":0.187,
+    #     # "":,
+    #     # "":,
+    #     # "":,
+    #     # "":,
+    #     # "":,
+    #     # "":,
+    #     # "":,
+    #     # "":,
+    #     }[name]
 
     # print(f"found {as_to_px} arcsec per pixel")
 
-    return as_to_px
+    # return as_to_px
+
+    return proj_plane_pixel_scales(wcs.WCS(hdr))[0] * 3600.0
 
 
 def get_res_from_img(fname_psf):
@@ -107,10 +126,12 @@ def get_res_from_img(fname_psf):
 
     hdr = read_fits_hdr(res_fname)
 
+    # instr_name = lookup_dict[fname_psf.strip(" ")].split("_")[-1].split("-")[0].split(".")[0]
+
     return get_hdr_res(hdr)
 
 
-def fit_galaxies(
+def fit_galaxies_iter(
     rgals_px,
     flux_map,
     r_cat_px,
@@ -118,6 +139,7 @@ def fit_galaxies(
     grid_corner_px,
     stmask_fname,
     niter_max=10000,
+    debug=False,
 ):
 
     found_pos = np.zeros((len(rgals_px), 2))
@@ -211,7 +233,13 @@ def fit_galaxies(
 
         mask[
             ira - r_cat_px : ira + r_cat_px + 1, idec - r_cat_px : idec + r_cat_px + 1
-        ] = 1
+        ] = (
+            mask[
+                ira - r_cat_px : ira + r_cat_px + 1,
+                idec - r_cat_px : idec + r_cat_px + 1,
+            ]
+            + 1
+        )
 
     done_gals = 0
     niter = 0
@@ -222,28 +250,54 @@ def fit_galaxies(
     cur_gal = -1
     cur_niter = 0
 
-    ok_coords = np.where(mask == 0)
+    # convolve_ok_map = fftconvolve(mask, np.ones((2*np.max(rgals_px)+1, 2*np.max(rgals_px)+1)), mode='same')
 
     while niter < niter_max and done_gals < len(rgals_px):
 
-        print(f"draw {niter}, gal {done_gals}")
-
         if cur_niter == 0 or cur_niter == niter_pack:
 
+            if debug:
+                print("new pack")
+
             if cur_gal != done_gals:
+
+                if debug:
+                    print("new galaxy")
+
                 cur_r = rgals_px[done_gals]
                 cur_gal = done_gals
+
+                convolve_ok_map = fftconvolve(
+                    mask, np.ones((2 * cur_r + 1, 2 * cur_r + 1)), mode="same"
+                )
+                ok_coords = np.where(convolve_ok_map == 0)  # no neighbours >0 in cur_r
+
+                # ok_coords = np.where((convolve_ok_map == 0) * (mask == 0)) #no neighbours >0 in cur_r and central 0
+                # ok_coords = np.where(convolve_ok_map == 0) #no neighbours >0 in cur_r
+
+                if debug:
+                    print((convolve_ok_map == 0).sum(), (mask == 0).sum())
+
+                    fig, ax = plt.subplots(1, 3)
+                    ax[0].imshow(mask.T, origin="lower", vmin=0, vmax=1)
+                    ax[1].imshow(convolve_ok_map.T, origin="lower", vmin=0, vmax=1)
+                    ax[1].imshow(
+                        np.transpose((convolve_ok_map == 0) * (mask == 0)),
+                        origin="lower",
+                        vmin=0,
+                        vmax=1,
+                    )
+                    # ax[1].scatter(ok_coords[0], ok_coords[1], s=1, color='r')
+                    fig.savefig(f"debug_mask_r{cur_r}_gal{done_gals}")
+                    plt.close(fig)
 
             # draw random pos uniform - vectorize later
             # ra_try = np.int32(np.random.uniform(low=cur_r*1.05,high=l_ra-cur_r*1.05,size=niter_pack)/dx_px)
             # dec_try = np.int32(np.random.uniform(low=cur_r*1.05,high=l_dec-cur_r*1.05,size=niter_pack)/dx_px)
 
-            ra_try = ok_coords[0][
-                np.random.randint(low=0, high=len(ok_coords[0]), size=niter_pack)
-            ]
-            dec_try = ok_coords[1][
-                np.random.randint(low=0, high=len(ok_coords[1]), size=niter_pack)
-            ]
+            rand_idx = np.random.randint(low=0, high=len(ok_coords[0]), size=niter_pack)
+            ra_try = ok_coords[0][rand_idx]
+            dec_try = ok_coords[1][rand_idx]
 
             cur_niter = 0
 
@@ -271,24 +325,212 @@ def fit_galaxies(
                 == 0
             )
             sum_flags = np.sum(
-                mask[ira - cur_r : ira + cur_r + 1, idec - cur_r : idec + cur_r + 1]
+                mask[ira - cur_r : ira + cur_r + 1, idec - cur_r : idec + cur_r + 1] > 0
             )
 
             # print(nb_zero_fl, cur_r, cur_r**2)
 
             if sum_flags == 0 and nb_zero_fl < (cur_r**2):
 
-                print(done_gals)
+                print(f"{niter+1} draws, {done_gals+1}/{len(rgals_px)} galaxies placed")
                 found_pos[done_gals, :] = ira, idec
 
-                mask[ira - cur_r : ira + cur_r + 1, idec - cur_r : idec + cur_r + 1] = 1
+                mask[ira - cur_r : ira + cur_r + 1, idec - cur_r : idec + cur_r + 1] = (
+                    mask[ira - cur_r : ira + cur_r + 1, idec - cur_r : idec + cur_r + 1]
+                    + 1
+                )
+                convolve_ok_map[
+                    ira - cur_r : ira + cur_r + 1, idec - cur_r : idec + cur_r + 1
+                ] = (
+                    convolve_ok_map[
+                        ira - cur_r : ira + cur_r + 1, idec - cur_r : idec + cur_r + 1
+                    ]
+                    + 1
+                )
 
-                ok_coords = np.where(mask == 0)
+                # ok_coords = np.where(mask == 0)
 
                 done_gals += 1
+                cur_niter = (
+                    -1
+                )  # -1 because +1 below, so that we go to next block of randoms
+
+            else:
+
+                pass
+                # print(sum_flags, nb_zero_fl, cur_r, cur_r**2)
+
+        else:
+            print("problem: I drew a central pixel that should be masked")
+            if debug:
+                print(mask[ira, idec], sum_flags)
 
         niter += 1
         cur_niter += 1
+
+    return mask, found_pos, done_gals
+
+
+def fit_galaxies(
+    rgals_px,
+    flux_map,
+    r_cat_px,
+    cat_pos_px,
+    grid_corner_px,
+    stmask_fname,
+    niter_max=10000,
+    debug=False,
+):
+
+    found_pos = np.zeros((len(rgals_px), 2))
+
+    # ncell_ra,ncell_dec = data_shape
+    ncell_ra, ncell_dec = flux_map.shape
+
+    ra_min, dec_min, ra_max, dec_max = grid_corner_px
+
+    l_ra = ra_max - ra_min
+    l_dec = dec_max - dec_min
+
+    dx_px = l_ra / ncell_ra
+
+    st_mask_hdr, st_mask = read_fits(stmask_fname)
+
+    st_mask = st_mask.T
+
+    # print("shapes")
+    # print(data_shape)
+    # print(st_mask.shape)
+
+    X_mask_coords, Y_mask_coords = np.mgrid[0 : st_mask.shape[0], 0 : st_mask.shape[1]]
+
+    ra_cells = np.arange(ra_min, l_ra + dx_px, dx_px)
+    dec_cells = np.arange(dec_min, l_dec + dx_px, dx_px)
+
+    ra_cells_big = np.linspace(0, st_mask.shape[0], len(ra_cells))
+    dec_cells_big = np.linspace(0, st_mask.shape[1], len(dec_cells))
+
+    # print(len(ra_cells),len(ra_cells_big))
+
+    ra_compress = len(ra_cells_big) / float(len(ra_cells))
+    dec_compress = len(dec_cells_big) / float(len(dec_cells))
+
+    mask_rebinned = binned_statistic_2d(
+        np.ravel(X_mask_coords),
+        np.ravel(Y_mask_coords),
+        np.ravel(st_mask),
+        statistic="sum",
+        bins=[ra_cells_big, dec_cells_big],
+    )[0]
+
+    # print(st_mask_hdr)
+
+    mask = np.int8(np.zeros((ncell_ra, ncell_dec))) + mask_rebinned
+    mask[mask > 1] = 1
+
+    # handle empty noise regions for tile B3
+    mask[:, -800:] = 50  # top
+    mask[4500:5500, 7750:14000] = 50  # in field middle
+    mask[8750:10000, 1000:5500] = 50  # in field middle
+    mask[9000:9750, -2300:] = 50  # in field middle
+    mask[13750:14000, 10500:13000] = 50  # in field middle
+
+    mask[0:200, :] = 50
+    mask[-200:, :] = 50
+    mask[:, 0:200] = 50
+    mask[:, -200:] = 50
+
+    # mask = 1 -> contains unusable pixels
+    fig, ax = plt.subplots(2, 2)
+
+    ax[0, 0].imshow(st_mask.T, origin="lower")
+    ax[0, 1].imshow(mask_rebinned.T, origin="lower")
+    ax[1, 0].imshow(mask.T, origin="lower")
+
+    fig.savefig("st_mask")
+
+    # ra_min,ra_max = ra_cells[[0,-1]]
+    # dec_min,dec_max = dec_cells[[0,-1]]
+
+    # RA,DEC = np.meshgrid(ra_cells,dec_cells)
+
+    print("filling mask")
+
+    for ra_cat, dec_cat in cat_pos_px:
+
+        # wh = np.linalg.norm([(RA-ra_cat),(DEC-dec_cat)])<r_cat_px
+
+        # mask[wh] = 1
+
+        ira = int(ra_cat / dx_px)
+        idec = int(dec_cat / dx_px)
+
+        # print(ra_cat,dec_cat)
+
+        # print(ira,idec)
+
+        # print(ra_cells[ira],dec_cells[idec])
+
+        mask[
+            ira - r_cat_px : ira + r_cat_px + 1, idec - r_cat_px : idec + r_cat_px + 1
+        ] = (
+            mask[
+                ira - r_cat_px : ira + r_cat_px + 1,
+                idec - r_cat_px : idec + r_cat_px + 1,
+            ]
+            + 1
+        )
+
+    print("finding spaces")
+
+    rmax = np.max(rgals_px)
+
+    convolve_ok_map = fftconvolve(
+        mask, np.ones((2 * rmax + 1, 2 * rmax + 1)), mode="same"
+    )
+
+    ok_coords = np.where(convolve_ok_map == 0)
+
+    for igal in range(len(rgals_px)):
+
+        rand_idx = np.random.randint(low=0, high=len(ok_coords[0]), size=1)
+        ra_try = ok_coords[0][rand_idx]
+        dec_try = ok_coords[1][rand_idx]
+
+        try_ra = ok_coords[0][rand_idx]
+        try_dec = ok_coords[1][rand_idx]
+
+        ira = int(try_ra / dx_px)
+        idec = int(try_dec / dx_px)
+
+        cur_r = rgals_px[igal]
+
+        mask[
+            int(ira - cur_r) : int(ira + cur_r + 1),
+            int(idec - cur_r) : int(idec + cur_r + 1),
+        ] = (
+            mask[
+                int(ira - cur_r) : int(ira + cur_r + 1),
+                int(idec - cur_r) : int(idec + cur_r + 1),
+            ]
+            + 1
+        )
+        convolve_ok_map[
+            int(ira - cur_r - rmax) : int(ira + cur_r + rmax + 1),
+            int(idec - cur_r - rmax) : int(idec + rmax + cur_r + 1),
+        ] = (
+            convolve_ok_map[
+                int(ira - cur_r - rmax) : int(ira + cur_r + rmax + 1),
+                int(idec - cur_r - rmax) : int(idec + cur_r + rmax + 1),
+            ]
+            + 1
+        )
+
+        # ok_coords = np.where(mask == 0)
+
+        found_pos[igal, :] = ira, idec
+
+    done_gals = len(rgals_px)
 
     return mask, found_pos, done_gals
 
@@ -407,15 +649,13 @@ def tile_to_file(filt, tile):
     return (res, stmask)
 
 
-def gals_to_fit_pos(rgals_as, niter=100000):
+def gals_to_fit_pos(rgals_as, niter=100000, debug=False):
 
     tile = pick_tile()
 
     fname_data, fname_stmask = tile_to_file("f277w", tile)
 
     hdr, data = read_fits(fname_data)
-
-    # print(hdr)
 
     WCS = wcs.WCS(hdr)
 
@@ -425,7 +665,7 @@ def gals_to_fit_pos(rgals_as, niter=100000):
 
     as_to_px = get_hdr_res(hdr)
 
-    rgals_px = np.int16(abs(rgals_as / as_to_px))
+    rgals_px = np.int32(abs(rgals_as / as_to_px))
 
     reg_cat_fname = (
         "/automnt/data101/jlewis/marko_cosmosWeb_fields/olivier_reg_cat/joe_detect.reg"
@@ -435,11 +675,12 @@ def gals_to_fit_pos(rgals_as, niter=100000):
     mask, found_pos, ndone_gals = fit_galaxies(
         rgals_px,
         data.T,
-        int(3 / as_to_px),
+        int(2.5 / as_to_px),
         np.transpose(mock_gals),
         box_corners_px,
         fname_stmask,
         niter_max=niter,
+        debug=debug,
     )
 
     found_all = ndone_gals == len(rgals_px)
@@ -450,7 +691,7 @@ def gals_to_fit_pos(rgals_as, niter=100000):
 if __name__ == "__main__":
 
     hdr, data = read_fits(
-        "/data101/jlewis/marko_cosmosWeb_fields/residual_images/CheckImg_COSMOSWeb__resid_mosaic_nircam_f277w_COSMOS-Web_60mas_A1_v0_8_sci_1.fits"
+        "/data101/jlewis/marko_cosmosWeb_fields/residual_images/background_image_f277w.fits"
     )
 
     fig, ax = plt.subplots()
@@ -496,11 +737,12 @@ if __name__ == "__main__":
     mask, found_pos, nfound = fit_galaxies(
         rgals_px,
         data.T,
-        int(2 / as_to_px),
+        int(2.5 / as_to_px),
         np.transpose(mock_gals),
         box_corners_px,
         stmask_fname,
         niter_max=1000 * len(rgals_px),
+        debug=True,
     )
 
     dmin, dmax = data.min(), data.max()
@@ -511,7 +753,13 @@ if __name__ == "__main__":
 
     # ax.imshow(data,vmin=dmin,vmax=dmax)
     # img=ax.imshow(data,vmin=-0.16,vmax=0.16,cmap='bwr')
-    img = ax.imshow(mask.T, origin="lower", extent=[0, hdr["NAXIS1"], 1, hdr["NAXIS2"]])
+    img = ax.imshow(
+        mask.T,
+        origin="lower",
+        extent=[0, hdr["NAXIS1"], 1, hdr["NAXIS2"]],
+        vmax=1,
+        vmin=0,
+    )
 
     plt.colorbar(img, ax=ax)
 
