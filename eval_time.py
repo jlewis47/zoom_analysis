@@ -2,7 +2,23 @@ import numpy as np
 import os
 import argparse
 import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit as cvf 
 
+def knee_scal(x,xbreak,pow1,pow2):
+
+    if x<=xbreak:
+        out = (x/xbreak)**pow1
+    else:
+        out = (x/xbreak)**pow2
+
+    return out
+
+def knee(x,xbreak,pow1,pow2):
+
+    out = (x/xbreak)**pow1
+    out[x>xbreak] = (x[x>xbreak]/xbreak)**pow2
+
+    return out
 
 def get_timing_from_log(fpath):
     # works by finding running time= and a= pairs
@@ -134,6 +150,34 @@ def get_sim_proc_count(sim_path):
                 return int(split_line[equals_arg[0][0] + 1])
 
 
+# def estimate_time_to_z(zeds, times, tgt_z, ax=None, color=None):
+
+#     # polyfit order ?, then find closest time to tgt_z
+
+#     if len(zeds) < 1:
+#         return None
+    
+#     popts,_ = cvf(knee, zeds[zeds<10],np.log10(times[zeds<10]),p0=[4,0.5,0.1], maxfev=5000, bounds=([3.5,0,0],[4.5,10,10]))
+
+#     print(popts)
+
+#     zbins = np.linspace(np.max(zeds[zeds<10]), tgt_z)
+
+#     tgt_time = 10**knee_scal(tgt_z,*popts)
+
+
+#     if ax != None:
+
+        
+#         # print(zbins)
+#         ax.plot(10**knee(zeds[zeds<10],*popts), zeds[zeds<10], "D", color=color)
+#         ax.plot(10**knee(zbins,*popts), zbins, "o", color=color)
+#         # ax.plot(tgt_time, zbins, "o", color=color)
+
+#     return tgt_time
+
+
+
 def estimate_time_to_z(zeds, times, tgt_z, ax=None, color=None):
 
     # polyfit order ?, then find closest time to tgt_z
@@ -234,8 +278,8 @@ def plot_timing_of_dir_sims(ds, tgt_z=None):
 
                     tgt_time = estimate_time_to_z(
                         zeds, runs_cpuh, tgt_z
-                    )  # , ax=ax, color=l.get_color()
-                    # )
+                    #  , ax=ax, color=l.get_color()
+                    )
 
                     lvl_maxs.append(str(sim_res))
                     ncores.append(str(sim_procs))
@@ -261,7 +305,7 @@ def plot_timing_of_dir_sims(ds, tgt_z=None):
     ax.legend(framealpha=0.0)
     ax.grid()
 
-    ax.set_ylim(2, 10)
+    # ax.set_ylim(2, 10)
     # ax.set_xlim(0, 1e6)
 
     ax.set_xscale("log")
@@ -291,6 +335,8 @@ def plot_timing_of_dir_sims(ds, tgt_z=None):
     # table.scale(1.5, 1.5)
 
     return fig, ax
+
+
 
 
 if __name__ == "__main__":

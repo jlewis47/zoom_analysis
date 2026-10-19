@@ -67,7 +67,7 @@ read_star_fct = read_part_ball_NH
 hm_dm = "TREE_DM"
 hm = "TREE_STARS_AdaptaHOP_dp_SCnew_gross"
 # intID = 242756
-sim_dir = os.path.join("/data101/jlewis/nh")
+sim_dir = os.path.join("/data101/jlewis/sims/NH_for_rascas")
 
 
 def gal_fct(snap, sim, hm, **kwargs):

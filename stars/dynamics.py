@@ -3,9 +3,7 @@ from turtle import pos
 from astropy.units.cgs import C
 import numpy as np
 import matplotlib.pyplot as plt
-
-from zoom_analysis.zoom_helpers import project_direction
-
+from zoom_analysis.visu.visu_fct import basis_from_vect
 
 def mass_dot_product(v1, v2):
     """
@@ -55,172 +53,40 @@ def project_vels(m_stars, pos_stars, vel_stars, ang_mom, debug=False):
 
     l_ang_mom = np.linalg.norm(ang_mom)
     ang_mom_norm = ang_mom / l_ang_mom
+    ang_mom_basis = basis_from_vect(ang_mom_norm)[::-1]
 
-    R = project_direction(ang_mom_norm, [0, 0, 1])
+    # print("ang_mom_basis", ang_mom_norm,ang_mom_basis)
 
-    new_z = ang_mom_norm
-    new_x = np.dot(R, [1, 0, 0])
-    new_x = new_x / np.linalg.norm(new_x)
-    new_y = np.dot(R, [0, 1, 0])
-    new_y = new_y / np.linalg.norm(new_y)
+    new_pos = np.asarray([np.dot(pos,ang_mom_basis) for pos in pos_stars])
+    new_vels = np.asarray([np.dot(vel,ang_mom_basis) for vel in bulkless_vel])
 
-    new_xs = np.dot(pos_stars, new_x)
-    if debug:
-        print("new_xs", new_xs)
-    new_ys = np.dot(pos_stars, new_y)
-    if debug:
-        print("new_ys", new_ys)
-
-    new_vels_xs = np.dot(bulkless_vel, b=new_x)
-    new_vels_ys = np.dot(bulkless_vel, new_y)
+    new_xs,new_ys,_ = new_pos.T
+    new_vels_xs,new_vels_ys,_ = new_vels.T
 
     new_rhos = np.asarray([new_xs, new_ys, np.zeros_like(new_xs)]).T
     if debug:
         print("new_rhos", new_rhos)
     new_rhos[new_rhos < 1e-10] = 1e-10
     new_rhos /= np.linalg.norm(new_rhos, axis=1)[:, np.newaxis]
-    new_phis = np.cross(new_rhos, new_z[np.newaxis, :], axisa=1, axisb=1)
+    new_phis = np.cross(new_rhos, ang_mom_norm[np.newaxis, :], axisa=1, axisb=1)
     if debug:
         print("new_phis", new_phis)
     new_phis /= np.linalg.norm(new_phis, axis=1)[:, np.newaxis]
 
     if debug:
-        print(R)
-        print(new_rhos, new_phis, new_z)
+        print(ang_mom_basis)
+        print(new_rhos, new_phis, ang_mom_norm)
 
-    # norm_yz = np.linalg.norm(ang_mom[1:])
-    # norm_xz = np.linalg.norm(ang_mom[[0, 2]])
-
-    # get rotation matrix to go from cartesian basis to ang_mom basis
-    # ang1 = np.arccos(norm_yz / ang_mom_norm[1])  # between L and y
-    # ang2 = np.arccos(norm_xz / ang_mom_norm[0])  # between L and x
-
-    # c1 = norm_yz / ang_mom[1]  # np.cos(ang1)
-    # s1 = norm_yz / ang_mom[2]
-    # s1 = np.sin(ang1)
-    # c2 = norm_xz / ang_mom[0]  # np.cos(ang2)
-    # s2 = norm_xz / ang_mom[2]
-    # s2 = np.sin(ang2)
-
-    # # c1 = l_ang_mom / ang_mom[1]
-    # # c2 = l_ang_mom / ang_mom[0]
-    # # s1
-
-    # R1 = [[1, 0, 0], [0, c1, -s1], [0, s1, c1]]
-    # R2 = [[c2, 0, +s2], [0, 1, 0], [-s2, 0, c2]]
-
-    # R = [[c2, 0, -s2], [-s1 * s2, c1, -s1 * c2], [c1 * s2, s1, c1 * c2]]
-
-    # # # rho vector is position vector from gal ctr for each star
-    # new_rho = pos_stars
-    # # # normalise vectors
-    # new_rho /= np.linalg.norm(new_rho)
-
-    # new_phi = np.cross(new_z[np.newaxis, :], new_rho, axis=1)
-    # # normalise vectors
-    # new_phi /= np.linalg.norm(new_phi)
-
-    # compute bulk motion
-
-    # print(new_rho, new_phi, new_z)
-
-    # project velocities
-    # vel_rad = np.dot(bulkless_vel, new_rho)
-    # vel_tan = np.dot(bulkless_vel, new_phi)
-    # vel_vert = np.dot(bulkless_vel, new_z[np.newaxis, :])
     vel_rad = mass_dot_product(bulkless_vel, new_rhos)
     vel_tan = mass_dot_product(bulkless_vel, new_phis)
-    vel_vert = mass_dot_product(bulkless_vel, new_z[np.newaxis, :])
+    vel_vert = mass_dot_product(bulkless_vel, ang_mom_norm[np.newaxis, :])
 
     # new_vels = np.array([vel_rad, vel_tan, vel_vert]).T
 
     pos_rad = mass_dot_product(pos_stars, new_rhos)
     pos_tan = mass_dot_product(pos_stars, new_phis)
-    pos_vert = mass_dot_product(pos_stars, new_z[np.newaxis, :])
+    pos_vert = mass_dot_product(pos_stars, ang_mom_norm[np.newaxis, :])
 
-    # new_pos = np.array([pos_rad, pos_tan, pos_vert]).T
-
-    # if m_stars.sum() > 1e11:
-    #     # if (
-    #     #     np.abs(np.average(vel_tan, weights=m_stars))
-    #     #     > 5
-    #     #     * np.sqrt(
-    #     #         (
-    #     #             weighted_variance(vel_tan, m_stars)
-    #     #             + weighted_variance(vel_rad, m_stars)
-    #     #             + weighted_variance(vel_vert, m_stars)
-    #     #         )
-    #     #         / 3.0
-    #     #     )
-    #     #     and len(m_stars) > 2500
-    #     # ):
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection="3d")
-
-    # # test the vectors
-    # ax.quiver(0, 0, 0, new_z[0], new_z[1], new_z[2], color="r", label="z")
-    # ax.quiver(0, 0, 0, new_rho[0], new_rho[1], new_rho[2], color="g", label="rho")
-    # ax.quiver(0, 0, 0, new_phi[0], new_phi[1], new_phi[2], color="b", label="phi")
-
-    # # plot angular momentum
-    # ax.quiver(
-    #     0, 0, 0, ang_mom[0], ang_mom[1], ang_mom[2], color="k", label="ang_mom"
-    # )
-
-    # ax.scatter(
-    #     pos_stars[::1, 0] - pos_stars[:, 0].mean(),
-    #     pos_stars[::1, 1] - pos_stars[:, 1].mean(),
-    #     pos_stars[::1, 2] - pos_stars[:, 2].mean(),
-    #     color="c",
-    #     label="stars",
-    # )
-
-    # plot in new rho, new phi plane
-    # # if m_stars.sum() > 1e10:
-    # fig, ax = plt.subplots(3, 1)
-
-    # xy_vel = np.sqrt(bulkless_vel[:, 0] ** 2 + bulkless_vel[:, 1] ** 2)
-    # ax[0].scatter(
-    #     pos_stars[:, 0],
-    #     pos_stars[:, 1],
-    #     s=1,
-    #     alpha=0.5,
-    #     label="stars",
-    #     c=np.log10(xy_vel),
-    # )
-    # xz_vel = np.sqrt(bulkless_vel[:, 0] ** 2 + bulkless_vel[:, 2] ** 2)
-    # ax[1].scatter(
-    #     pos_stars[:, 0],
-    #     pos_stars[:, 2],
-    #     s=1,
-    #     alpha=0.5,
-    #     label="stars",
-    #     c=np.log10(xz_vel),
-    # )
-    # yz_vel = np.sqrt(bulkless_vel[:, 1] ** 2 + bulkless_vel[:, 2] ** 2)
-    # ax[2].scatter(
-    #     pos_stars[:, 1],
-    #     pos_stars[:, 2],
-    #     s=1,
-    #     alpha=0.5,
-    #     label="stars",
-    #     c=np.log10(yz_vel),
-    # )
-
-    # ax[-1].colorbar = plt.colorbar(ax[-1].collections[0], ax=ax, orientation="vertical")
-
-    # ax[0].quiver(0, 0, ang_mom[0], ang_mom[1], color="k", label="ang_mom")
-    # ax[1].quiver(0, 0, ang_mom[0], ang_mom[2], color="k", label="ang_mom")
-    # ax[2].quiver(0, 0, ang_mom[1], ang_mom[2], color="k", label="ang_mom")
-
-    # ax[0].text(0, 0, f"vrot: {np.average(vel_tan,weights=m_stars):.1f} km/s", color="k")
-
-    # ax[0].legend()
-    # fig.savefig("tan_velocity")
-
-    # input("press enter to continue")
-
-    # plt.close()
 
     if debug:
 
@@ -262,7 +128,7 @@ def project_vels(m_stars, pos_stars, vel_stars, ang_mom, debug=False):
             color="g",
             label="rho",
         )
-        ax.quiver(0, 0, 0, new_z[0], new_z[1], new_z[2], color="b", label="z")
+        ax.quiver(0, 0, 0, ang_mom_norm[0], ang_mom_norm[1], ang_mom_norm[2], color="b", label="z")
 
         fig.savefig("ang_mom")
 
@@ -303,7 +169,7 @@ def project_vels(m_stars, pos_stars, vel_stars, ang_mom, debug=False):
 
             plt_r = new_rhos[ind]
             plt_t = new_phis[ind]
-            plt_z = new_z
+            plt_z = ang_mom_norm
 
             plt_x = new_xs[ind]
             plt_y = new_ys[ind]
@@ -331,9 +197,6 @@ def project_vels(m_stars, pos_stars, vel_stars, ang_mom, debug=False):
             ax.quiver(0, 0, plt_r[0], plt_r[1], color="b", label="r")
             ax.quiver(plt_x, plt_y, plt_t[0], plt_t[1], color="r", label="t")
 
-        # ax.scatter(new_xs, new_ys, s=1, alpha=0.01, c=np.log10(vel_vert))
-        # ax.quiver(new_xs[::400], new_ys[::400], vel_xs[::400], vel_ys[::400])
-
         fig.savefig("disk_plane_velocities")
 
         fig, ax = plt.subplots(1, 1, figsize=(4, 4))
@@ -358,64 +221,6 @@ def project_vels(m_stars, pos_stars, vel_stars, ang_mom, debug=False):
 
         fig.savefig("velocities_cartesian")
 
-    # projected map of velocities in xy xz yz planes
-    # fig, ax = plt.subplots(1, 3, figsize=(12, 4))
-
-    # pos_mins = np.min(new_pos, axis=0)
-    # pos_maxs = np.max(new_pos, axis=0)
-
-    # print(pos_mins)
-    # print(pos_maxs)
-
-    # npos_bins = 100
-    # pos_bins = [
-    #     np.linspace(pos_mins[0], pos_maxs[0], npos_bins),
-    #     np.linspace(pos_mins[1], pos_maxs[1], npos_bins),
-    #     np.linspace(pos_mins[2], pos_maxs[2], npos_bins),
-    # ]
-
-    # vmin = 0.1
-    # vmax = 500
-
-    # for i in range(3):
-
-    #     ind0 = i
-    #     ind1 = i + 1
-    #     ind2 = i + 2
-
-    #     ind1 = ind1 % 3
-    #     ind2 = ind2 % 3
-
-    #     print(f"Plotting {ind0} vs {ind1}, view from {ind2}")
-
-    #     # plane_stars = np.abs(stars["pos"][:, ind2] - tgt_pos[ind2]) < plane_dist_tol
-    #     #
-    #     plane_vels = np.linalg.norm(
-    #         np.transpose([new_vels[:, ind0], new_vels[:, ind1]]), axis=1
-    #     )
-
-    #     means, _, _, _ = binned_statistic_2d(
-    #         new_pos[:, ind0],
-    #         new_pos[:, ind1],
-    #         plane_vels,
-    #         bins=(pos_bins[ind0], pos_bins[ind1]),
-    #         statistic="mean",
-    #     )
-    #     img = ax[i].imshow(
-    #         means.T,
-    #         origin="lower",
-    #         extent=(pos_mins[ind0], pos_maxs[ind0], pos_mins[ind1], pos_maxs[ind1]),
-    #         # norm=LogNorm(vmin=vmin, vmax=vmax),
-    #         vmin=vmin,
-    #         vmax=vmax,
-    #     )
-
-    #     ax[i].set_xlabel(f"pos {ind0}")
-    #     ax[i].set_ylabel(f"pos {ind1}")
-
-    # plt.colorbar(img, ax=ax)
-
-    # fig.savefig(f"velocities_angmom_basis.png")
 
     return vel_rad, vel_tan, vel_vert
 

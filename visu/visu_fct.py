@@ -1,10 +1,8 @@
-from pickle import NONE
-from astropy.utils import data
-import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm, SymLogNorm
 import matplotlib.patheffects as pe
 from matplotlib.collections import LineCollection
+from scipy.spatial.transform import Rotation as R
 
 import numpy as np
 import os
@@ -19,11 +17,6 @@ from zoom_analysis.dust.gas_reader import code_to_cgs
 # from zoom_analysis.rascas.rascas_steps import get_directions_cart
 
 from zoom_analysis.read.read_data import read_data_ball
-
-from itertools import combinations
-
-from scipy.interpolate import CubicSpline
-
 
 import yt
 
@@ -51,7 +44,6 @@ from zoom_analysis.sinks.sink_reader import (
 )
 
 from compress_zoom.read_compressd import read_compressed_target
-from zoom_analysis.zoom_helpers import project_direction
 
 
 def check_prev_boxes(X, Y, prev_boxes):
@@ -191,6 +183,8 @@ def fill_pixels(
 
     (uniqs, invs) = np.unique(balls, return_inverse=True)
 
+    # print(uniqs, invs)
+
     # reverse_inds = first_inds[invs]
 
     x0 = int(xbins[0])
@@ -214,6 +208,8 @@ def fill_pixels(
         # inds = i == invs
         inds = np.where(i == invs)[0]
 
+        # print(i, cur_inds, inds, invs)
+
         # if len(inds) == 0:
         # continue
         # print(i)
@@ -226,14 +222,21 @@ def fill_pixels(
 
         # print(len(inds), len(useful_vals), len(xargs), len(yargs))
 
-        if not use_weights:
-            img[xargs, yargs] += op(useful_vals[inds])
+        if op not in [max,np.max,min,np.min]:
+            if not use_weights:
+                img[xargs, yargs] += op(useful_vals[inds])
+            else:
+                img[xargs, yargs] += op(
+                    useful_vals[inds] * useful_weights[inds]
+                )  # checked and this IS the
+                # same as doing a loop
+                img_weights[xargs, yargs] += op(useful_weights[inds])
         else:
-            img[xargs, yargs] += op(
-                useful_vals[inds] * useful_weights[inds]
-            )  # checked and this IS the
-            # same as doing a loop
-            img_weights[xargs, yargs] += op(useful_weights[inds])
+            if not use_weights:
+                img[xargs, yargs] = op([np.full_like(img[xargs, yargs],op(useful_vals[inds])), img[xargs, yargs]])
+            else:
+                assert False, 'weights not supported for maximum projections'
+
 
             # print(
             #     op(useful_vals[inds] * useful_weights[inds]),
@@ -342,24 +345,22 @@ def lookup_hydro_idx_for_field(sim, field):
     # print(idx)
     if "temperature" == field and (5 not in idx):
         print("Temperature requested loading density and pressure")
-        idx.extend([1, 5])
-    elif "DTM" in ["DTM", "DTMC", "DTMSi", "DTMCs", "DTMCl", "DTMSis", "DTMSil"] and (
-        1 not in idx
-        or 6 not in idx
-        or 16 not in idx
-        or 17 not in idx
-        or 18 not in idx
-        or 19 not in idx
-    ):
+        for tgt_k in ['density','pressure']:
+            idx.extend(ik+1 for ik,k in enumerate(sim.hydro.values()) if sim.hydro[f'{ik+1:d}'].lower().startswith(tgt_k))
+        
+    elif "DTM" in field:
         print("Dust to metal requested loading density and dust bins")
-        idx.extend([1, 6, 16, 17, 18, 19])
+        for tgt_k in ['density','dust','scalar']:
+            idx.extend(ik+1 for ik,k in enumerate(sim.hydro.values()) if sim.hydro[f'{ik+1:d}'].lower().startswith(tgt_k))
+        
     elif "density" != field:
-        idx.append(1)
+        idx.extend(ik+1 for ik,k in enumerate(sim.hydro.values()) if sim.hydro[f'{ik+1:d}'].lower().startswith("density"))
 
     elif "metallicity" == field and (6 not in idx or 1 not in idx):
         print("Metal density requested loading density and metallicity")
-        # idx.extend([6])
-        idx.extend([1, 6])
+        for tgt_k in ['metal','chem','density']:
+            idx.extend(ik+1 for ik,k in enumerate(sim.hydro.values()) if sim.hydro[f'{ik+1:d}'].lower().startswith(tgt_k))
+
     # elif "dust_bin01" == field and (16 not in idx):
     #     print("small carbon fraction requested loading density and small carbon grains")
     #     # idx.extend([16])
@@ -381,6 +382,10 @@ def lookup_hydro_idx_for_field(sim, field):
     #     idx.extend([1, 19])
     # elif field != "density":
     #     print(f"No rule for requested field: {field}")
+    elif 'cr' in field.lower():
+        print("Cosmic ray energy requested loading density and cosmic ray energy")
+        cr_idx=[ik+1 for ik,k in enumerate(sim.hydro.values()) if sim.hydro[f'{ik+1:d}'].lower().startswith('cr')]
+        idx.extend(cr_idx)
 
     return np.unique(idx)
 
@@ -390,7 +395,7 @@ def plot_amr_data(
     zdist,
     aexp,
     lbox_kpc,
-    M_basis,
+    basis,
     dx_boost,
     fig,
     ax,
@@ -407,22 +412,34 @@ def plot_amr_data(
     vmax = kwargs.get("vmax", None)
     debug = kwargs.get("debug", False)
     weights = kwargs.get("weights", "density")
-    op = kwargs.get("op", np.sum)
     cb = kwargs.get("cb", False)
     cmap = kwargs.get("cmap", "magma")
     transpose = kwargs.get("transpose", True)
     log = kwargs.get("log", True)
     plot_text = kwargs.get("plot_text", True)
-    mode = kwargs.get("mode", "sum")
+    boxlen = kwargs.get("boxlen", 1 + 1e-6)
+
+    if not 'mode' in kwargs or kwargs['mode'] is None:
+        op=np.sum
+        mode="sum"
+    elif kwargs['mode']=="sum":
+        op=np.sum
+        mode="sum"
+    elif kwargs['mode']=="max":
+        op=np.max
+        mode="max"
+    elif kwargs['mode']=="min":
+        op=np.min
+        mode="min"
+    else:
+        op=np.sum
+        mode="sum"    
 
     cb_args = kwargs.get("cb_args", {})
     cb_loc = cb_args.get("location", "right")
     cb_orientation = cb_args.get("orientation", "vertical")
 
     cmap = plt.get_cmap(cmap)
-
-    # print(vmin, vmax)
-    # print(amrdata)
 
     all_levels = amrdata["ilevel"]
     loaded_lvlmin = np.min(all_levels)
@@ -431,47 +448,65 @@ def plot_amr_data(
         # clamp z to nearest lvlmax cell
         # print(z)
         z = (np.round(z * 2**loaded_lvlmin) + 0.5) / 2**loaded_lvlmin
-        zdist = 1.0 / 2**loaded_lvlmin * lbox_kpc
+        zdist = 1. / 2**loaded_lvlmin * lbox_kpc
 
     # zdist = max(zdist, lbox_kpc / 2**loaded_lvlmin)
 
     cell_pos = np.asarray([amrdata["x"], amrdata["y"], amrdata["z"]]).T
+    # print(cell_pos.shape)
+    # cell_pos_proj = reproject(cell_pos.T,directions)
+    # print(np.min(cell_pos), np.max(cell_pos))
+    # print(basis)
+    cell_pos = np.transpose(
+        [np.dot(cell_pos, v) for v in basis]
+    )  # do I need to recentre this?
+    # cell_pos[cell_pos<0]+=1
+    # cell_pos[cell_pos>1]-=1
+    # print(cell_pos.shape)
 
-    cell_pos = np.dot(cell_pos.T, M_basis)
+    # print(cell_pos.shape, M_basis.shape)
+
+    # cell_pos = np.dot(cell_pos, M_basis).T
+
+    # print(cell_pos.shape)
 
     # print(np.median(cell_pos, axis=1))
 
+    ctr = [x, y, z]
+
+    # old recentering
     for idim in range(3):
-        if np.all(cell_pos[idim, :] < 0):
-            # cell_pos[idim,:] = np.abs(cell_pos[idim,:])
-            cell_pos[idim, :] += 1
-        if np.all(cell_pos[idim, :] > 1):
-            # cell_pos[idim,:] = np.abs(cell_pos[idim,:])
-            cell_pos[idim, :] -= 1
+        if np.all(cell_pos[:, idim] < 0):
+            # cell_pos[],idim = np.abs(cell_pos[],idim)
+            cell_pos[:, idim] += 1
+            # ctr[idim] = 1 + ctr[idim]
+        if np.all(cell_pos[:, idim] > 1):
+            # cell_pos[],idim = np.abs(cell_pos[],idim)
+            cell_pos[:, idim] -= 1
+            # ctr[idim] = ctr[idim] - 1
+
+    x, y, z = ctr
+    # print(x,y,z)
 
     if not transpose:
-        ycells, xcells, zcells = cell_pos
 
         a = y.copy()
         y = x.copy()
         x = a
+        ycells, xcells, zcells = cell_pos.T
 
     else:
 
-        xcells, ycells, zcells = cell_pos
+        xcells, ycells, zcells = cell_pos.T
 
-    zfilt = np.abs(zcells - z) < (zdist / lbox_kpc)
 
-    # print(zdist, zdist / lbox_kpc)
-    # print("zfilt", zfilt.sum())
+    zfilt = np.abs(zcells - z) < (zdist)
 
     xcells = xcells[zfilt]
     ycells = ycells[zfilt]
     zcells = zcells[zfilt]
 
-    # print(np.min([xcells, ycells]))
-
-    tree = KDTree(np.vstack((xcells, ycells)).T, boxsize=1 + 1e-6)
+    tree = KDTree(np.vstack((xcells, ycells)).T, boxsize=boxlen)
 
     inds = tree.query_ball_point([x, y], r=r, p=dist_norm)
 
@@ -504,7 +539,7 @@ def plot_amr_data(
         dx = 1.0 / 2**lvl * dx_boost
 
         # segment the cells into boxes... avoid high res voids
-        boxes = segment_2d_point_cloud(this_lvl_x, this_lvl_y, dx)
+        boxes = segment_2d_point_cloud(this_lvl_x, this_lvl_y, dx * 0.5)
 
         lvl_maps.append([lvl, boxes])
 
@@ -530,6 +565,9 @@ def plot_amr_data(
             xbins = np.arange(max(xmin_cells - 0.5 - 1, 0), xmax_cells + 0.5 + 2, 1)
             ybins = np.arange(max(ymin_cells - 0.5 - 1, 0), ymax_cells + 0.5 + 2, 1)
 
+            if len(xbins)==0 or len(ybins)==0:
+                continue
+
             print(
                 f"lvl = {lvl}, dx = {lvl_dx*lbox_kpc}, xlen = {len(xbins)}, ylen = {len(ybins)}"
             )
@@ -544,7 +582,7 @@ def plot_amr_data(
 
             img = np.zeros((len(xbins) - 1, len(ybins) - 1))
             # print(xcoords.max(), ycoords.max())  # some things outside of box
-            tree = KDTree(np.transpose([xcoords, ycoords]), boxsize=1 + 1e-3)
+            tree = KDTree(np.transpose([xcoords, ycoords]), boxsize=boxlen)
 
             cond = (
                 (xcells >= xmin - lvl_dx * 6)
@@ -564,7 +602,7 @@ def plot_amr_data(
             elif weights == "density":
                 box_weights = densities[cond]
             else:
-                box_weights = "counts"
+                box_weights = weights
 
             balls = tree.query_ball_point(
                 np.transpose([box_xcells, box_ycells]),
@@ -614,6 +652,8 @@ def plot_amr_data(
 
         for box, img in zip(boxes, imgs):
 
+            if np.prod(img.shape)==0:continue
+
             xmin, xmax = box[0], box[2]
             ymin, ymax = box[1], box[3]
 
@@ -627,7 +667,10 @@ def plot_amr_data(
 
             # print(img.mean())
 
-            img[img < vmin] = vmin
+
+            lower_than_vmin = img<vmin
+            if np.any(lower_than_vmin):
+                img[lower_than_vmin] = vmin
             # img[img > vmax] = vmax
             img[np.isfinite(img) == False] = vmin
 
@@ -684,6 +727,7 @@ def plot_amr_data(
                     # zorder=ilvl,
                 )
 
+
     if cb:
 
         if mode == "sum":
@@ -713,6 +757,8 @@ def plot_amr_data(
             cb_label = f"Large sillicate Dust to Metal ratio"
         elif field == "velocity":
             cb_label = f"Velocity, $[km/s]$"
+        elif field == "CRegy_01":
+            cb_label = f"Cosmic ray energy density, $[erg.cm^{-3}]$"
         else:
             cb_label = field
 
@@ -729,30 +775,56 @@ def plot_amr_data(
         )
         cbar.set_label(cb_label)
 
-    ax.set_xlabel("x, [ckpc]")
-    ax.set_ylabel("y, [ckpc]")
 
-    zed = 1 / aexp - 1
+    ax.set_ylabel("y, [ckpc]")
+    ax.set_xlabel("x, [ckpc]")
 
     ax.set_xlim(x - r * lbox_kpc, x + r * lbox_kpc)
     ax.set_ylim(y - r * lbox_kpc, y + r * lbox_kpc)
+    #was bug on units ? e.g. x - r * lbox_kpc
+    #def problem in non cosmo case
 
-    if plot_text:
-        ax.text(
-            0.05,
-            0.9,
-            "z = %.2f" % zed,
-            color="white",
-            transform=ax.transAxes,
-            path_effects=[pe.withStroke(linewidth=1, foreground="black")],
-            ha="left",
-            size=20,
-            zorder=999,
-        )
+    if kwargs['cosmo']:
+        zed = 1 / aexp - 1
+        if plot_text:
+            ax.text(
+                0.05,
+                0.9,
+                "z = %.2f" % zed,
+                color="white",
+                transform=ax.transAxes,
+                path_effects=[pe.withStroke(linewidth=1, foreground="black")],
+                ha="left",
+                size=20,
+                zorder=999,
+            )
+    else:
+        if plot_text:
+            ax.text(
+                0.05,
+                0.9,
+                "T = %.2f Myr" % aexp,
+                color="white",
+                transform=ax.transAxes,
+                path_effects=[pe.withStroke(linewidth=1, foreground="black")],
+                ha="left",
+                size=20,
+                zorder=999,
+            )
 
     ax.set_facecolor(cmap(0))
 
     return lvl_maps
+
+
+def reproject(vector_field, new_frame):
+
+    return np.asarray([np.dot(vector_field, d) for d in new_frame])
+
+
+def is_cart(frame):
+
+    return np.sum(frame == 0.0) == 6
 
 
 def make_amr_img_smooth(
@@ -765,54 +837,88 @@ def make_amr_img_smooth(
     rvir,
     zdist=-1,
     direction=[0, 0, 1],
-    NH_read=False,
+    read_outputs=False,
     **kwargs,
 ):
 
     mins = kwargs.get("mins", None)
     maxs = kwargs.get("maxs", None)
-
+    debug = kwargs.get("debug", False)
     hid = kwargs.get("hid", None)
 
-    lbox_kpc = sim.unit_l(sim.aexp_stt) / (ramses_pc * 1e6) / sim.aexp_stt * 1e3  # ckpc
+    # if sim.namelist['run_params']['cosmo']:
+    lbox_kpc = sim.namelist['amr_params']['boxlen'] * sim.unit_l(sim.aexp_stt) / (ramses_pc * 1e3) / sim.aexp_stt  # ckpc
+    # else:
+    #     lbox_kpc = 1.0
+
+    directions = basis_from_vect(direction)
+
+    # (
+    #     pos_proj,
+    #     mins_proj,
+    #     maxs_proj,
+    #     cartesian,
+    #     basis,
+    #     dx_boost,
+    #     dist_norm,
+    # ) = proj_math(sim, pos, zdist, mins, maxs, direction, r)
+
+    cartesian = is_cart(directions)
+    if not cartesian:
+        dx_boost = np.sqrt(3)
+    else:
+        dx_boost = 1
+    dist_norm = np.inf
 
     # zdist = 100
     r = rvir
-    mins = pos - r
-    maxs = pos + r
 
-    mins[2] = pos[2] - zdist
-    maxs[2] = pos[2] + zdist
+
     # r = 0.1 * r
+    mins_proj = pos - r
+    maxs_proj = pos + r
 
-    # print(pos)
+    pos_proj = reproject(pos, directions)
 
-    (
-        pos_proj,
-        mins_proj,
-        maxs_proj,
-        cartesian,
-        M_basis,
-        M_basis_inv,
-        dx_boost,
-        dist_norm,
-    ) = proj_math(sim, pos, zdist, mins, maxs, direction, r)
+    pos_proj[pos_proj < 0] += 1
+    pos_proj[pos_proj > 1] -= 1
+
+    
+
+    # mins_proj[2] = pos_proj[2] - zdist
+    # maxs_proj[2] = pos_proj[2] + zdist
+    mins_proj[2] = pos[2] - zdist
+    maxs_proj[2] = pos[2] + zdist
+
+    # print(pos,r,mins_proj,maxs_proj,zdist)
+    # print(pos_proj)
 
     x, y, z = pos
     x_proj, y_proj, z_proj = pos_proj
+
+    # print(pos_proj)
+    # print(mins_proj, maxs_proj)
 
     for snap in [snap]:
         print(f"Reading amr2cell for snap {snap}...")
 
         # could speed up by segmenting the regions where we plot...
         aexp = sim.get_snap_exps(snap)
-        mins = np.dot(mins, M_basis_inv)
-        maxs = np.dot(maxs, M_basis_inv)
+        # mins = np.dot(mins, M_basis_inv)
+        # maxs = np.dot(maxs, M_basis_inv)
+
+        # mins = np.asarray([np.dot(mins_proj, d) for d in directions])
+        # maxs = np.asarray([np.dot(maxs_proj, d) for d in directions])
+
+        mins = mins_proj
+        maxs = maxs_proj
 
         mins[mins < 0] += 1
         maxs[maxs < 0] += 1
         mins[mins > 1] -= 1
         maxs[maxs > 1] -= 1
+
+        # print(mins, maxs)
 
         ext_bool = mins > maxs
         a = np.copy(mins[ext_bool])
@@ -827,11 +933,20 @@ def make_amr_img_smooth(
             mins = mins * 0.99
             maxs = maxs * 1.01
 
-        if NH_read:
+        if not os.path.exists(os.path.join(sim.path,'association')):
+            print('no association files, have to read snapshots')
+            read_outputs=True
+        if not os.path.exists(os.path.join(sim.path,'halo_data')):
+            print('no halo_gal data files, have to read snapshots')
+            read_outputs=True
+
+        if read_outputs:
             # find index of requested fields, add density for projection if necessary
             idx = lookup_hydro_idx_for_field(sim, field)
-            # print(idx)
+            print(f'reading {[val for ik,val in enumerate(sim.hydro.values()) if ik+1 in idx]}')
             amrdata = read_amrcells(sim, snap, np.ravel([mins, maxs]), idx)
+            # print(idx)
+            # amrdata = read_amrcells(sim, snap, np.ravel([mins, maxs]), [ik+1 for ik,val in enumerate(sim.hydro.values())])
 
             if field not in amrdata:
                 amrdata[field] = []
@@ -843,19 +958,30 @@ def make_amr_img_smooth(
             # convert units
             amrdata = code_to_cgs(sim, aexp, amrdata)
 
-            # print(tgt_fields)
+
+            if debug:
+                print('Debug on - Dumping read amrdata:')
+                for k in amrdata:
+                    print(k,np.min(amrdata[k]),np.max(amrdata[k]))
+
+
         else:
 
             amrdata = read_data_ball(
                 sim,
                 snap,
                 pos,
-                (r + 1.0 / 2**sim.levelmin) * np.sqrt(3),
+                (r + 1. / 2**sim.levelmin) * np.sqrt(3),
                 hid,
                 data_types=["gas"],
                 tgt_fields=field,
                 minmax=[mins, maxs],
             )
+
+        if np.sum(amrdata[field])==0:
+            print(f'All data were zeros in field {field} ! Skipping...')
+            return []
+
 
         subtract_mean = kwargs.get("subtract_mean", False)
         # project data if needed
@@ -874,8 +1000,10 @@ def make_amr_img_smooth(
             )  # km/s
             cell_pos = np.transpose([amrdata["x"], amrdata["y"], amrdata["z"]])
 
-            vel_proj = np.dot(tmp_vel.T, M_basis)
-            cell_pos_proj = np.dot(cell_pos.T, M_basis)
+            # vel_proj = np.dot(tmp_vel.T, M_basis)
+            # cell_pos_proj = np.dot(cell_pos.T, M_basis)
+            vel_proj = reproject(tmp_vel.T, directions)
+            cell_pos_proj = reproject(cell_pos, directions)
 
             vel_plane = vel_proj[:2, :]
             cell_pos_plane = cell_pos_proj[:2, :]
@@ -914,18 +1042,30 @@ def make_amr_img_smooth(
             if subtract_mean:
                 amrdata[field] = amrdata[field] - np.mean(amrdata[field])
 
+        kwargs['cosmo'] = sim.namelist['run_params']['cosmo']
+        if kwargs['cosmo']:
+            kwargs['boxlen'] = 1. + 1e-6
+        else:
+            kwargs['boxlen'] = None
+
+        if not sim.cosmo.cosmo_run:
+            aexp = sim.get_snap_times(snap)[0] #time in Myr
+
         img = plot_amr_data(
             amrdata,
             zdist,
             aexp,
             lbox_kpc,
-            M_basis,
+            directions,
             dx_boost,
             fig,
             ax,
             x_proj,
             y_proj,
             z_proj,
+            # x,
+            # y,
+            # z,
             r,
             field,
             dist_norm,
@@ -950,15 +1090,15 @@ def make_amr_img_halogal(
     if gid is None, load halo data, otherwise load galaxy data
     """
 
-    mins = None
-    maxs = None
+    mins_proj = None
+    maxs_proj = None
 
-    if mins in kwargs:
-        mins = kwargs["mins"]
-    if maxs in kwargs:
-        maxs = kwargs["maxs"]
+    if mins_proj in kwargs:
+        mins_proj = kwargs["mins"]
+    if maxs_proj in kwargs:
+        maxs_proj = kwargs["maxs"]
 
-    lbox_kpc = sim.unit_l(sim.aexp_stt) / (ramses_pc * 1e6) / sim.aexp_stt * 1e3  # ckpc
+    lbox_kpc = sim.cosmo.lcMpc * 1e3
 
     # sim_dir = sim.path
 
@@ -968,6 +1108,15 @@ def make_amr_img_halogal(
     plt.rcParams["image.cmap"] = "magma"
     cmap = plt.get_cmap()
     cmap.set_bad(color=(0, 0, 0, 0))
+
+    directions = basis_from_vect(direction)
+
+    cartesian = is_cart(directions)
+    if not cartesian:
+        dx_boost = np.sqrt(3)
+    else:
+        dx_boost = 1
+    dist_norm = np.inf
 
     # zdist = 100
     r = rfact
@@ -984,10 +1133,6 @@ def make_amr_img_halogal(
 
     zdist = r / 1 * sim.cosmo.lcMpc * 1e3
 
-    pos, mins, maxs, cartesian, M_basis, M_basis_inv, dx_boost, dist_norm = proj_math(
-        sim, pos, zdist, mins, maxs, direction, r
-    )
-
     x, y, z = pos
 
     for snap in [snap]:
@@ -995,8 +1140,11 @@ def make_amr_img_halogal(
 
         # could speed up by segmenting the regions where we plot...
         aexp = sim.get_snap_exps(snap)
-        mins = np.dot(mins, M_basis_inv)
-        maxs = np.dot(maxs, M_basis_inv)
+        # mins = np.dot(mins, M_basis_inv)
+        # maxs = np.dot(maxs, M_basis_inv)
+
+        mins = np.asarray([np.dot(mins_proj, d) for d in directions])
+        maxs = np.asarray([np.dot(maxs_proj, d) for d in directions])
 
         mins[mins < 0] += 1
         maxs[maxs < 0] += 1
@@ -1029,7 +1177,7 @@ def make_amr_img_halogal(
             zdist,
             aexp,
             lbox_kpc,
-            M_basis,
+            directions,
             dx_boost,
             fig,
             ax,
@@ -1041,47 +1189,6 @@ def make_amr_img_halogal(
             dist_norm,
             **kwargs,
         )
-
-
-def proj_math(sim, pos, zdist, mins, maxs, direction, r):
-    dv1 = np.array(direction)
-    dv1, dv2, dv3 = basis_from_vect(dv1)
-
-    cartesian = True
-
-    if not np.all(
-        [np.sum(dv1) == 1, np.sum(dv2) == 1, np.sum(dv3) == 1]
-    ):  # not cartesian x,y,z basis... treat cells as spheres
-        # dist_norm = 2
-        dist_norm = np.inf
-        dx_boost = np.sqrt(3) * 1.5
-        cartesian = False
-    else:
-        dist_norm = np.inf
-        dx_boost = 1
-
-    # M_basis = [dv3, dv2, dv1]
-    M_basis = project_direction(dv1, [0, 0, 1])
-    M_basis_inv = project_direction([0, 0, 1], dv1)
-
-    pos = np.dot(pos, M_basis)
-
-    if np.any(mins == None):
-        mins = pos - r
-    if np.any(maxs == None):
-        maxs = pos + r
-
-    if zdist != -1:
-        # print(pos[2], zdist)
-        mins[2] = pos[2] - zdist / sim.cosmo.lcMpc / 1e3
-        maxs[2] = pos[2] + zdist / sim.cosmo.lcMpc / 1e3
-
-    pos[pos < 0] += 1
-    pos[pos > 1] -= 1
-
-    # M_basis_inv = np.linalg.inv(M_basis)
-
-    return pos, mins, maxs, cartesian, M_basis, M_basis_inv, dx_boost, dist_norm
 
 
 def plot_zoom_BHs(
@@ -1097,6 +1204,7 @@ def plot_zoom_BHs(
 ):
 
     legend = kwargs.get("legend", True)
+    units = kwargs.get("units", sim.cosmo.lcMpc * 1e3)
     color = kwargs.get("color", "white")
     txt_color = kwargs.get("color", "white")
     direction = kwargs.get("direction", [0, 0, 1])
@@ -1126,11 +1234,14 @@ def plot_zoom_BHs(
 
     dv1 = np.array(direction)
     dv1, dv2, dv3 = basis_from_vect(dv1)
+    basis = [dv1, dv2, dv3]
     # M_basis = [dv3, dv2, dv1]
 
-    M_basis = project_direction(dv1, [0, 0, 1])
+    # M_basis = project_direction(dv1, [0, 0, 1])
 
-    pos = np.asarray([np.dot(bhp - tgt_pos, M_basis) for bhp in bh_pos])
+    # pos = np.asarray([np.dot(bhp - tgt_pos, M_basis) for bhp in bh_pos])
+    pos = np.transpose([np.dot(bh_pos - tgt_pos, v) for v in basis])
+    # rot_tgt_pos = [np.dot(tgt_pos, v) for v in basis]
 
     # print(pos.T)
 
@@ -1146,14 +1257,20 @@ def plot_zoom_BHs(
     # print(list(zip(sids, np.log10(bhms))))
 
     # in frame
-    bhxs = (bhxs) * sim.cosmo.lcMpc * 1e3
-    bhys = (bhys) * sim.cosmo.lcMpc * 1e3
-    bhzs = (bhzs) * sim.cosmo.lcMpc * 1e3
+    bhxs = bhxs
+    bhys = bhys
+    bhzs = bhzs
 
-    in_frame = (
-        np.linalg.norm(np.asarray([bhxs, bhys]), axis=0)
-        < (tgt_rad) * sim.cosmo.lcMpc * 1e3 * 2**0.5
-    ) * (np.abs(bhzs) < zdist)
+    # print(np.linalg.norm(np.asarray([bhxs, bhys]), axis=0), tgt_rad, bhzs, zdist)
+
+    # print(
+    #     (np.linalg.norm(np.asarray([bhxs, bhys]), axis=0) < (tgt_rad)).sum(),
+    #     (np.abs(bhzs) < zdist).sum(),
+    # )
+
+    in_frame = (np.linalg.norm(np.asarray([bhxs, bhys]), axis=0) < (tgt_rad)) * (
+        np.abs(bhzs) < zdist
+    )
 
     if not in_frame.any():
         print("No BHs in frame")
@@ -1169,6 +1286,7 @@ def plot_zoom_BHs(
     if min_mbh == None:
         min_mbh = bhms[in_frame].min()
     max_size = 2e2
+    min_size = 5
 
     if max_mbh > min_mbh:
         sizes = (
@@ -1182,7 +1300,7 @@ def plot_zoom_BHs(
     mseed_size = (
         (np.log10(mseed) - np.log10(min_mbh))
         / (np.log10(max_mbh) - np.log10(min_mbh))
-        * max_size
+        * max_size + min_size
     )
 
     # sizes[sizes < 0.1 * max_size] = 0.1 * max_size
@@ -1191,9 +1309,14 @@ def plot_zoom_BHs(
     if not transpose:
         bhxs, bhys = bhys, bhxs
 
+    # print(
+    #     bhxs[in_frame] * units,
+    #     bhys[in_frame] * units,
+    # )
+
     ax.scatter(
-        bhxs[in_frame],
-        bhys[in_frame],
+        bhxs[in_frame] * units,
+        bhys[in_frame] * units,
         s=sizes,
         edgecolors=color,
         facecolors="none",
@@ -1278,7 +1401,7 @@ def plot_zoom_BHs(
         ):
             ax.annotate(
                 f"{sid:d}",
-                (x, y),
+                (x * units, y * units),
                 fontsize=12,
                 zorder=999,
                 color=txt_color,
@@ -1324,6 +1447,7 @@ def plot_brick_scatter(
 ):
 
     color = kwargs.get("color", "white")
+    units = kwargs.get("units", 1e3 * sim.cosmo.lcMpc)
     txt_color = kwargs.get("color", color)
     legend = kwargs.get("legend", True)
     annotate = kwargs.get("annotate", True)
@@ -1352,10 +1476,10 @@ def plot_brick_scatter(
     # direction = [0, 1, 0]
 
     dv1 = np.array(direction)
-    dv1, dv2, dv3 = basis_from_vect(dv1)
+    basis = basis_from_vect(dv1)[::-1]
     # M_basis = [dv3, dv2, dv1]
     # print(dv1, [0, 0, 1])
-    M_basis = project_direction(dv1, [0, 0, 1])
+    # M_basis = project_direction(dv1, [0, 0, 1])
 
     # print(direction,M_basis)
 
@@ -1369,7 +1493,9 @@ def plot_brick_scatter(
 
     # gal_pos = np.dot(M_basis, gal_pos - tgt_pos).T
 
-    gal_pos = np.asarray([np.dot(gp - tgt_pos, M_basis) for gp in gal_pos])
+    # gal_pos = np.asarray([np.dot(gp - tgt_pos, ) for gp in gal_pos])
+
+    gal_pos = np.transpose([np.dot(gal_pos - tgt_pos, d) for d in basis])
 
     x, y, z = gal_pos.T
 
@@ -1385,12 +1511,14 @@ def plot_brick_scatter(
     # in_plane = (np.abs(z) * sim.cosmo.lcMpc * 1e3) < zdist
     in_plane = (
         # np.linalg.norm(np.asarray([x, y]), axis=0)
-        # < (tgt_rad) * sim.cosmo.lcMpc * 1e3 * 2**0.5*(
-        (np.abs(z) * sim.cosmo.lcMpc * 1e3 * 2**0.5)
+        # < (tgt_rad) * sim.cosmo.lcMpc * 1e3*(
+        (np.abs(z))
         < zdist
     )
 
     if not in_plane.any():
+
+        print(in_plane.sum())
         return 0
 
     max_mass_size = 3e2
@@ -1434,8 +1562,8 @@ def plot_brick_scatter(
             color_args = {"edgecolors": color, "facecolors": "none"}
 
         ax.scatter(
-            (x[mains_to_plot]) * sim.cosmo.lcMpc * 1e3,
-            (y[mains_to_plot]) * sim.cosmo.lcMpc * 1e3,
+            (x[mains_to_plot]) * units,
+            (y[mains_to_plot]) * units,
             s=sizes[mains * in_plane],
             **color_args,
             marker=markers[0],
@@ -1451,8 +1579,8 @@ def plot_brick_scatter(
 
         # plot subs
         ax.scatter(
-            (x[subs_to_plot]) * sim.cosmo.lcMpc * 1e3,
-            (y[subs_to_plot]) * sim.cosmo.lcMpc * 1e3,
+            (x[subs_to_plot]) * units,
+            (y[subs_to_plot]) * units,
             s=sizes[subs_to_plot * in_plane],
             **color_args,
             marker=markers[1],
@@ -1574,8 +1702,8 @@ def plot_brick_scatter(
             ax.annotate(
                 annotate_txt,
                 (
-                    (x) * sim.cosmo.lcMpc * 1e3,
-                    (y) * sim.cosmo.lcMpc * 1e3,
+                    (x) * units,
+                    (y) * units,
                 ),
                 fontsize=12,
                 zorder=999,
@@ -1609,10 +1737,6 @@ def plot_zoom_gals(
     obj_type = "Galaxy"
     leg_pos = "lower center"
     props_fct = get_gal_props_snap
-
-    # print(bricks)
-
-    # print(kwargs)
 
     plot_brick_scatter(
         ax,
@@ -1920,86 +2044,112 @@ def plot_zoom_halos(
 #     return 1
 
 
-def basis_from_vect(u1):
+def basis_from_vect(u):
 
-    # old complicated
-    # #grahm_schmidt
-    # #https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process
+    u = u / np.linalg.norm(u)
+    v = np.zeros_like(u)
+    w = np.zeros_like(u)
 
-    # v1 = np.asarray([1, 0, 0])
-    # v2 = np.asarray([0, 1, 0])
-    # v3 = np.asarray([0, 0, 1])
+    if abs(u[0]) < 1.0:
+        v[0] = 0.0
+        v[1] = u[2]
+        v[2] = -u[1]
+        v = v / np.linalg.norm(v)
 
-    # u2 = v2 - np.dot(u1, v2) * u1 / np.linalg.norm(u1) ** 2
+        w[0] = u[1] * v[2] - u[2] * v[1]
+        w[1] = -u[0] * v[2]
+        w[2] = u[0] * v[1]
 
-    # u3 = (
-    #     v3
-    #     - np.dot(u1, v3) * u1 / np.linalg.norm(u1) ** 2
-    #     - np.dot(u2, v3) * u2 / np.linalg.norm(u2) ** 2
-    # )
-
-    # return u1, u2, u3
-
-    if np.sum(u1) != 1:
-        u1 = u1 / np.linalg.norm(u1)
-
-    # new simple
-
-    # if np.all(np.abs(np.abs(u1) - np.asarray([0, 0, 1])) < 1e-3):  # kobs=x
-
-    #     u3 = np.asarray([0.0, 0.0, 1.0]) * np.sign(u1)
-    #     u2 = np.asarray([0.0, 1.0, 0.0])
-    #     u1 = np.asarray([1.0, 0.0, 0.0])
-
-    if np.sum(np.abs(u1) < 1e-3) == 2:  # if two null axes
-
-        # print(u1)
-
-        # find non nul axis
-        nn_ax = np.where(np.abs(u1) > 1e-3)[0][0]
-        u1 = np.zeros(3)
-        u1[nn_ax] = 1.0
-
-        u2 = np.zeros(3)
-        u2[(nn_ax + 1) % 3] = 1.0
-
-        u3 = np.zeros(3)
-        u3[(nn_ax + 2) % 3] = 1.0
-
-        # print(u1, u2, u3)
-
+        w = w / np.linalg.norm(w)
     else:
+        # kobs is aligned with x -> use kobs_perp_1 = y, kobs_perp_2 = z
 
-        # u2 = np.cross(np.asarray([1.0, 0.0, 0.0]), u1) #seems wrong formalism vs rascas?
-        # u2 = np.cross(
-        #     u1, np.asarray([0.0, 0.0, 1.0])
-        # )  # seems wrong formalism vs rascas?
+        v = [0.0, 1.0, 0.0]
+        w = [0.0, 0.0, 1.0]
 
-        # u2 = [
-        # u1[0] * 0.0 - u1[1] * 1.0,
-        # u1[1] * 0.0 - u1[2] * 0.0,
-        # u1[2] * 1.0 - u1[0] * 0.0,
-        # ]
+    return np.asarray(u), np.asarray(v), np.asarray(w)
 
-        u2 = [0, u1[2], -u1[1]]  # copied from rascas
 
-        if np.all(u2 == np.zeros(3)):
-            u2 += 1.0 / 3
-        # print(u2)
-        u2 = u2 / np.linalg.norm(u2)
+# def basis_from_vect(u1):
 
-        # u3 = np.cross(u1, u2)
-        u3 = [
-            u1[1] * u2[2] - u1[2] * u2[1],
-            u1[2] * u2[0] - u1[0] * u2[2],
-            u1[0] * u2[1] - u1[1] * u2[0],
-        ]
-        if np.all(u3 == np.zeros(3)):
-            u3 += 1.0 / 3
-        # print(u3)
-        u3 = u3 / np.linalg.norm(u3)
+#     # old complicated
+#     # #grahm_schmidt
+#     # #https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process
 
-    return u1, u2, u3
+#     # v1 = np.asarray([1, 0, 0])
+#     # v2 = np.asarray([0, 1, 0])
+#     # v3 = np.asarray([0, 0, 1])
+
+#     # u2 = v2 - np.dot(u1, v2) * u1 / np.linalg.norm(u1) ** 2
+
+#     # u3 = (
+#     #     v3
+#     #     - np.dot(u1, v3) * u1 / np.linalg.norm(u1) ** 2
+#     #     - np.dot(u2, v3) * u2 / np.linalg.norm(u2) ** 2
+#     # )
+
+#     # return u1, u2, u3
+
+#     # if np.sum(u1) != 1:
+#     u1 = u1 / np.linalg.norm(u1)
+
+#     # new simple
+
+#     # if np.all(np.abs(np.abs(u1) - np.asarray([0, 0, 1])) < 1e-3):  # kobs=x
+
+#     #     u3 = np.asarray([0.0, 0.0, 1.0]) * np.sign(u1)
+#     #     u2 = np.asarray([0.0, 1.0, 0.0])
+#     #     u1 = np.asarray([1.0, 0.0, 0.0])
+
+#     if np.sum(np.abs(u1) < 1e-3) == 2:  # if two null axes
+
+#         # print(u1)
+
+#         # find non nul axis
+#         nn_ax = np.where(np.abs(u1) > 1e-3)[0][0]
+#         u1 = np.zeros(3)
+#         u1[nn_ax] = 1.0
+
+#         u2 = np.zeros(3)
+#         u2[(nn_ax + 1) % 3] = 1.0
+
+#         u3 = np.zeros(3)
+#         u3[(nn_ax + 2) % 3] = 1.0
+
+#         # print(u1, u2, u3)
+
+#     else:
+
+#         # u2 = np.cross(np.asarray([1.0, 0.0, 0.0]), u1) #seems wrong formalism vs rascas?
+#         # u2 = np.cross(
+#         #     u1, np.asarray([0.0, 0.0, 1.0])
+#         # )  # seems wrong formalism vs rascas?
+
+#         # u2 = [
+#         # u1[0] * 0.0 - u1[1] * 1.0,
+#         # u1[1] * 0.0 - u1[2] * 0.0,
+#         # u1[2] * 1.0 - u1[0] * 0.0,
+#         # ]
+
+#         u2 = [0, u1[2], -u1[1]]  # copied from rascas
+
+#         if np.all(u2 == np.zeros(3)):
+#             u2 += 1.0 / 3
+#         # print(u2)
+#         u2 = u2 / np.linalg.norm(u2)
+
+#         # u3 = np.cross(u1, u2)
+#         u3 = [
+#             u1[1] * u2[2] - u1[2] * u2[1],
+#             u1[2] * u2[0] - u1[0] * u2[2],
+#             u1[0] * u2[1] - u1[1] * u2[0],
+#         ]
+#         if np.all(u3 == np.zeros(3)):
+#             u3 += 1.0 / 3
+#         # print(u3)
+#         u3 = u3 / np.linalg.norm(u3)
+
+#     return u1, u2, u3
 
 
 def CIC_parts_2D(
@@ -2101,6 +2251,7 @@ def plot_stars(
     ctr_tgt,
     rad_tgt,
     binning="cic",
+    extent_ckpc=None,
     **kwargs,
 ):
 
@@ -2140,16 +2291,20 @@ def plot_stars(
 
     # print(rad_tgt)
 
+    # print(stmass.sum(), len(stmass), ctr_st_pos.shape, rad_tgt)
+
     # dv1, dv2, dv3 = directions
     # print(directions)
     if type(directions[0]) in [float, int, np.float64, np.int64, np.float32, np.int32]:
-        dv1, dv2, dv3 = basis_from_vect(directions)
+        dv3, dv2, dv1 = basis_from_vect(directions)
     elif len(np.shape(directions)) == 2:
-        dv1, dv2, dv3 = directions
+        dv3, dv2, dv1 = directions
     else:
         raise ValueError("directions must be a list of 3 vectors or a single vector")
 
-    M_basis = project_direction(dv1, [0, 0, 1])
+    # dv1 = np.asarray(dv1)
+
+    # M_basis = project_direction(dv1, [0, 0, 1])
     # M_basis = [dv3, dv2, dv1]
     # vis_dir_ctr_st_pos = rot.apply(ctr_st_pos)
     # vis_dir_ctr_st_pos = np.asarray(
@@ -2160,29 +2315,37 @@ def plot_stars(
     # ).T
 
     if zero_ctr:
-        vis_dir_ctr_st_pos = np.asarray(
+        ctrd_st_pos = ctr_st_pos - ctr_tgt
+        vis_dir_ctr_st_pos = np.transpose(
             [
-                np.dot(
-                    stp - ctr_tgt,
-                    M_basis,
-                )
-                for stp in ctr_st_pos
+                np.dot(ctrd_st_pos, dv1),
+                np.dot(ctrd_st_pos, dv2),
+                np.dot(ctrd_st_pos, dv3),
             ]
         )
+        # vis_dir_ctr_st_pos = np.asarray(
+        #     [
+        #         np.dot(
+        #             stp - ctr_tgt,
+        #             M_basis,
+        #         )
+        #         for stp in ctr_st_pos
+        #     ]
+        # )
     else:
-        vis_dir_ctr_st_pos = np.asarray(
-            [
-                np.dot(
-                    stp,
-                    M_basis,
-                )
-                for stp in ctr_st_pos
-            ]
+        vis_dir_ctr_st_pos = np.transpose(
+            [np.dot(ctr_st_pos, dv1), np.dot(ctr_st_pos, dv2), np.dot(ctr_st_pos, dv3)]
         )
-        ctr_tgt = np.dot(
-            ctr_tgt,
-            M_basis,
-        )
+        # vis_dir_ctr_st_pos = np.asarray(
+        #     [
+        #         np.dot(
+        #             stp,
+        #             M_basis,
+        #         )
+        #         for stp in ctr_st_pos
+        #     ]
+        # )
+        ctr_tgt = [np.dot(ctr_tgt, dv1), np.dot(ctr_tgt, dv2)]
 
     # vis_dir_ctr_tgt = np.asarray(
     #     [
@@ -2237,10 +2400,16 @@ def plot_stars(
                 nb_img_bins + 1,
             )
 
+    
+
     if zero_ctr:
         extent = np.asarray([-rad_tgt, rad_tgt, -rad_tgt, rad_tgt]) / (
             sim.cosmo.lcMpc * 1e3
         )
+
+        if extent_ckpc is not None:
+            half_size = 0.5 * extent_ckpc / sim.cosmo.lcMpc / 1e3
+            extent = np.asarray([-half_size, half_size, -half_size, half_size])
     else:
         extent = np.asarray(
             [
@@ -2251,6 +2420,17 @@ def plot_stars(
             ]
         ) / (sim.cosmo.lcMpc * 1e3)
 
+        if extent_ckpc is not None:
+            half_size = 0.5 * extent_ckpc / sim.cosmo.lcMpc / 1e3
+            extent = np.asarray(
+                [
+                    ctr_tgt[0] - half_size,
+                    ctr_tgt[0] + half_size,
+                    ctr_tgt[1] - half_size,
+                    ctr_tgt[1] + half_size,
+                ]
+            )
+
     # print(vis_dir_ctr_st_pos.max(axis=0), vis_dir_ctr_st_pos.min(axis=0))
     # print(planx_bins.min(), planx_bins.max(), plany_bins.min(), plany_bins.max())
     # print(rad_tgt, extent, planx_bins[0], planx_bins[-1])
@@ -2258,7 +2438,6 @@ def plot_stars(
     ctr_img = [0, 0]
 
     if binning == "cic":
-
         img = make_img_cic(
             vis_dir_ctr_st_pos[:, 0],
             vis_dir_ctr_st_pos[:, 1],
@@ -2279,6 +2458,13 @@ def plot_stars(
             extent,
             mode=mode,
         )
+
+
+
+    print(img.max())
+
+    print(vis_dir_ctr_st_pos.min(axis=0))
+    print(vis_dir_ctr_st_pos.max(axis=0))
 
     if np.all((img == 0 + (np.isfinite(img) == False)) > 0):
         return img
@@ -2349,7 +2535,7 @@ def plot_stars(
             plimg,
             ax=ax,
             # fraction=0.046,
-            pad=0.0,
+            # pad=0.0,
             **cb_args,
         )
         cb.set_label(label)
@@ -2410,9 +2596,9 @@ def make_img_cic(x, y, z, ctr, ncells, extent_code, mode="sum"):
     dy = ycells_code[1] - ycells_code[0]
     ycells_code = ycells_code + dy * 0.5
 
-    print(x.min(), x.max(), dx, xcells_code)
+    # print(x.min(), x.max(), dx, xcells_code)
 
-    print(y.min(), y.max(), dy, ycells_code)
+    # print(y.min(), y.max(), dy, ycells_code)
 
     x_in_cells = np.clip(np.digitize(x, xcells_code), 0, ncells)
     y_in_cells = np.clip(np.digitize(y, ycells_code), 0, ncells)
@@ -2450,11 +2636,16 @@ def make_img_cic(x, y, z, ctr, ncells, extent_code, mode="sum"):
     for dx, xdist in zip([-1, 0, 1], [dist_to_xm1, dist_to_x, dist_to_xp1]):
         for dy, ydist in zip([-1, 0, 1], [dist_to_ym1, dist_to_y, dist_to_yp1]):
 
-            fact = 1 - np.sqrt(xdist**2 + ydist**2)
+            # fact = 1 - np.sqrt(xdist**2 + ydist**2)
+            factx = 1-xdist
+            facty= 1-ydist
 
-            fact[np.any([xdist == np.inf, ydist == np.inf])] = 0
-            fact[fact < 0] = 0
-            fact[fact > 1] = 1
+            factx[xdist == np.inf] = 0
+            factx[factx < 0] = 0
+            factx[factx > 1] = 1
+            facty[ydist == np.inf] = 0
+            facty[facty < 0] = 0
+            facty[facty > 1] = 1
 
             in_frame = (
                 (x_in_cells + dx >= 0)
@@ -2463,27 +2654,32 @@ def make_img_cic(x, y, z, ctr, ncells, extent_code, mode="sum"):
                 * (y_in_cells + dy < ncells + 1)
             )
 
-            print(len(z), len(x_in_cells))
+            # print(len(z), len(x_in_cells))
 
             img += binned_statistic_2d(
                 x_in_cells + dx,
                 y_in_cells + dy,
-                values=fact * in_frame * z,
+                # values=fact * in_frame * z,
+                values=factx * facty * in_frame * z,
                 bins=[bins[:], bins[:]],
                 statistic="sum",
             )[0]
+
 
             if mode == "mean":
 
                 img_count += binned_statistic_2d(
                     x_in_cells + dx,
                     y_in_cells + dy,
-                    fact * in_frame,
+                    # fact * in_frame,
+                    factx * facty * in_frame,
                     bins=[bins[:], bins[:]],
                     statistic="sum",
                 )[0]
 
             # print(img.max())
+
+            # print(len(z),img.sum(),z.sum())
 
     if mode == "mean":
         img = img / img_count
@@ -2621,6 +2817,12 @@ def make_img_stars(
     **kwargs,
 ):
 
+    if sim.cosmo.cosmo_run:
+        snap = sim.get_closest_snap(aexp=aexp)
+    else:
+        snap = aexp
+        aexp = 1
+
     read_ball_fct = kwargs.get("read_ball_fct", read_data_ball)
 
     hid = kwargs.get("hid", None)
@@ -2641,7 +2843,7 @@ def make_img_stars(
 
     # print(hid)
 
-    stars = read_data_ball(
+    stars = read_ball_fct(
         sim,
         snap,
         tgt_pos,
@@ -2649,6 +2851,7 @@ def make_img_stars(
         hid,
         data_types=["stars"],
         tgt_fields=tgt_fields,
+        **kwargs
     )
 
     # print(stars)
@@ -2737,7 +2940,7 @@ def make_img_stars(
         data_to_plot,
         stars["pos"],
         tgt_pos,
-        tgt_rad * (sim.cosmo.lcMpc * 1e3) * np.sqrt(2),
+        tgt_rad * (sim.cosmo.lcMpc * 1e3),
         label=label,
         **kwargs,
     )
@@ -2749,7 +2952,11 @@ def make_img_dm(
     fig, ax, plot_field, sim, aexp, directions, nbins, tgt_pos, tgt_rad, **kwargs
 ):
 
-    snap = sim.get_closest_snap(aexp=aexp)
+    if sim.cosmo.cosmo_run:
+        snap = sim.get_closest_snap(aexp=aexp)
+    else:
+        snap = aexp
+        aexp = 1
 
     hid = kwargs.get("hid", None)
 
@@ -2761,7 +2968,7 @@ def make_img_dm(
     # read_ball_fct = kwargs.get("read_ball_fct", read_part_ball_NCdust)
 
     # dm = read_ball_fct(sim, snap, tgt_pos, tgt_rad * np.sqrt(2), tgt_fields, fam=1)
-    dm = read_data_ball(
+    dm = read_ball_fct(
         sim,
         snap,
         tgt_pos,
@@ -2825,6 +3032,9 @@ def plot_fields(
     **kwargs,
 ):
 
+
+    
+
     read_ball_fct = kwargs.get("read_ball_fct", read_data_ball)
     if not "read_ball_fct" in kwargs:
         kwargs["read_ball_fct"] = read_ball_fct
@@ -2870,6 +3080,7 @@ def plot_fields(
         "dust_bin04",
         "alpha_vir",
         "mach",
+        "CRegy_01"
     ]
 
     if field_name in stellar_fields:
@@ -2915,11 +3126,14 @@ def plot_fields(
     elif field_name in gas_fields:
 
         if "zdist" not in kwargs:
-            zdist = tgt_rad * (sim.cosmo.lcMpc * 1e3)
-        else:
-            zdist = kwargs["zdist"]
+            kwargs["zdist"] = tgt_rad #* (sim.cosmo.lcMpc * 1e3)
 
-        snap = sim.get_closest_snap(aexp=aexp)
+
+        if sim.cosmo.cosmo_run:
+            snap = sim.get_closest_snap(aexp=aexp)
+        else:
+            snap = aexp
+            aexp = 1
 
         # print(tgt_pos, tgt_rad, zdist)
         if type(directions[0]) not in [list, np.ndarray]:
@@ -2935,7 +3149,6 @@ def plot_fields(
             sim,
             tgt_pos,
             tgt_rad,
-            zdist,
             direction=directions_img,
             **kwargs,
         )
@@ -2948,13 +3161,16 @@ def plot_fields(
 
 def guess_nbin(tgt_rad, sim, aexp):
 
-    lvls, zeds, reds = sim.compute_aexps_lvlchange()
+    if sim.namelist['run_params']['cosmo']:
+        lvls, zeds, reds = sim.compute_aexps_lvlchange()
 
-    aexps = 1.0 / (1.0 + zeds)
+        aexps = 1. / (1.0 + zeds)
 
-    lvl = lvls[np.digitize(aexp, aexps)]
+        lvl = lvls[np.digitize(aexp, aexps)]
+    else:
+        lvl = sim.levelmax
 
-    sim_max_res = 1.0 / 2**lvl  # sim.namelist["amr_params"]["levelmax"]
+    sim_max_res = 1. / 2**lvl  # sim.namelist["amr_params"]["levelmax"]
     nbins = int(tgt_rad / sim_max_res * 0.33 / aexp)
-    print(f"guessing appropriate nbins at 0.33 max resolution: {nbins}")
+    print(f"guessing appropriate nbins at 0.33 x max resolution: {nbins}")
     return nbins

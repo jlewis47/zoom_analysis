@@ -71,7 +71,7 @@ def configure_input_template(brick_files):
 
 def detect_brick_files(sim_dir, hm_type):
 
-    fpath = os.path.join(sim_dir, "HaloMaker_" + hm_type)
+    fpath = os.path.join(sim_dir, hm_type)
 
     files = os.listdir(fpath)
     brick_files = np.asarray(
@@ -130,12 +130,41 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki/",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak_boostAcc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak_boostAcc_1d7_dynMass",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_novrel",    
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_noSpin",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_superEdd",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowSNe",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",    
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_lowSNe",    
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowKin",    
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowTherm",    
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sqrt_rr_merge",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_merge_main_branch"
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_noHydroDragB4z4merge",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id36755",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_manual_sink1D7",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p02eps",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p05eps",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p10eps",    
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_halfSN",
     # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
@@ -143,6 +172,18 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
     # "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_goodfix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_sink_desc_goodfix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_goodfix",    
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_fix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_cst_comov",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_accBoost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd_drag",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_high_SN",
@@ -150,7 +191,7 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_ls SE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id147479",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id138140",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag_lowerSFE",
@@ -228,10 +269,11 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e11/id292074"
     # "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130"
     # "/data102/jlewis/sims/lvlmax_20/mh1e12/id242756",
-    "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF/",
-    "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_high_sconstant",
-    "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_Vhigh_sconstant",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_VVhigh_sconstant",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF/",
+    # "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_high_sconstant",
+    # "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_Vhigh_sconstant",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_VVhigh_sconstant",
+    # "/data101/jlewis/sims/NH_for_rascas",
 ]
 
 sim_dirs = np.unique(sim_dirs)
@@ -247,7 +289,8 @@ sim_dirs = np.unique(sim_dirs)
 # out_dir = "/data101/jlewis/sims/YD_accretion_tests"
 out_dir = None
 # launch = False
-launch = True
+launch = True   
+zlim = 10
 
 # if not os.path.exists(out_dir):
 # os.makedirs(out_dir)
@@ -287,13 +330,17 @@ for sim_dir in sim_dirs:
 
     print(1.0 / aexps - 1.0)
 
-    zlim = 10.0
 
+
+    out_hm_types = ["TreeDM_dust", "Treestars2_dp_rec_dust"]
     tree_types = ["Halo", "Gal"]
-    hm_types = ["DM_dust", "stars2_dp_rec_dust"]
+    if not sim.name == "NH_for_rascas" or "newhorizon" in sim.name.lower():
+        hm_types = ["HaloMaker_DM_dust", "HaloMaker_stars2_dp_rec_dust"]
+    else:
+        hm_types = ["TREE_DM", "TREE_STARS_AdaptaHOP_dp_SCnew_gross"]
     # hm_types = ["stars2_dp_rec_dust"]
 
-    for hm_type, tree_type in zip(hm_types, tree_types):
+    for hm_type, out_hm_type, tree_type in zip(hm_types, out_hm_types, tree_types):
 
         out_dir = None
 
@@ -308,10 +355,12 @@ for sim_dir in sim_dirs:
         if out_dir == None:
             out_dir = sim_dir
 
-        tmaker_dir = os.path.join(out_dir, "TreeMaker" + hm_type)
+        tmaker_dir = os.path.join(out_dir, out_hm_type)
         os.makedirs(tmaker_dir, exist_ok=True)
 
         bricks = detect_brick_files(sim_dir, hm_type)
+
+        # print(bricks)
 
         cfg = configure_input_template(bricks)
         cfg_fname = os.path.join(tmaker_dir, "input_TreeMaker.dat")

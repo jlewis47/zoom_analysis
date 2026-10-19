@@ -22,7 +22,6 @@ import argparse
 
 # import mpi4py.MPI as MPI
 
-
 def get_star_props(
     sim: ramses_sim,
     rmaxs,
@@ -37,6 +36,7 @@ def get_star_props(
     igal,
     stars,
 ):
+
     stars_pos, star_ctr, star_ext = find_star_ctr_period(stars["pos"])
     ages = stars["agepart"]
     mstars = stars["mpart"]
@@ -60,8 +60,12 @@ def get_star_props(
     mstars = mstars[young]
     Zs = stars["Zpart"][young]
 
+    # print(mstars.sum())
+
     correctd_mstars = correct_mass(sim, ages, mstars, Zs)  # this is very slow
     # print(np.log10(correctd_mstars.sum()), r50s[igal],r90s[igal], reffs[igal])
+
+    # print(mstars.sum())
 
     sfr10[igal] = correctd_mstars[ages <= 10].sum() / 10.0
     sfr100[igal] = correctd_mstars[ages <= 100].sum() / 100.0
@@ -113,16 +117,19 @@ def read_contam_hm(fname):
     return ids, npart_contam, npart
 
 
-gm_name = "stars2_dp_rec_dust"
-hm_name = "DM_dust"
-
-
-def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
+def associate(
+    sim_dirs,
+    snaps=[],
+    verbose=False,
+    overwrite=False,
+    hm_name="HaloMaker_DM_dust",
+    gm_name="HaloMaker_stars2_dp_rec_dust",
+):
 
     for sim_dir in sim_dirs:
 
         print(sim_dir)
-        sim = ramses_sim(sim_dir, nml="cosmo.nml")
+        sim = ramses_sim(sim_dir, nml="cosmo.nml", full_check=False)
 
         # contam_thresh = 99.9
 
@@ -130,6 +137,7 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
         if len(output_nbs) == 0:
             continue
         nsnaps = len(output_nbs)
+        print(nsnaps)
         aexps = sim.get_snap_exps(output_nbs)
         # aexps = sim.aexps
 
@@ -150,20 +158,21 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
         # aexps_rank = aexps[rank::size]
 
         if len(snaps) == 0:
-            snaps = output_nbs
+            tgt_snaps = output_nbs
+        else:
+            tgt_snaps = snaps
 
-        # print(snaps)
+        # print(tgt_snaps)
 
         # for snap, aexp in zip(outputs_rank, aexps_rank):
-        for snap, aexp in zip(output_nbs[::-1], aexps[::-1]):
-            # for snap, aexp in zip(output_nbs, aexps):
+        # for snap, aexp in zip(output_nbs[::-1], aexps[::-1]):
+        
+        for snap, aexp in zip(output_nbs, aexps):
 
             # if snap != 294:
             #     continue
 
-            # print(snap)
-
-            if snap not in snaps:
+            if snap not in tgt_snaps:
                 continue
 
             fname_halo = os.path.join(outdir, f"assoc_{snap:03d}_halo_lookup.h5")
@@ -174,14 +183,13 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
             if not overwrite and (
                 os.path.isfile(fname_halo) and os.path.isfile(fname_gal)
             ):
+                print(f'assoc file for snap {snap} already exists...')
                 continue
 
             # print(f"rank {rank} is handling snap {snap} at aexp {aexp}")
             print(f"Handling snap {snap} at aexp {aexp}")
 
-            dm_brick = read_zoom_brick(
-                snap, sim, "HaloMaker_" + hm_name, galaxy=False, star=False
-            )
+            dm_brick = read_zoom_brick(snap, sim, hm_name, galaxy=False, star=False)
 
             if dm_brick == 0:
                 print(f"no dm brick found for snap {snap}")
@@ -193,7 +201,7 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
             halo_rvir = dm_brick["virial properties"]["rvir"]
             halo_mvir = dm_brick["virial properties"]["mvir"]
 
-            gm_brick = read_zoom_brick(snap, sim, "HaloMaker_" + gm_name)
+            gm_brick = read_zoom_brick(snap, sim, gm_name, star=True)
 
             if gm_brick == 0:
                 print(f"no gm brick found for snap {snap}")
@@ -213,11 +221,9 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
             most_massive_purity = np.empty_like(gal_mass, dtype=np.float32)
             most_massive_central = np.empty_like(gal_mass, dtype=bool)
             most_massive_hmass[:] = -np.inf
-
+            
             # read contamination
-            contam_fname = os.path.join(
-                sim_dir, "HaloMaker_" + hm_name, f"contam_halos{snap:03d}"
-            )
+            contam_fname = os.path.join(sim_dir, hm_name, f"contam_halos{snap:03d}")
             contam_hid, contam_npart, npart = read_contam_hm(contam_fname)
 
             fpure = 1.0 - contam_npart / npart
@@ -326,9 +332,13 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
                     sim,
                     snap,
                     gids[igal],
-                    hm="HaloMaker_" + gm_name,
+                    hm=gm_name,
                     tgt_fields=["pos", "mpart", "agepart", "Zpart", "IDs"],
+                    debug=verbose
                 )
+
+
+                
 
                 ages, mstars = get_star_props(
                     sim,
@@ -351,7 +361,7 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
                 if len(arg_sub_gals) > 0:  # has subs
 
                     # fname_brick = os.path.join(
-                    #     sim.path, "HaloMaker_" + gm_name, f"tree_bricks{snap:03d}"
+                    #     sim.path, gm_name, f"tree_bricks{snap:03d}"
                     # )
 
                     # main_IDs = get_tgt_partIDs(
@@ -365,17 +375,15 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
                         if sub_gid == gids[igal]:
                             continue
 
-                        # sub_stIDs.extend(
-                        # get_tgt_partIDs(fname_brick, sub_gid, star=True, galaxy=True)
-                        # )
 
                         sub_stIDs.extend(
                             read_zoom_stars(
                                 sim,
                                 snap,
                                 sub_gid,
-                                hm="HaloMaker_" + gm_name,
+                                hm=gm_name,
                                 tgt_fields=["IDs"],
+                                debug=verbose
                             )["IDs"]
                         )
 
@@ -414,9 +422,12 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
 
                     for key in stars.keys():
                         cur_d = stars[key]
+                    #     print(cur_d)
                         if type(cur_d) in [np.ndarray, list]:
+                    #         print("main")
                             main_stars[key] = cur_d[main_only_bool]
                         else:
+                    #         print("copy")
                             main_stars[key] = cur_d
 
                     main_ages, main_mstars = get_star_props(
@@ -443,6 +454,8 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
                         f"{mstars.sum():.1e}, {sfr10[igal]:.1e}, {sfr100[igal]:.1e}, {sfr1000[igal]:.1e}"
                     )
                     print("purity is ", most_massive_purity[igal])
+
+                    assert mstars.sum()>0,f"negative stellar mass!..."
 
             fgal.create_dataset("gids", data=gids, compression="lzf")
             fgal.create_dataset("pos", data=gpos, compression="lzf")
@@ -500,178 +513,185 @@ def associate(sim_dirs, snaps=[], verbose=False, overwrite=False):
 
 if __name__ == "__main__":
 
-    sim_dirs = (
-        [
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_evenlesscoarse",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_accBoost",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_gravSink_SE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_DynBondiGravSinkMass_SE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_kicks",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_highMseed",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowMseed",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_novrel",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_chabrier",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/small_rgal/id74099",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id147479",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_evenlesscoarse",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id147479",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_coarse",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_leastcoarse",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_leastcoarse",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_leastcoarse",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_boostgrowth",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242704",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242756",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242704_lower_nstar",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242756_lower_nstar",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_norvel_lowerSFE_highAGNtherm",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_nh2",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_high_SN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_high_thermal_eff",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_smooth_ref",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondsi",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242704_lower_nstar",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242756_lower_nstar",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF/",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_medSFE_stgNHboost_stricterSF",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_highSFE_stgNHboost_strictestSF",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_SEdd2",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_XtremeSF_lowSNe",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
-            # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_XtremeSF_lowSNe",
-            # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_MegaSF_lowSNe",
-            # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
-            "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF/",
-            "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_high_sconsta\
-nt",
-            "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_Vhigh_sconst\
-ant",
-            "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_VVhigh_sconst\
-ant",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_noHydroDragB4z4merge",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_model5",
-            # "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e11/id292074",
-            # "/data103/jlewis/sims/lvlmax_22/mh1e12/id147479",
-            # "/data103/jlewis/sims/lvlmax_22/mh1e12/id138140",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id147479",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id138140",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_boostgrowth",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi/id180130_meanBondi_higher_nmax",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi/id180130_meanBondi_Sconstant",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nrg_SN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_pdrag",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_highSFE_lowSN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag_lowerSFE_lowNsink",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE_lowSN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_minMassDynGrav",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_low_dboost",
-        ]
-        + [
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_low_dboost",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_lowerSFE_lowNsink",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_minMassDynGrav",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_minMassDynHydroGravBHL",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_highMseed",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_high_nsink",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_highSFE_lowSN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE_lowSN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_novrel",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_norvel_lowerSFE_highAGNtherm",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_norvel_lowSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_boostgrowth",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_thermal_eff",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowMseed",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_pdrag",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_vlowSFE",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nrg_SN",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_smooth_ref",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd",
-            # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd_high_fstar",
-            # "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
-            # "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05",
-            # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_drag",
-            # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_DynBondiGravSinkMass",
-            # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_lowerSFE",
-            # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
-            # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_lowerSFE_drag",
-            # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth",
-            # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_early_refine",
-            # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_boostNH",
-            # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_boostNH_resimBoostFriction",
-            # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt",
-            # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_lowerSFE_drag",
-        ]
-    )
+    sim_dirs = [
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_evenlesscoarse",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_accBoost",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_gravSink_SE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_DynBondiGravSinkMass_SE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_kicks",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_highMseed",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowMseed",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_novrel",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_chabrier",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/small_rgal/id74099",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id147479",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_evenlesscoarse",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id147479",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_coarse",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_leastcoarse",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_leastcoarse",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_leastcoarse",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_boostgrowth",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242704",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242756",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242704_lower_nstar",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242756_lower_nstar",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_norvel_lowerSFE_highAGNtherm",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_nh2",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_high_SN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_high_thermal_eff",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_smooth_ref",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondsi",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242704_lower_nstar",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242756_lower_nstar",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id138140",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF/",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_medSFE_stgNHboost_stricterSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_highSFE_stgNHboost_strictestSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_SEdd2",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_XtremeSF_lowSNe",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+        # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_XtremeSF_lowSNe",
+        # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_MegaSF_lowSNe",
+        # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
+        #             "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF/",
+        #             "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_high_sconsta\
+        # nt",
+        #             "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_Vhigh_sconst\
+        # ant",
+        #             "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_VVhigh_sconst\
+        # ant",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_noHydroDragB4z4merge",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_model5",
+        # "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e11/id292074",
+        # "/data103/jlewis/sims/lvlmax_22/mh1e12/id147479",
+        # "/data103/jlewis/sims/lvlmax_22/mh1e12/id138140",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+        "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+        "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+        "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
+        "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+        "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_halfSN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_novrel_lowerSFE_stgNHboost_strictSF",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id147479",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id138140",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_boostgrowth",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi/id180130_meanBondi_higher_nmax",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi/id180130_meanBondi_Sconstant",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nrg_SN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_pdrag",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_highSFE_lowSN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag_lowerSFE_lowNsink",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE_lowSN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_minMassDynGrav",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_low_dboost",
+    ] + [
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_low_dboost",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_lowerSFE_lowNsink",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_minMassDynGrav",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_minMassDynHydroGravBHL",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_highMseed",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_high_nsink",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_highSFE_lowSN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE_lowSN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_novrel",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_norvel_lowerSFE_highAGNtherm",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_norvel_lowSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_boostgrowth",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_thermal_eff",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowMseed",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_pdrag",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_vlowSFE",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nrg_SN",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_smooth_ref",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd",
+        # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd_high_fstar",
+        # "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
+        # "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05",
+        # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_drag",
+        # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_DynBondiGravSinkMass",
+        # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_lowerSFE",
+        # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+        # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_lowerSFE_drag",
+        # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth",
+        # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_early_refine",
+        # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_boostNH",
+        # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_boostNH_resimBoostFriction",
+        # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt",
+        # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_lowerSFE_drag",
+    ]
 
     Argparse = argparse.ArgumentParser()
 
@@ -679,5 +699,7 @@ ant",
     Argparse.add_argument("--snaps", nargs="+", default=[], type=int)
     Argparse.add_argument("--verbose", action="store_true", default=False)
     Argparse.add_argument("--overwrite", action="store_true", default=False)
+    Argparse.add_argument("--hm_name", type=str, default="HaloMaker_DM_dust")
+    Argparse.add_argument("--gm_name", type=str, default="HaloMaker_stars2_dp_rec_dust")
 
     associate(**vars(Argparse.parse_args()))

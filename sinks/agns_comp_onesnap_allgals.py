@@ -32,7 +32,10 @@ from zoom_analysis.halo_maker.assoc_fcts import get_gal_props_snap
 
 # sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag"
 # sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
-sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE"
+# sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc"
+# sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc"
+# sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_recursive"
+# sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE"
 # sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost"
 # sim_path = (
 #     "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost"
@@ -42,12 +45,18 @@ sim_path = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lower
 # sim_path=     "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099"
 
 
+sim_path="/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
+
 fpure = 0.9999
 # mlim = 1e11
-mlim = 1e10
+# mlim = 1e10
+mlim = 5e9
 
 # tgt_zed = 1.9
-tgt_zed = 2.5
+# tgt_zed = 2.5
+tgt_zed = 2.0
+# tgt_zed = 4.5
+# tgt_zed = 8.0
 nsmooth = 60
 # fig = plt.figure()
 # ax = fig.add_subplot(111)
@@ -108,7 +117,7 @@ valid_gids = gal_props["gids"][valid]
 valid_pos = gal_props["pos"][:, valid]
 valid_rmax = gal_props["rmax"][valid]
 
-print(valid_gids)
+# print(valid_gids)
 
 
 for igal, gid in enumerate(valid_gids):
@@ -126,7 +135,7 @@ for igal, gid in enumerate(valid_gids):
         continue
         # print()
 
-    sink_hist = get_sink_mhistory(massive_sid, snap, sim, hagn=False)
+    sink_hist = get_sink_mhistory(massive_sid, snap, sim, hagn=False,debug=False)
 
     # print(list(zip(sink_hist["zeds"], sink_hist["mass"])))
 

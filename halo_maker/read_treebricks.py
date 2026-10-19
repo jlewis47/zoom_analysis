@@ -1,3 +1,4 @@
+from curses.ascii import alt
 import numpy as np
 import os
 
@@ -24,7 +25,7 @@ def read_brickfile(fname, star=None, galaxy=True):
     Other quantities are dimensionless (h%my_number,h%my_timestep,h%spin)"""
 
     if star == None:
-        if "star" in fname:
+        if "star" in fname.lower():
             star = True
         else:
             star = False
@@ -37,9 +38,11 @@ def read_brickfile(fname, star=None, galaxy=True):
         dt = np.float32
 
     with open(fname, "rb") as src:
-        nbodies = read_record(src, 1, np.int32)
+        # nbodies = read_record(src, 1, np.int32)
+        skip_record(src, 1)  # , debug=True)
         # print(nbodies)
-        massp = read_record(src, 1, dt)
+        # massp = read_record(src, 1, dt)
+        skip_record(src, 1)  # , debug=True)
         aexp = read_record(src, 1, dt)
         omega_t = read_record(src, 1, dt)
         age_univ = read_record(src, 1, dt)
@@ -81,7 +84,8 @@ def read_brickfile(fname, star=None, galaxy=True):
             rho = np.empty((nb_structs, 100), dtype=dt)
 
         for istrct in range(nb_structs):
-            num_parts = read_record(src, 1, np.int32)
+            # num_parts = read_record(src, 1, np.int32)
+            skip_record(src, 1)  # , debug=True)
 
             # Discard particle IDs
             # print(num_parts)
@@ -231,9 +235,17 @@ def read_zoom_brick(snap, sim, hm, sim_path=None, **kwargs):
 
     # get treebrick_file
     fname_brick = os.path.join(sim_path, hm, f"tree_bricks{snap:03d}")
-    print(f"Reading tree_bricks file: {fname_brick}")
     if not os.path.exists(fname_brick):
+        print(f"Didn't find path to brick files at : {fname_brick}")
         return 0
+        # alt_fname_brick = os.path.join(
+        #     sim_path, hm, f"tree_brick_{snap:03d}"
+        # )  # for NH galaxies only...
+        # if os.path.exists(alt_fname_brick):
+        #     fname_brick = alt_fname_brick
+        # else:
+        #     print(fname_brick, alt_fname_brick)
+    print(f"Reading tree_bricks file: {fname_brick}")
 
     bricks = read_brickfile(fname_brick, **kwargs)
     convert_brick_units(bricks, sim)
@@ -267,7 +279,6 @@ def convert_brick_units(treebrick, sim: ramses_sim):
     treebrick["positions"]["y"] += 0.5
     treebrick["positions"]["z"] += 0.5
 
-    print(np.min(treebrick["positions"]["x"]),np.max(treebrick["positions"]["x"]))
     # convert masses to Msol
     treebrick["virial properties"]["mvir"] *= 1e11
     treebrick["hosting info"]["hmass"] *= 1e11
@@ -319,18 +330,20 @@ def get_halos_properties(ids, treebrick):
     return new_treebrick
 
 
-def read_gal_stars(fname, tgt_fields=None):
+def read_gal_stars(fname, tgt_fields=None, debug=False):
     with open(fname, "rb") as src:
         hid = read_record(src, 1, np.int32)
         # print(hid)
         lvl = read_record(src, 1, np.int32)
 
         mass = read_record(src, 1, np.float64)
+        # print(mass)
         x, y, z = read_record(src, 3, np.float64)
         # print(x, y, z)
         vx, vy, vz = read_record(src, 3, np.float64)
         Lx, Ly, Lz = read_record(src, 3, np.float64)
         nb_parts = read_record(src, 1, np.int32)
+        # print(nb_parts)
 
         fields = np.asarray(["pos", "vel", "mpart", "IDs", "agepart", "Zpart"])
         dims = [3, 3, 1, 1, 1, 1]
@@ -340,11 +353,14 @@ def read_gal_stars(fname, tgt_fields=None):
 
         if tgt_fields is None:
             tgt_fields = fields
+                
+        if debug:
+            print(f"requested fields are: {tgt_fields}")
 
         data = {}
 
         read_tgt_fields(
-            data, tgt_fields, list(zip(fields, dims, dtypes_read)), src, nb_parts
+            data, tgt_fields, list(zip(fields, dims, dtypes_read)), src, nb_parts, debug=debug
         )
 
         data["hid"] = hid
@@ -372,19 +388,20 @@ def read_zoom_stars(sim, snap, gid, hm="HaloMaker_stars2_dp_rec_dust", **kwargs)
 
     fstar = os.path.join(sim.path, hm, f"GAL_{snap:05d}", f"gal_stars_{gid:07d}")
     stars = read_gal_stars(fstar, **kwargs)
+    
     convert_star_units(stars, snap, sim)
 
-    # Joe 29/10/24 - what does this do ?
+    # # Joe 29/10/24 - what does this do ? Proably don't need to filter since these should all be stars...
 
     # if "family" in stars:
     #     stars_only = stars["family"] == 2
     # else:
-    # if "agepart" in stars:
-    #     stars_only = stars["agepart"] >= 0
-    # elif "age" in stars:
-    #     stars_only = stars["age"] >= 0
-    # else:
-    #     raise ValueError("No age or agepart in star data")
+    #     if "agepart" in stars:
+    #         stars_only = stars["agepart"] >= 0
+    #     elif "age" in stars:
+    #         stars_only = stars["age"] >= 0
+    #     else:
+    #         raise ValueError("No age or agepart in star data")
 
     # for k in stars.keys():
     #     if not isinstance(stars[k], np.ndarray) and not isinstance(stars[k], list):
@@ -397,7 +414,7 @@ def read_zoom_stars(sim, snap, gid, hm="HaloMaker_stars2_dp_rec_dust", **kwargs)
 
 
 def ct_prop2time(tau, h0):
-    return tau / (h0 / ramses_pc * 1e1) / (365.25 * 24.0 * 3600.0)
+    return tau / (h0 / (ramses_pc * 1e1)) / (365.25 * 24.0 * 3600.0)
 
 
 def ct_conf2time(tau, tau_frw, t_frw):
@@ -418,9 +435,21 @@ def ct_aexp2time(aexp, aexp_frw, t_frw):
     ) + t_frw[i - 1] * (aexp - aexp_frw[i]) / (aexp_frw[i - 1] - aexp_frw[i])
 
 
-def convert_star_time(star_birthtime, sim: ramses_sim, aexp, cosmo_fname=None):
+def convert_star_time(star_birthtime, sim: ramses_sim, aexp, cosmo_fname=None,proper=None,debug=False):
 
-    # print(cosmo_fname)
+
+    if proper is None: #try to detect correct choice
+        if 'rt' in sim.namelist['run_params']:
+            if sim.namelist['run_params']["rt"]:
+                proper = True
+                msg="Found an RT simulation, using proper time for star ages"
+            else:
+                proper = False
+                msg="Assuming a non-RT simulation, using proper time for star ages"
+        else:
+            proper=False
+            msg='Found a non-RT simulation, using conformal time for star ages'
+        debug:print(msg)
 
     if cosmo_fname is None:
         if os.access(sim.path, os.W_OK):
@@ -430,6 +459,7 @@ def convert_star_time(star_birthtime, sim: ramses_sim, aexp, cosmo_fname=None):
             if not os.path.exists(fried_dir):
                 os.makedirs(fried_dir, exist_ok=True)
             cosmo_fname = os.path.join(fried_dir, "friedman.txt")
+
 
     # setup friedman stuff
     aexp_frw, hexp_frw, tau_frw, t_frw = ct_init_cosmo(
@@ -441,11 +471,20 @@ def convert_star_time(star_birthtime, sim: ramses_sim, aexp, cosmo_fname=None):
     )
 
     time_simu = ct_aexp2time(aexp, aexp_frw, t_frw)  # yr
-    # print(time_simu)
+    
+    if not proper:
+        # star_age = ct_conf2time(star_birthtime, tau_frw, t_frw)
+        star_age = (time_simu - ct_conf2time(star_birthtime, tau_frw, t_frw)) * 1e-6  # Myr
+    else:
+        # raise NotImplementedError("Proper time conversion not implemented yet")
+        star_age = (time_simu - ct_prop2time(star_birthtime, sim.cosmo["H0"])) * 1e-6  # Myr
 
-    star_age = (time_simu - ct_conf2time(star_birthtime, tau_frw, t_frw)) * 1e-6  # Myr
+    if debug:
+        print(time_simu)
+        print(star_age.min(),star_age.max())
 
     return star_age
+
 
 
 def convert_star_units(star_dict, snap, sim: ramses_sim, cosmo_fname=None):
@@ -490,12 +529,15 @@ def convert_star_units(star_dict, snap, sim: ramses_sim, cosmo_fname=None):
     if "metallicity" in star_dict:
         star_dict["metallicity"] /= 0.02
 
+    # for k in star_dict:
+    #     print(k,star_dict[k].min(),star_dict[k].max())
+
     # ages to Myr
-    if "agepart" in star_dict:
+    if "agepart" in star_dict: #what units are these ?
         star_dict["agepart"] = convert_star_time(
             star_dict["agepart"], sim, aexp, cosmo_fname
         )
-    if "birth_time" in star_dict:
+    if "birth_time" in star_dict or 'age' in star_dict:
         star_dict["age"] = convert_star_time(
             star_dict["birth_time"], sim, aexp, cosmo_fname
         )

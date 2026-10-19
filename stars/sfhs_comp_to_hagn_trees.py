@@ -116,14 +116,14 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
-    "/data102/jlewis/sims/lvlmax_20/mh1e12/id242756,  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",  # _leastcoarse",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+    # "/data102/jlewis/sims/lvlmax_20/mh1e12/id242756,  # _leastcoarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",  # _leastcoarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",  # _leastcoarse",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",  # _leastcoarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy",
@@ -146,8 +146,16 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
     # "/data103/jlewis/sims//lvlmax_22/mh1e12/id180130",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_manual_sink1D7",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_",
     # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
@@ -203,7 +211,7 @@ zoom_ls = [
 lines = []
 labels = []
 
-sfr_dt = 30  # Myr
+sfr_dt = 100  # Myr
 
 sfr_max = -np.inf
 sfr_min = np.inf
@@ -244,6 +252,8 @@ for sdir in sdirs:
         sim="hagn",
     )
 
+    print(hagn_tree_hids)
+
     for key in hagn_tree_datas:
         hagn_tree_datas[key] = hagn_tree_datas[key][0][:]
 
@@ -254,6 +264,8 @@ for sdir in sdirs:
     # print(intID)
 
     sim = ramses_sim(sdir, nml="cosmo.nml")
+
+    print(name, intID, sim.name, sim.path)
 
     sim_snaps = sim.get_snaps()[1]
     sim_aexps = sim.get_snap_exps()
@@ -416,8 +428,9 @@ for sdir in sdirs:
         #     )
         # )
 
+
         hid_start, halo_dict, gal_dict, start_aexp, found = starting_hid_from_hagn(
-            zstt, sim, hagn_sim, intID, avail_aexps, avail_times
+            zstt, sim, hagn_sim, intID, avail_aexps, avail_times, debug=False
         )
 
         if not found:
@@ -462,8 +475,10 @@ for sdir in sdirs:
             tgt_ids=[hid_start],
             star=False,
             verbose=True,
+            overwrite=overwrite,
+            speed_lim=1e5,
             # speed_lim=np.inf,
-            # fpure_min=0.99
+            fpure_min=0.999,
         )
 
         found_steps = sim_tree_hids[0] > 0
@@ -488,8 +503,8 @@ for sdir in sdirs:
 
         sim_tree_times = sim.cosmo_model.age(1.0 / sim_tree_aexps - 1).value * 1e3
 
-        print(sim_tree_times)
-        print(sim_tree_hids)
+        # print(sim_tree_times)
+        # print(sim_tree_hids)
 
         gal_props_tree = get_assoc_pties_in_tree(
             sim,
@@ -506,7 +521,7 @@ for sdir in sdirs:
             ],
         )
 
-        print(gal_props_tree)
+        # print(gal_props_tree)
 
         r50s = gal_props_tree["r50"]
         rmaxs = gal_props_tree["rmax"]

@@ -1,4 +1,3 @@
-from tkinter import N
 import numpy as np
 import os
 
@@ -172,9 +171,7 @@ def read_amrcells(
 
     xbound = np.asarray([float(nx // 2), float(ny // 2), float(nz // 2)])
 
-    levelmin = sim.levelmin
-
-    if fnbs == None:
+    if np.all(fnbs == None):
         files_to_read = get_files(sim, snap, bounds[:3], bounds[3:])
 
         if debug:
@@ -206,10 +203,14 @@ def read_amrcells(
         else:
             nvars = np.sort(nvars)
 
-    full_vars = np.empty((0, len(nvars)), dtype=np.float64)
-    full_lvl = np.empty((0), dtype=np.float64)
-    # full_inds = np.empty((0), dtype=np.int32)
-    full_pos = np.empty((0, 3), dtype=np.float64)
+    # full_vars = np.empty((0, len(nvars)), dtype=np.float64)
+    # full_lvl = np.empty((0), dtype=np.float64)
+    # # full_inds = np.empty((0), dtype=np.int32)
+    # full_pos = np.empty((0, 3), dtype=np.float64)
+
+    vars_list = []
+    pos_list = []
+    lvl_list = []
 
     # print(sim.hydro, nvars)
     # print(list(sim.hydro.keys())[nvars[0]])
@@ -287,6 +288,11 @@ def read_amrcells(
                 # input("")
 
                 # time.sleep(1)
+                inds = np.arange(1, 2**ndim + 1)
+
+                iz = (inds - 1) // 4
+                iy = (inds - 1 - 4 * iz) // 2
+                ix = inds - 1 - 4 * iz - 2 * iy
 
                 for ilvl in range(1, nlevelmax + 1):
 
@@ -296,11 +302,6 @@ def read_amrcells(
                     # nx_full = 2**ilvl
                     # ny_full = 2**ilvl
                     # nz_full = 2**ilvl
-
-                    inds = np.arange(1, 2**ndim + 1)
-                    iz = (inds - 1) // 4
-                    iy = (inds - 1 - 4 * iz) // 2
-                    ix = inds - 1 - 4 * iz - 2 * iy
                     xc[inds - 1, 0] = (ix - 0.5) * dx
                     xc[inds - 1, 1] = (iy - 0.5) * dx
                     xc[inds - 1, 2] = (iz - 0.5) * dx
@@ -447,24 +448,41 @@ def read_amrcells(
                             # print(np.where(cond))
                             # print(cond.shape, var.shape, full_vars.shape)
 
+                            # load_var = var[cond, ind, :]
+                            # load_pos = np.transpose(
+                            #     [x[cond, 0], x[cond, 1], x[cond, 2]]
+                            # )
+                            # load_lvl = np.full(nsave, ilvl)
+
+                            # # print(full_vars.shape)
+                            # # print(nsave)
+                            # # print(full_vars.shape, full_pos.shape, full_lvl.shape)
+
+                            # # print(load_var.shape)
+                            # # print(var.shape)
+
+                            # # load_inds = np.arange(nsave)
+
+                            # full_vars = np.concatenate([full_vars, load_var])
+                            # full_pos = np.concatenate([full_pos, load_pos])
+                            # full_lvl = np.concatenate([full_lvl, load_lvl])
+
+                            #less concatenation, more list append, then concatenate at the end
+
                             load_var = var[cond, ind, :]
-                            load_pos = np.transpose(
-                                [x[cond, 0], x[cond, 1], x[cond, 2]]
-                            )
-                            load_lvl = np.full(nsave, ilvl)
 
-                            # print(full_vars.shape)
-                            # print(nsave)
-                            # print(full_vars.shape, full_pos.shape, full_lvl.shape)
+                            load_pos = np.column_stack((
+                                x[cond, 0],
+                                x[cond, 1],
+                                x[cond, 2],
+                            ))
 
-                            # print(load_var.shape)
-                            # print(var.shape)
+                            load_lvl = np.full(nsave, ilvl, dtype=np.float64)
 
-                            # load_inds = np.arange(nsave)
+                            vars_list.append(load_var)
+                            pos_list.append(load_pos)
+                            lvl_list.append(load_lvl)                            
 
-                            full_vars = np.concatenate([full_vars, load_var])
-                            full_pos = np.concatenate([full_pos, load_pos])
-                            full_lvl = np.concatenate([full_lvl, load_lvl])
                             # print(full_inds)
                             # full_inds = np.concatenate([full_inds, load_inds])
 
@@ -481,6 +499,16 @@ def read_amrcells(
                             #         f"{load_pos[i, 0]:.6e} {load_pos[i, 1]:.6e} {load_pos[i, 2]:.6e} {dx:.6e} {fnb} {ilvl} {load_var[i,:]}"
                             #     )
                             #     input("")
+
+
+    if vars_list:
+        full_vars = np.concatenate(vars_list, axis=0)
+        full_pos = np.concatenate(pos_list, axis=0)
+        full_lvl = np.concatenate(lvl_list)
+    else:
+        full_vars = np.empty((0, len(nvars)), dtype=np.float64)
+        full_pos = np.empty((0, 3), dtype=np.float64)
+        full_lvl = np.empty(0, dtype=np.float64)
 
     keys = ["ilevel", "x", "y", "z"] + requested_fields
     vals = [full_lvl, full_pos[:, 0], full_pos[:, 1], full_pos[:, 2]] + [

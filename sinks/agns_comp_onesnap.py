@@ -47,8 +47,8 @@ sim_paths = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_coreen",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
-    "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_DynBondiGravSinkMass",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
+    # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_DynBondiGravSinkMass",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowSFE_gravSink",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowSFE_DynBondiGravSinkMass",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_kicks",
@@ -119,6 +119,11 @@ sim_paths = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_halfSN",
 ]
 
 fig, axs = plt.subplots(4, 1, figsize=(8, 12), sharex=True)
@@ -131,8 +136,8 @@ l_hagn = hagn_sim.unit_l(hagn_sim.aexp_stt) / (ramses_pc * 1e6) / hagn_sim.aexp_
 # l_hagn = hagn_sim.unit_l(1.0 / tgt_zed - 1.0) / (ramses_pc * 1e6)  # / hagn_sim.aexp_stt
 # print(l_hagn)
 
-overwrite = False
-# overwrite = True
+# overwrite = False
+overwrite = True
 
 zstt = 2.0
 
@@ -504,6 +509,10 @@ for isim, sim_path in enumerate(sim_paths):
             avail_times[:-1],
             # ztgt=tgt_zed,
         )
+        
+        if not found:
+            print(f"no massive sink found in zoom: {sim.name}")
+            continue
 
         sim_snap = sim.get_closest_snap(aexp=start_aexp)
 
@@ -511,9 +520,6 @@ for isim, sim_path in enumerate(sim_paths):
 
         print(sim_snap, hid_start, sim_massive_sid, found)
 
-        if not found:
-            print(f"no massive sink found in zoom: {sim.name}")
-            continue
 
         print(f"zoom massive sink has id: {sim_massive_sid}")
         sim_sink_hist = get_sink_mhistory(sim_massive_sid, sim_snap, sim)

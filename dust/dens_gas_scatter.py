@@ -56,9 +56,10 @@ if not os.path.exists("./figs"):
 # tgt_zed = 3.488
 # tgt_zed = 3.439
 # tgt_zed = 3.36146335787232156548
-tgt_zed = 3.31284701427126730076
+# tgt_zed = 3.31284701427126730076
+tgt_zed = 2.0
 
-overwrite = False
+overwrite = True
 frac = 0.1  # fraction of rvir to use
 dens_thresh = 0.1  # Hpcc for the dust and gas properties
 mlim = 1e6  # Msun
@@ -149,9 +150,10 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
     # "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
@@ -159,10 +161,13 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
-    # "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_high_sconstant",
-    # "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_Vhigh_sconstant",
+    "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
+    "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_high_sconstant",
+    "/data102/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_Vhigh_sconstant",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_VVhigh_sconstant",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
 ]
 # sdir =
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
@@ -204,9 +209,13 @@ hagn_sim = get_hagn_sim()
 xmax = -np.inf
 xmin = np.inf
 
+sim_names = []
+
 for isim, sdir in enumerate(sdirs):
 
     sim = ramses_sim(sdir, nml="cosmo.nml")
+
+    sim_names.append(int(sim.name.split("_")[0][2:]))
 
     print("Reading sim:", sim.name)
 
@@ -216,7 +225,7 @@ for isim, sdir in enumerate(sdirs):
 
     print("Closest snap:", closest_snap, "at z=", closest_zed)
 
-    if abs(tgt_zed - closest_zed) > 0.5:
+    if abs(tgt_zed - closest_zed) > 0.2:
         print("No close snap")
         continue
 
@@ -302,14 +311,17 @@ for isim, sdir in enumerate(sdirs):
                 print("No compressed file")
                 load_amr = True
 
-                code_cells = gas_pos_rad(
-                    # sim, snap, [1, 6, 16, 17, 18, 19], ctr_stars, extent_stars
-                    sim,
-                    closest_snap,
-                    [1, 6, 8, 9, 10, 11, 13, 16, 17, 18, 19],
-                    tgt_pos,
-                    tgt_r,
-                )
+                try:
+                    code_cells = gas_pos_rad(
+                        # sim, snap, [1, 6, 16, 17, 18, 19], ctr_stars, extent_stars
+                        sim,
+                        closest_snap,
+                        [1, 6, 8, 9, 10, 11, 13, 16, 17, 18, 19],
+                        tgt_pos,
+                        tgt_r,
+                    )
+                except FileNotFoundError:
+                    continue
 
                 cells = code_to_cgs(sim, closest_snap, code_cells)
 
@@ -328,7 +340,10 @@ for isim, sdir in enumerate(sdirs):
                 # print("reading compressed file")
                 load_amr = False
 
-                datas = read_compressed_target(sim, closest_snap, hid=host_halo)
+                try:
+                    datas = read_compressed_target(sim, closest_snap, hid=host_halo)
+                except KeyError:
+                    print(f"Unable to find {host_halo:d} in snapshot {closest_snap:d}")
 
                 stars = datas["stars"]
                 # keep only stars within tgt_r of tgt_pos
@@ -368,7 +383,7 @@ for isim, sdir in enumerate(sdirs):
             sfr10_zoom[igal] = masses[ages < 10].sum() / 10
             sfr100_zoom[igal] = masses[ages < 100].sum() / 100
 
-            dens_hpcc = np.float64(cells["density"]) / 1.67e-24 * 0.76
+            dens_hpcc = np.float64(cells["density"]) / 1.67e-24 #* 0.76
             # print(dens_hpcc.min(), dens_hpcc.max())
             dens_gas = dens_hpcc > dens_thresh
 
@@ -442,7 +457,7 @@ for isim, sdir in enumerate(sdirs):
     # dtm figure
 
     tot_md = mdCs + mdCl + mdSs + mdSl
-    dtms = [md / (mZ_zoom + md) for md in [mdCs, mdCl, mdSs, mdSl]]
+    dtms = [md / (mZ_zoom + tot_md) for md in [mdCs, mdCl, mdSs, mdSl]]
 
     tot_dtm = tot_md / (mZ_zoom + tot_md)
 
@@ -631,10 +646,8 @@ for isim, sdir in enumerate(sdirs):
         a.set_yscale("log")
         a.tick_params(which="both", direction="in", right=True, top=True)
 
-
 # draw to update positions
 # fig_depl.draw(fig_depl.canvas.get_renderer())
-
 
 ax_depl[2, 1].axis("off")
 
@@ -653,12 +666,17 @@ tgt_pos[0] = (cur_pos[0] + ax_depl[2][1].get_position(original=False).bounds[0])
 print(tgt_pos)
 ax_depl[2][0].set_position(tgt_pos, which="both")
 
-fig_depl.savefig(f"figs/depletion_{tgt_zedstr:s}.png")
+suffix = ""
+if len(np.unique(sim_names)) == 1:
+    suffix += f"_id{sim_names[0]:d}"
+
+
+fig_depl.savefig(f"figs/{suffix:s}depletion_{tgt_zedstr:s}.png")
 
 for a_dtm in [ax_dtm, ax_dtmCs, ax_dtmCl, ax_dtmSis, ax_dtmSil]:
     a_dtm[0].legend(lines, labels, framealpha=0.0)
-fig_dtm.savefig(f"figs/dtm_{tgt_zedstr:s}.png")
-fig_dtmCs.savefig(f"figs/dtm_Cs{tgt_zedstr:s}.png")
-fig_dtmCl.savefig(f"figs/dtm_Cl{tgt_zedstr:s}.png")
-fig_dtmSis.savefig(f"figs/dtm_Sis{tgt_zedstr:s}.png")
-fig_dtmSil.savefig(f"figs/dtm_Sil{tgt_zedstr:s}.png")
+fig_dtm.savefig(f"figs/{suffix:s}dtm_{tgt_zedstr:s}.png")
+fig_dtmCs.savefig(f"figs/{suffix:s}dtm_Cs{tgt_zedstr:s}.png")
+fig_dtmCl.savefig(f"figs/{suffix:s}dtm_Cl{tgt_zedstr:s}.png")
+fig_dtmSis.savefig(f"figs/{suffix:s}dtm_Sis{tgt_zedstr:s}.png")
+fig_dtmSil.savefig(f"figs/{suffix:s}dtm_Sil{tgt_zedstr:s}.png")

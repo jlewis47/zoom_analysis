@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.patches import Circle, Ellipse, Rectangle
 from zoom_analysis.constants import *
-
+import argparse
 # from mpi4py import MPI
 
 # import matplotlib.patheffects as pe
@@ -50,10 +50,20 @@ from zoom_analysis.trees.tree_reader import read_tree_file_rev
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099_inter"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH"
-sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288"
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument("sim",type=str,help='path to ramses simulation')
+
+args=ap.parse_args()
+
+sim_dir = args.sim
 
 sim = ramses_sim(sim_dir, nml="cosmo.nml")
 
@@ -295,7 +305,7 @@ for snap, aexp, time in zip(snaps, aexps, times):
             tgt_pos,
             tgt_rad,
             zdist,
-            hm,
+            hm=hm,
             gal_markers=gal_markers,
             annotate=annotate,
         )

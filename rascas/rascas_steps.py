@@ -1,8 +1,12 @@
 from ast import Str
 import os
+from re import L
 import numpy as np
 import healpy as hp
 from shutil import copy
+
+# from subprocess import check_output
+import subprocess
 
 # import tarfile
 
@@ -80,8 +84,12 @@ def create_dirs(p, snap, gal_id=None, run_name=None, start_dir=""):
             p, "rascas", f"{run_name}", start_dir, f"output_{snap:05d}"
         )
 
+    assert (
+        int(gal_id) == gal_id
+    ), f"something wrong gal_id:{gal_id}, expected an integer"
+
     if gal_id != None:
-        rascas_path = os.path.join(rascas_path, f"gal_{gal_id:07d}")
+        rascas_path = os.path.join(rascas_path, f"gal_{int(gal_id):07d}")
 
     os.makedirs(rascas_path, exist_ok=True)
 
@@ -126,6 +134,13 @@ def make_PFS_params(dout, sim_dir, snap, pos, rad, options={}):
             for option_cat in options:
                 if param_option in options[option_cat]:
                     params[cat][param_option] = str(options[option_cat][param_option])
+
+
+    for opt_cat in options.keys():
+
+        if opt_cat not in params.keys():
+
+            params[opt_cat] = options[opt_cat]
 
     if not "PhotonsFromStars" in params:
         params["PhotonsFromStars"] = {}
@@ -172,6 +187,15 @@ def make_CDD_params(dout, sim_dir, snap, pos, rad, options={}):
             for option_cat in options:
                 if param_option in options[option_cat]:
                     params[cat][param_option] = options[option_cat][param_option]
+
+
+    for opt_cat in options.keys():
+
+        if opt_cat not in params.keys():
+
+            params[opt_cat] = options[opt_cat]
+        
+
 
     params["CreateDomDump"]["DomDumpDir"] = os.path.join(dout, "DomDump")
     params["CreateDomDump"]["repository"] = sim_dir
@@ -235,6 +259,14 @@ def make_rascas_params(dout, ndir, options={}):
             if opt_cat in params:
                 params[opt_cat][param] = options[opt_cat][param]
                 print(f"Setting {opt_cat} {param} to {options[opt_cat][param]}")
+
+
+
+    for opt_cat in options.keys():
+
+        if opt_cat not in params.keys():
+
+            params[opt_cat] = options[opt_cat]
 
     if not "gas_composition" in params:
         params["gas_composition"] = {}
@@ -388,6 +420,8 @@ def do_untar(sim_dir, output):
         hydro_files = [f for f in output_files if f.startswith("hydro")]
         amr_files = [f for f in output_files if f.startswith("amr")]
 
+        # print(output_files)
+
         notar = (
             (len(part_files) > 1)
             and (len(hydro_files) > 1)
@@ -395,22 +429,55 @@ def do_untar(sim_dir, output):
             and (len(hydro_files) == len(amr_files))
         )
 
+        # print(
+        #     (len(part_files) > 1),
+        #     (len(hydro_files) > 1),
+        #     (len(amr_files) > 1),
+        #     (len(hydro_files) == len(amr_files)),
+        # )
+
         if not notar:
 
-            # first_tar_file = os.system(f'tar tfv {os.path.join(sim_dir,output)}.tar | head -n 1')
+            cmd = f"timeout --foreground 1s tar tfv {os.path.join(sim_dir,output)}.tar| tail -n 1"
+            # first_tar_file = os.system(
+            #     cmd
+            # ) #doesn't work bc can't capture return
+            # first_tar_file = subprocess.check_output(cmd.split(" "))
+
+            try:  # mess from stack overflow to get output even though our command doesn't return an exit 0
+                cmd_output = subprocess.check_output(
+                    cmd, shell=True, stderr=subprocess.STDOUT
+                )
+            except subprocess.CalledProcessError as e:
+                cmd_output = str(e.output)
+
+            if (
+                type(cmd_output) != str
+            ):  # str doesn't like the trailling \\n, so force it decode to utf-8
+                cmd_output = cmd_output.decode("utf-8")
+
+            # print(output)
+            first_tar_file = cmd_output.split("\n")[0]
+            # for line in finished:
+            #     first_tar_file = line
+
+            # print(first_tar_file.split(" "))
+
+            first_tar_file = first_tar_file.split(" ")[-1]
+
             # print(first_tar_file)
             # with tarfile.open(os.path.join(sim_dir,f"{output}.tar"),"r") as ftar:
             #     first_tar_file = ftar.getnames()[0]
             # print(first_tar_file)
-            # nb_slashes = len([i for i in first_tar_file if i == "/"])
+            nb_slashes = len(first_tar_file.split("/"))
             # print(nb_slashes)
-            # nb_slashes = max(1, nb_slashes)
-            # this is veryyyyy slow ...
-            nb_slashes = 8  # should be ok for all my sims on infinity
+            nb_slashes = max(1, nb_slashes)
 
             tar_cmd = (
-                f"tar xvf {sim_dir}/{output}.tar --strip-components {nb_slashes-1:d}"
+                f"tar xvf {sim_dir}/{output}.tar --strip-components {nb_slashes-2:d}"
             )
+
+            # print(first_tar_file, tar_cmd)
 
     return tar_cmd
 
@@ -429,6 +496,10 @@ def create_sh_multi(
     run_cdds=None,
     run_pfss=None,
     output_dirs=None,
+    rascas=True,
+    bignode=True,
+    rmv_tar=None
+
 ):
 
     if run_cdds == None:
@@ -438,13 +509,16 @@ def create_sh_multi(
 
     lines = []
 
+    rascas_path_snap_strs = [p.split("/")[-2] for p in rascas_paths]
+    last_snap = rascas_path_snap_strs[0]
+
+    # print(list(zip(rascas_paths, rascas_path_snap_strs)))
+
     rascas_path0 = rascas_paths[0]
 
     path_split = rascas_path0.split("/")
     arg_rascas = path_split.index("rascas")
     sim_dir = "/".join(path_split[:arg_rascas])
-
-    print(sim_dir)
 
     output_dir0 = output_dirs[0]
 
@@ -480,7 +554,15 @@ def create_sh_multi(
 
     # print(cmd_words)
 
-    lines[exec_line] = " ".join(cmd_words)
+    rascas_exec_str = " ".join(cmd_words)
+    if not rascas:
+        rascas_exec_str = "#"+rascas_exec_str
+    lines[exec_line] = rascas_exec_str
+
+    if not bignode:
+        constraint_line = np.where(["constraint=" in l for l in lines])[0][0]
+        lines[constraint_line]="#"+lines[constraint_line]
+
 
     if nnodes is not None or wt is not None:
         if wt == None:
@@ -496,6 +578,9 @@ def create_sh_multi(
             f"#SBATCH --ntasks-per-node={int(np.ceil(float(ntasks)/nnodes)):d}\n"
         )
 
+        ppn_line = np.where(["ntasks=" in l for l in lines])[0][0]
+        lines[ppn_line] = f"#SBATCH --ntasks={int(ntasks):d}\n"
+
         omp_line = np.where(["OMP_NUM_THREADS" in l for l in lines])[0][0]
         lines[omp_line] = f"export OMP_NUM_THREADS={nomp:d}\n"
 
@@ -510,11 +595,13 @@ def create_sh_multi(
     cdd_line = "./CreateDomDump params_CDD.cfg &> log_CDD\n"
     pfs_line = "./PhotonsFromStars params_PFS.cfg &> log_PFS\n"
 
-    tar_cmd0 = do_untar(sim_dir, output_dir0)
+    tar_cmd0 = ""
+    if run_cdds[0] or run_pfss[0]:
+        tar_cmd0 = do_untar(sim_dir, output_dir0)
 
-    untar_line = np.where(["untar" in l for l in lines])[0][0]
-    if tar_cmd0 != "":
-        lines[untar_line] = f"cd {sim_dir}\n{tar_cmd0}\n"
+        untar_line = np.where(["untar" in l for l in lines])[0][0]
+        if tar_cmd0 != "":
+            lines[untar_line] = f"cd {sim_dir}\n{tar_cmd0}\n"
 
     lines.insert(exec_line, f"cd {rascas_paths[0]}\n")
     if run_cdds[0]:
@@ -524,21 +611,41 @@ def create_sh_multi(
     # lines.insert(exec_line + 2, f"mpiexec -np {ntasks:d} ./rascas params_rascas.cfg &> rascas.out\n")
 
     retar_line = np.where(["retar" in l for l in lines])[0][0]
-    if tar_cmd0 != "":
-        lines[retar_line] = (
-            f"cd {sim_dir}\nfind {sim_dir}/{output_dir0}"
-            + " -type f ! -name '*.txt' -exec rm {} +;\n"
-        )
 
-    for rascas_path, cdd_flag, pfs_flag, output_dir in zip(
-        rascas_paths[1:], run_cdds[1:], run_pfss[1:], output_dirs[1:]
+    # rmv_tar = False
+    # if len(rascas_paths) == 1:
+    #     rmv_tar = True
+    # else:
+    #     if rascas_path_snap_strs[1] != last_snap:
+    #         rmv_tar = True
+    # if rmv_tar:
+    #     lines[retar_line] = (
+    #         f"cd {sim_dir}\nfind {sim_dir}/{output_dir0}"
+    #         + " -type f ! -name '*.txt' ! -name '*.out' -exec rm {} +;\n"
+    #     )
+
+    for ipath, (rascas_path, cdd_flag, pfs_flag, output_dir, output_str) in enumerate(
+        zip(
+            rascas_paths[1:],
+            run_cdds[1:],
+            run_pfss[1:],
+            output_dirs[1:],
+            rascas_path_snap_strs[1:],
+        )
     ):
 
         lines.append(f"cd {sim_dir}\n")
 
-        tar_cmd = do_untar(sim_dir, output_dir)
-        if tar_cmd != "":
-            lines.append(f"{tar_cmd}\n")
+        tar_cmd = ""
+        # print(output_str, last_snap, last_snap != output_str)
+
+        if last_snap != output_str:
+            tar_cmd = do_untar(sim_dir, output_dir)
+            if tar_cmd != "":
+                lines.append(f"{tar_cmd}\n")
+            last_snap = output_str
+
+        # print(tar_cmd)
 
         lines.append(f"cd {rascas_path}\n")
 
@@ -546,11 +653,22 @@ def create_sh_multi(
             lines.append(cdd_line)
         if pfs_flag:
             lines.append(pfs_line)
-        lines.append(
-            f"mpiexec -np {ntasks:d} ./rascas params_rascas.cfg &> rascas.out\n"
-        )
+        if rascas:
+            lines.append(
+                rascas_exec_str
+            )
 
-        if tar_cmd != "":
+        if rmv_tar == None:
+
+            if ipath + 1 < len(rascas_paths) - 1:  # if not last one
+                if (
+                    last_snap != rascas_path_snap_strs[1 + ipath + 1]
+                ):  # if the next one is different
+                    rmv_tar = True
+            else:
+                rmv_tar = True
+
+        if rmv_tar:
             lines.append(
                 f"find {sim_dir}/{output_dir}"
                 + " -type f ! -name '*.txt' -exec rm {} +;\n"

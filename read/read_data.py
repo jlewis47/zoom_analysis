@@ -21,13 +21,20 @@ def read_data_ball(
     data_types=[],
     tgt_fields=None,
     minmax=None,
+    read_part_ball_fct=None,
+    **kwargs,
 ):
 
-    if tgt_fields == None:
+    debug=kwargs.get('debug',False)
+
+    if read_part_ball_fct is None:
+        read_part_ball_fct = read_part_ball_NCdust
+
+    if tgt_fields is None:
         tgt_fields = []
 
     possible_data_types = ["stars", "gas", "dm"]
-    if data_types == [] or data_types == None:
+    if data_types == [] or data_types is None:
         data_types = possible_data_types
 
     todo = False
@@ -84,8 +91,13 @@ def read_data_ball(
     # print(tgt_pos, hpos)
     # print(np.abs(tgt_r + (tgt_pos - hpos)))
     # print(check_for_compressd(sim, snap, host_halo), host_halo, oob)
+    is_compressed = False
+    try:
+        is_compressed = check_for_compressd(sim, snap, host_halo)
+    except FileNotFoundError:
+        pass
 
-    if (not check_for_compressd(sim, snap, host_halo)) or oob or (host_halo == None):
+    if (not is_compressed) or oob or (host_halo == None):
         # if (
         #     load_amr
         #     and snap in sim.get_snaps(full_snaps=True, mini_snaps=False)[1]
@@ -102,6 +114,8 @@ def read_data_ball(
             else:
                 limits = tgt_r
 
+            print(snap,tgt_fields,tgt_pos,tgt_r,limits)
+
             code_cells = gas_pos_rad(
                 # sim, snap, [1, 6, 16, 17, 18, 19], ctr_stars, extent_stars
                 sim,
@@ -109,41 +123,50 @@ def read_data_ball(
                 tgt_fields,
                 tgt_pos,
                 limits,
+                **kwargs
             )
+
+            print("Read gas")
 
             datas["gas"] = code_to_cgs(sim, snap, code_cells)
 
-            print("Read gas")
+            print("Converted gas units")
 
         if "stars" in data_types:
 
             if "age" in tgt_fields:
                 tgt_fields[tgt_fields.index("age")] = "birth_time"
+                tgt_fields=np.unique(tgt_fields)
 
-            datas["stars"] = read_part_ball_NCdust(
+            datas["stars"] = read_part_ball_fct(
                 sim,
                 snap,
                 tgt_pos,
                 tgt_r,
                 tgt_fields=tgt_fields,
                 fam=2,
+                debug=debug
             )
+
+            print("Read stars")
 
             if "age" in tgt_fields and "birth_time" in datas["stars"]:
                 datas["stars"]["age"] = convert_star_time(
                     datas["stars"]["birth_time"], sim, sim.get_snap_exps(snap)
                 )
-            print("Read stars")
+
+            print("Got physical stellar ages")
 
         if "dm" in data_types:
 
-            datas["dm"] = read_part_ball_NCdust(
+            datas["dm"] = read_part_ball_fct(
                 sim,
                 snap,
                 tgt_pos,
                 tgt_r,
                 tgt_fields=tgt_fields,
                 fam=1,
+                debug=debug
             )
             print("Read dm")
 
@@ -215,7 +238,7 @@ def read_data_ball(
             stars = read_datas["stars"]
             datas["stars"] = stars
             # # keep only stars within tgt_r of tgt_pos
-            st_tree = cKDTree(stars["pos"], boxsize=1 + 1e-6)
+            st_tree = cKDTree(stars["pos"], boxsize=1. + 1e-6)
             st_pos_args = st_tree.query_ball_point(tgt_pos, tgt_r)
 
             if len(st_pos_args) > 0:
@@ -231,7 +254,7 @@ def read_data_ball(
             dm = read_datas["dm"]
             datas["dm"] = dm
             # # keep only dm within tgt_r of tgt_pos
-            dm_tree = cKDTree(dm["pos"], boxsize=1 + 1e-6)
+            dm_tree = cKDTree(dm["pos"], boxsize=1. + 1e-6)
             dm_pos_args = dm_tree.query_ball_point(tgt_pos, tgt_r)
 
             if len(dm_pos_args) > 0:
@@ -349,7 +372,7 @@ def read_data_ball(
             datas["gas"] = cells
             # keep only cells within tgt_r of tgt_pos
             cell_tree = cKDTree(
-                np.transpose([cells["x"], cells["y"], cells["z"]]), boxsize=1 + 1e-6
+                np.transpose([cells["x"], cells["y"], cells["z"]]), boxsize=1. + 1e-6
             )
             cell_pos_args = cell_tree.query_ball_point(tgt_pos, tgt_r)
 

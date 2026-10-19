@@ -40,11 +40,38 @@ from zoom_analysis.zoom_helpers import check_in_all_sims_vol
 
 from zoom_analysis.visu.visu_fct import get_gal_props_snap
 
+
+def schreiber2015_fit(mass,z):
+
+    sfrs = np.zeros_like(mass)
+
+    m0 = 0.5
+    a0 = 1.5
+    a1 = 0.3
+    m1 = 0.36
+    a2 = 2.5
+
+    r = np.log10(1+z)
+    log10mass = np.log10(mass/1e9)
+
+    sfrs = 10**(log10mass-m0 + a0*r - a1*(np.max([np.zeros_like(log10mass),log10mass-m1-a2*r],axis=0))**2)
+
+    return sfrs
+
+
+
+
 # from hagn.catalogues import make_super_cat
 
 # fig, ax = sink_histories.setup_bh_plot()
 
-tgt_zed = 4.2
+# tgt_zed = 2.0
+# tgt_zed = 3.1
+# tgt_zed = 3.3
+# tgt_zed = 3.5
+# tgt_zed = 4.1
+# tgt_zed = 4.26
+tgt_zed = 4.4
 
 stellar_bins = np.logspace(6, 12, 8)
 
@@ -95,24 +122,31 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_norvel_lowerSFE_highAGNtherm",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_fix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",  # _leastcoarse",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",  # _leastcoarse",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_smallICs",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_XtremeSF_lowSNe",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_MegaSF_lowSNe",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",    
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_XtremeSF_lowSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_MegaSF_lowSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",    
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_radioHeavy",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
-    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_medSFE_stgNHboost_stricterSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_highSFE_stgNHboost_strictestSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_SEdd2",
@@ -129,10 +163,15 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_noHydroDragB4z4merge",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF/",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_lowSN_strictSF",
+    "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_halfSN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_novrel_lowerSFE_stgNHboost_strictSF/",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288",
@@ -383,12 +422,14 @@ title_txt += f" fpure > {fpure:.3f}"
 # if not os.path.exists(outdir):
 # os.makedirs(outdir)
 xrange = np.linspace(*ax.get_xlim(), 50)
+# xrange = np.linspace(1e6,1e13, 50)
 ax.plot(xrange, xrange * 1e-10, ls="-.", color="black", label="$10^{-10}$ M$_\odot$/yr")
 ax.plot(xrange, xrange * 1e-11, ls="--", color="black", label="$10^{-11}$ M$_\odot$/yr")
+
+ax.plot(xrange,schreiber2015_fit(xrange,tgt_zed),ls='-',color='k',label='Schreiber+15 fit')
 ax.legend(framealpha=0.0, title=title_txt)
 
 fig_name = "zoom_SMSFR"
-
 if len(np.unique(sim_names))==1:
     fig_name += f"_id{sim_names[0]:d}"
 

@@ -1,6 +1,7 @@
 import numpy as np
 from gremlin.read_sim_params import ramses_sim
 import matplotlib.pyplot as plt
+import matplotlib
 from matplotlib.colors import LogNorm
 from matplotlib.patches import Circle
 from matplotlib import patheffects as pe
@@ -62,6 +63,7 @@ from scipy.interpolate import UnivariateSpline
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd_drag"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE"
+sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_superEdd"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id147479_old"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_old"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id147479"
@@ -90,10 +92,13 @@ from scipy.interpolate import UnivariateSpline
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289"
 # sim_dir = "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt"
 # sim_dir = "/data102/jlewis/sims/lvlmax_20/mh1e12/id242756"
-sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756"
+
+matplotlib.rcParams.update({"font.size": 18})
 
 sim = ramses_sim(sim_dir, nml="cosmo.nml")
 
@@ -136,7 +141,7 @@ every_snap = True  # try and interpolate between tree nodes if not found
 rad_fact = 5.0  # fraction of radius to use as plot window
 use_r50 = True
 # fixed_r_ckpc = 10
-fixed_r_ckpc = 50
+fixed_r_ckpc = 25
 
 plot_win_str = str(rad_fact).replace(".", "p")
 if fixed_r_ckpc > 0:
@@ -209,7 +214,7 @@ density_args = {
     "vmin": 1e-26,
     "vmax": 1e-20,
     "marker_color": "white",
-    "mode": "sum",
+    "mode": "mean",
 }
 
 temperature_args = {
@@ -219,7 +224,7 @@ temperature_args = {
     "vmin": 1e3,
     "vmax": 1e7,
     "marker_color": "white",
-    "mode": "mean",
+    "mode": "max",
 }
 
 vel_args = {
@@ -345,7 +350,7 @@ start_snap = sim.get_closest_snap(zed=start_zed)
 
 # print(l)
 
-directions = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
+# directions = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
 # directions = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 # directions = [
 #     [0.52704628, -0.52704628, -0.66666667],
@@ -354,11 +359,14 @@ directions = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
 # ]
 
 # rascas_dir = [0.52704628, -0.52704628, -0.66666667]
-# directions = basis_from_vect(rascas_dir)
+rascas_dir = [0.527046, -0.527046, 0.666667]
+directions = basis_from_vect(rascas_dir)
 
 
-tree_name = os.path.join(sim.path, "TreeMakerDM_dust", "tree_rev.dat")
-byte_file = os.path.join(sim.path, "TreeMakerDM_dust")
+# tree_name = os.path.join(sim.path, "TreeMakerDM_dust", "tree_rev.dat")
+# byte_file = os.path.join(sim.path, "TreeMakerDM_dust")
+tree_name = os.path.join(sim.path, "TreeDM_dust", "tree_rev.dat")
+byte_file = os.path.join(sim.path, "TreeDM_dust")
 
 # tree_hids, tree_datas, tree_aexps = read_tree_file_rev_correct_pos(
 #     tree_name,
@@ -461,8 +469,9 @@ prev_pos = -1  # poss[-1]
 stellar_masses = np.zeros(len(snaps))
 sfrs = np.zeros(len(snaps))
 
-# for snap, aexp, time in zip(snaps[:], aexps[:], times[:]):
-for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
+
+# for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
+for istep, (snap, aexp, time) in enumerate(zip(snaps[::-1], aexps[::-1], times[::-1])):
 
     # if snap != 166:
     #     continue
@@ -512,7 +521,7 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
     fig, axs = plt.subplots(
         2,
         3,
-        figsize=(30, 30),
+        figsize=(28, 16),
         width_ratios=[1, 1, 1],
         height_ratios=[1, 1],
         layout="constrained",
@@ -595,7 +604,7 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
             sim,
             snap,
             tgt_pos,
-            rad_tgt,
+            rad_tgt * np.sqrt(2),
             host_halo=cur_hid,
             data_types=["stars"],
             tgt_fields=[
@@ -636,31 +645,40 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
     )
     ax_sm_sfr.scatter(stellar_masses[istep], sfrs[istep], color="k", marker="+", s=150)
 
-    star_bulk_vel = np.linalg.norm(
-        np.average(stars["vel"], axis=0, weights=stmasses)
-    )  # km/s
-    star_bulk_vel = (
-        star_bulk_vel * (3600 * 24 * 365 * 1e6) * (1e3 / 3.08e16 / 1e3)
-    )  # kpc/Myr
+    # ax_sm_sfr.set_aspect("")
 
-    # print("star bulk vel", star_bulk_vel)
-    if istep > 0:
-        prev_rad = abs(star_bulk_vel * (time - times[istep - 1]) * 1.5)
-        print(f"dist travelled cst rate since last snap: {prev_rad:.2f} kpc")
-        prev_rad = prev_rad / sim.cosmo.lcMpc / 1e3  # ckpc->code
+    if stmasses.sum() > 0:
 
-    ang_mom = compute_ang_mom(stmasses, stars["pos"], stars["vel"], tgt_pos)
-    norm_ang_mom = np.linalg.norm(ang_mom)
+        star_bulk_vel = np.linalg.norm(
+            np.average(stars["vel"], axis=0, weights=stmasses)
+        )  # km/s
+        star_bulk_vel = (
+            star_bulk_vel * (3600 * 24 * 365 * 1e6) * (1e3 / 3.08e16 / 1e3)
+        )  # kpc/Myr
 
-    dir_face_on = ang_mom / norm_ang_mom
-    dir_edge_on = np.cross(dir_face_on, directions[0])
-    dir_edge_on /= np.linalg.norm(dir_edge_on)
+        # print("star bulk vel", star_bulk_vel)
+        if istep > 0:
+            prev_rad = abs(star_bulk_vel * (time - times[istep - 1]) * 1.5)
+            print(f"dist travelled cst rate since last snap: {prev_rad:.2f} kpc")
+            prev_rad = prev_rad / sim.cosmo.lcMpc / 1e3  # ckpc->code
 
-    possible_dirs = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
+        ang_mom = compute_ang_mom(stmasses, stars["pos"], stars["vel"], tgt_pos)
+        norm_ang_mom = np.linalg.norm(ang_mom)
 
-    closest_to_face = np.argmax([np.abs(np.dot(dir_face_on, d)) for d in possible_dirs])
+        dir_face_on = ang_mom / norm_ang_mom
+        dir_edge_on = np.cross(dir_face_on, directions[0])
+        dir_edge_on /= np.linalg.norm(dir_edge_on)
 
-    dir_choice = possible_dirs[closest_to_face]
+        possible_dirs = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
+
+        closest_to_face = np.argmax([np.abs(np.dot(dir_face_on, d)) for d in possible_dirs])
+        dir_choice = possible_dirs[closest_to_face]
+
+    else:
+        dir_choice = [0, 0, 1]
+
+
+    titlesize = 33
 
     for arg in [
         dens_args,
@@ -675,8 +693,19 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
         arg["hid"] = cur_hid
 
     img_dens = plot_fields(
-        "density", fig, ax_dens, aexp, dir_choice, tgt_pos, rad_tgt, sim, **dens_args
+        "density",
+        fig,
+        ax_dens,
+        aexp,
+        dir_choice,
+        tgt_pos,
+        rad_tgt * np.sqrt(2),
+        sim,
+        **dens_args,
     )
+    ax_dens.set_title("Mean gas density projection", fontdict={"fontsize": titlesize})
+
+    st_cb_args = {"fraction": 0.046, "pad": 0.04}
 
     img_mass = plot_fields(
         "stellar mass",
@@ -688,15 +717,37 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
         rad_tgt,
         sim,
         **smass_args,
+        cb_args=st_cb_args,
     )
+    ax_mass.set_title("Total stellar mass projection", fontdict={"fontsize": titlesize})
 
     img_sfr = plot_fields(
-        "SFR100", fig, ax_sfr, aexp, dir_choice, tgt_pos, rad_tgt, sim, **sfr_arg
+        "SFR100",
+        fig,
+        ax_sfr,
+        aexp,
+        dir_choice,
+        tgt_pos,
+        rad_tgt,
+        sim,
+        **sfr_arg,
+        cb_args=st_cb_args,
     )
+    ax_sfr.set_title("Mean SFR projection", fontdict={"fontsize": titlesize})
 
     img_age = plot_fields(
-        "stellar age", fig, ax_age, aexp, dir_choice, tgt_pos, rad_tgt, sim, **stage_arg
+        "stellar age",
+        fig,
+        ax_age,
+        aexp,
+        dir_choice,
+        tgt_pos,
+        rad_tgt,
+        sim,
+        **stage_arg,
+        cb_args=st_cb_args,
     )
+    ax_age.set_title("Mean stellar age projection", fontdict={"fontsize": titlesize})
 
     img_temp = plot_fields(
         "temperature",
@@ -705,10 +756,13 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
         aexp,
         dir_choice,
         tgt_pos,
-        rad_tgt,
+        rad_tgt * np.sqrt(2),
         sim,
         **temperature_args,
+        cb_args=st_cb_args,
+        weights='counts'
     )
+    ax_temp.set_title("Max temperature projection", fontdict={"fontsize": titlesize})
     # img_mach = plot_fields(
 
     #     "mach", fig, ax_mach, aexp, dir_choice, tgt_pos, rad_tgt, sim, **mach_args
@@ -770,7 +824,7 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
 
             ax.add_patch(circ)
 
-            ax.grid(True, alpha=0.33)  # Set grid lines with transparency
+            # ax.grid(False, alpha=0.33)  # Set grid lines with transparency
 
         # plot zoom galaxies
         if gal_markers:
@@ -828,6 +882,13 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
     # ax_face.set_xlabel("")
     # ax_disk.yaxis.set_label_position("right")
 
+    ax_dens.grid(False)
+    ax_age.grid(False)
+    ax_mass.grid(False)
+    ax_sfr.grid(False)
+    ax_sm_sfr.grid(False)
+    ax_temp.grid(False)
+
     ax_sm_sfr.set_xlabel("Stellar mass in 3 x r50, [$M_{\odot}$]")
     ax_sm_sfr.set_ylabel("SFR100 in 3 x r50, [$M_{\odot}$ Myr$^{-1}$]")
 
@@ -836,11 +897,13 @@ for istep, (snap, aexp, time) in enumerate(zip(snaps, aexps, times)):
 
     ax_sm_sfr.grid(True, alpha=0.5)
 
+    ax_sm_sfr.set_title("SFR/Mass evolution", fontdict={"fontsize": titlesize})
+
     ax_sm_sfr.set_xlim(
         1e7,
     )
 
-    cb = plt.colorbar(lines, ax=ax_sm_sfr, label="Time [Gyr]")
+    cb = plt.colorbar(lines, ax=ax_sm_sfr, label="Time [Gyr]", **st_cb_args)
 
     # #give cb dual redshift axis
     # cax = cb.ax

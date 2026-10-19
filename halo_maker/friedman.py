@@ -159,7 +159,7 @@ def ct_friedman(
         axp_tau = axp_tau - dadtau(axp_tau_pre, O_mat_0, O_vac_0, O_k_0) * dtau
         tau = tau - dtau
 
-        dadt_axp_t = dadtau(axp_tau, O_mat_0, O_vac_0, O_k_0)
+        dadt_axp_t = dadt(axp_t, O_mat_0, O_vac_0, O_k_0)
         dt = alpha * axp_t / dadt_axp_t
         axp_t_pre = axp_t - dadt_axp_t * dt / 2.0
         axp_t = axp_t - dadt(axp_t_pre, O_mat_0, O_vac_0, O_k_0) * dt
@@ -251,7 +251,7 @@ def ct_init_cosmo(fname, omega_m, omega_l, omega_k, H0, n_frw=1000):
         )
 
         # convert time to yr
-        t_frw = t_frw / (H0 / ramses_pc * 1e-2 * 1e6) / (365.25 * 24.0 * 3600.0)
+        t_frw = t_frw / (H0 / 3.08e19) / (365.25 * 24.0 * 3600.0)
 
         np.savetxt(
             fname,

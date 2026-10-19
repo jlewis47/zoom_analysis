@@ -110,7 +110,7 @@ def get_sim_lvlmax(sim_path):
 
                 # print(line, line.split(" "), line.lstrip(" ").split(" "))
 
-                return int(line.split("=")[1])
+                return int(line.split('!')[0].split("=")[1])
 
 
 def get_sim_proc_count(sim_path):
@@ -177,6 +177,13 @@ def estimate_time_to_z(zeds, times, tgt_z, ax=None, color=None):
     # polyfit order ?, then find closest time to tgt_z
 
     nfit = 100  # nb of points to use for fit
+
+    # print(list(zip(zeds,times)))
+
+    lz = len(zeds)
+    lt = len(times)
+
+    nfit = min(nfit,min(lz,lt))
 
     p = np.polyfit(zeds[-nfit:], np.log10(times[-nfit:]), 1)
 
@@ -292,12 +299,14 @@ def plot_timing_of_dir_sims(ds, tgt_z=None):
                 # print(len(first_sim_procs),len(first_runs))
 
                 # print(sim_name, sim_procs)
+                lmin = min(len(runs),len((sim_procs * sim_threads)[1:]))
                 runs_cpuh = np.cumsum(
-                    np.diff(runs) / (3600 / (sim_procs * sim_threads)[1:])
+                    np.diff(runs)[:lmin] / (3600 / (sim_procs * sim_threads)[1:][:lmin])
                 )
+                lmin = min(len(first_runs),len((first_sim_procs * first_sim_threads)[1:]))
                 first_cpuh = np.cumsum(
-                    np.diff(first_runs)
-                    / (3600 / (first_sim_procs * first_sim_threads)[1:])
+                    np.diff(first_runs)[:lmin]
+                    / (3600 / (first_sim_procs * first_sim_threads)[1:][:lmin])
                 )
 
                 (l,) = ax.plot(
@@ -362,8 +371,8 @@ def plot_timing_of_dir_sims(ds, tgt_z=None):
     ax.legend(framealpha=0.0)
     # ax.grid()
 
-    ax.set_ylim(2, 8.0)
-    ax.set_xlim(1e3, min(ax.get_xlim()[1], 1e7))
+    # ax.set_ylim(2, 8.0)
+    # ax.set_xlim(1e3, min(ax.get_xlim()[1], 1e7))
     # ax_time.set_ylim(2, 14)
     # ax.set_xlim(0, 1e6)
 
@@ -423,8 +432,8 @@ if __name__ == "__main__":
 
     plt.tight_layout()
 
-    ax.set_ylim(args.tgt_z, 8.0)
-    # ax.set_xlim(1e3)
+    ax.set_ylim(args.tgt_z, 10.0)
+    ax.set_xlim(1e3,)
 
     fig.savefig("timing_plot.png")
     # fig_tab.savefig("tab_timing_plot.png")

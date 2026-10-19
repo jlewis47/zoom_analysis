@@ -54,7 +54,7 @@ from hagn.utils import get_hagn_sim
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_like_SH"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel"
+sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_chabrier"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_highMseed"
@@ -67,7 +67,7 @@ from hagn.utils import get_hagn_sim
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242704"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
 # sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"
-sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE"
+# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE"
 
 
 sim = ramses_sim(sim_dir, nml="cosmo.nml")
@@ -94,10 +94,17 @@ else:
 # zoom_r =
 # zoom_ctr = []
 #
-# snaps = sim.snap_numbers
-snaps = find_snaps_with_halos(sim.snap_numbers, sim.path)
+snaps = sim.snap_numbers
+all_snaps = sim.get_snaps(full_snaps=False, mini_snaps=True, tar_snaps=False)[1]
+# print(sim.path)
+# print(all_snaps)
+# print(sim.snap_numbers)
+# print(sim.snap_numbers)
+snaps = find_snaps_with_halos(all_snaps, sim.path)
 aexps = sim.get_snap_exps(snaps)
 times = sim.get_snap_times(snaps)
+
+print(list(zip(snaps, times)))
 
 tgt_zed = 2
 
@@ -119,9 +126,9 @@ annotate = True
 gal_markers = True
 halo_markers = True
 pdf = False
-transpose=True
-cb=True
-log=True
+transpose = True
+cb = True
+log = True
 
 # zdist = 50  # ckpc if -! use same distance as radial plot window
 zdist = -1  # ckpc if -! use same distance as radial plot window
@@ -130,9 +137,9 @@ hm_dm = "HaloMaker_DM_dust/"
 
 # directions = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 # directions = [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
-directions = [[0, 1, 0],  [1, 0, 0],[0, 0, 1]]
+directions = [[0, 1, 0], [1, 0, 0], [0, 0, 1]]
 
-mode="sum"
+mode = "sum"
 
 # fix_visu = False
 
@@ -179,7 +186,8 @@ args = {
     "vmin": vmin,
     "vmax": vmax,
     "mode": mode,
-    "transpose": False,
+    "transpose": True,
+    "origin": "lower",
 }
 
 
@@ -254,7 +262,6 @@ for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
     if os.path.isfile(fout) and not overwrite:
         continue
 
-
     hagn_l_pMpc = hagn_l * aexp
 
     tgt_pos, tgt_rad = interpolate_tree_position(
@@ -266,6 +273,9 @@ for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
         every_snap=every_snap,
     )
 
+    print(time, tree_times)
+    print(tgt_pos, tgt_rad)
+
     if np.any(tgt_pos == None):
         print("interpolation failed")
         continue
@@ -276,17 +286,12 @@ for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
 
     print(tgt_pos, tgt_rad)
 
-
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 
-
-
     rad_tgt = tgt_rad * rad_fact
-    if zdist in [-1,None]:
+    if zdist in [-1, None]:
         # print(rad_tgt)
         zdist = rad_tgt * sim.cosmo.lcMpc * 1e3
-
-
 
     img = plot_fields(
         field,
@@ -340,7 +345,6 @@ for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
                 **args,
             )
 
-
         if halo_markers:
             # plot zoom halos
             plot_zoom_halos(
@@ -359,7 +363,14 @@ for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
         # plot zoom BHs
         try:
             bh_in_frame = plot_zoom_BHs(
-                ax, snap, sim, tgt_pos, tgt_rad, zdist, directions=directions[0],**args,
+                ax,
+                snap,
+                sim,
+                tgt_pos,
+                tgt_rad,
+                zdist,
+                directions=directions[0],
+                **args,
             )
             if bh_in_frame:
                 print(f"found BHs in frame")

@@ -1,3 +1,4 @@
+from xxlimited import new
 import numpy as np
 from shutil import copyfile
 import os
@@ -158,12 +159,19 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_lowSN_strictSF",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_novrel_lowerSFE_stgNHboost_strictSF",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_lowSN_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_halfSN",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
     # "/data102/jlewis/sims/lvlmax_20/mh1e12/id242756",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_ell_1.5",
     # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
@@ -196,7 +204,55 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_coreen",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id180130_model5",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id36755",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p02eps",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p05eps",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p10eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_strict_massive_seeds/",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_lowSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowTherm",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowSNe",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_superEdd",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowKin",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_noSpin",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sqrt_rr_merge",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_merge_main_branch",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_merge_main_branch_close",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_merge_main_branch_vrel_switch",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak_boostAcc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak_boostAcc_1d7_dynMass",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_manual_sink1D7",
+    # "/automnt/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_frcAcc_0p01fedd",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p10eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p05eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p02eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_fix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_fix_coarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_fix_small_steps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_coarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_coarse_fudge0p1",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_fix2",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_recursive",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_goodfix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_sink_desc_goodfix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_cst_comov",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowAGNtherm",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
@@ -224,6 +280,7 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF/",
     # # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",
     # "/data101/jlewis/sims/dust_fid/lvlmax_19/mh1e12/id242704_lower_nstar",
@@ -262,7 +319,7 @@ sim_dirs = [
 
 
 def setup_halo_maker(
-    sim_dirs=sim_dirs, launch=True, zlim=10.0, overwrite=False, out_dir=None, snap=None
+    sim_dirs=sim_dirs, launch=True, zlim=10, overwrite=False, out_dir=None, snap=None
 ):
 
     # out_dir = "/data101/jlewis/sims/YD_accretion_tests"
@@ -289,12 +346,15 @@ def setup_halo_maker(
             # print(sim_dir)
 
             if os.path.exists(os.path.join(sim_dir, "OUTPUT_DIR")):
-                sim = ramses_sim(sim_dir, nml="cosmo.nml", output_path="OUTPUT_DIR")
+                sim = ramses_sim(sim_dir, nml="cosmo.nml", output_path="OUTPUT_DIR", full_snaps=True,mini_snaps=False,tar_snaps=False)#,verbose=True)
             else:
-                sim = ramses_sim(sim_dir, nml="cosmo.nml")
-            print(sim.name)
+                sim = ramses_sim(sim_dir, nml="cosmo.nml", full_snaps=True,mini_snaps=False,tar_snaps=False)#,verbose=True)
+            # print(sim.name)
+
+            print(sim.snap_numbers)
 
             output_nbs = sim.snap_numbers
+            output_nbs = output_nbs[output_nbs>1]
             if snap == None:
                 nsnaps = len(output_nbs)
             else:
@@ -323,8 +383,10 @@ def setup_halo_maker(
 
             # aexps = sim.aexps[sim_step_args]
             # output_nbs = sim.snap_numbers[sim_step_args]
-            aexps = sim.aexps
-            output_nbs = sim.snap_numbers
+            # aexps = sim.aexps
+            # output_nbs = sim.snap_numbers
+
+            aexps = sim.get_snap_exps(output_nbs)
 
             faexp = aexps[-1]
 
@@ -332,12 +394,12 @@ def setup_halo_maker(
 
             out_dir = None
 
-            if "star" in hm_type:
-                iaexp = 1.0 / (zlim + 1.0)
+            # if "star" in hm_type:
+            iaexp = 1.0 / (zlim + 1.0)
 
-                aexp_filter = aexps > iaexp
+            aexp_filter = aexps > iaexp
 
-                output_nbs = output_nbs[aexp_filter]
+            output_nbs = output_nbs[aexp_filter]
 
             if out_dir == None:
                 out_dir = sim_dir
@@ -359,18 +421,23 @@ def setup_halo_maker(
                 [f for f in os.listdir(hmaker_dir) if f.startswith("tree_bricks")]
             )
             existing_out_nbs = np.asarray([int(f[-3:]) for f in existing_outs])
+            # print(existing_out_nbs)
 
             if not overwrite:
                 # only run on not existing outputs
                 new_output_nbs = np.setdiff1d(
                     output_nbs, existing_out_nbs, assume_unique=True
                 )
-                if (
-                    len(existing_out_nbs) > 0
-                ):  # skip first snaps that don't have galaxies/halos
-                    new_output_nbs = new_output_nbs[
-                        existing_out_nbs.min() < new_output_nbs
-                    ]
+
+                if len(new_output_nbs) > 0:
+
+                    if (
+                        len(existing_out_nbs) > 0
+                        and existing_out_nbs.min() < new_output_nbs.min()
+                    ):  # skip first snaps that don't have galaxies/halos
+                        new_output_nbs = new_output_nbs[
+                            existing_out_nbs.min() < new_output_nbs
+                        ]
             else:
                 new_output_nbs = output_nbs
 

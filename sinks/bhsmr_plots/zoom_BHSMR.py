@@ -1,4 +1,3 @@
-from f90nml import read
 from zoom_analysis.sinks import sink_histories, sink_reader
 from zoom_analysis.constants import ramses_pc
 from zoom_analysis.halo_maker.assoc_fcts import get_gal_assoc_file, get_gal_props_snap
@@ -47,42 +46,126 @@ from zoom_analysis.sinks.sink_constraints import (
 # fig, ax = sink_histories.setup_bh_plot()
 
 
-tgt_zed = 5.1
+# tgt_zed = 2.0
+# tgt_zed = 2.1
+# tgt_zed = 2.2
+# tgt_zed = 2.4
+# tgt_zed = 2.5
+# tgt_zed = 2.6
+# tgt_zed = 2.7
+# tgt_zed = 2.8
+# tgt_zed = 2.9
+# tgt_zed = 3.0
+# tgt_zed = 3.1
+# tgt_zed = 3.5
+# tgt_zed = 3.2
+# tgt_zed = 3.3
+# tgt_zed = 3.4
+# tgt_zed = 3.5
+# tgt_zed = 3.7
+# tgt_zed = 3.8
+# tgt_zed = 4.0
+# tgt_zed = 4.05
+# tgt_zed = 4.1
+# tgt_zed = 4.2
+# tgt_zed = 4.25
+# tgt_zed = 4.4
+tgt_zed = 4.5
+# tgt_zed = 4.6
+# tgt_zed = 4.7
+# tgt_zed = 4.75
+# tgt_zed = 4.8
+# tgt_zed = 4.93
+# tgt_zed = 5.0
+# tgt_zed = 5.3
+# tgt_zed = 5.4
+# tgt_zed = 5.5
+# tgt_zed = 5.7
+# tgt_zed = 5.8
+# tgt_zed = 6.0
+# tgt_zed = 6.20
+# tgt_zed = 6.53
+# tgt_zed = 6.6
+# tgt_zed = 6.78
+# tgt_zed = 6.8
+# tgt_zed = 7.0
+# tgt_zed = 7.18626797394214067502
+# tgt_zed = 7.33
+# tgt_zed = 7.37
 fpure = 1.0 - 1e-4
 
 HAGN_gal_dir = f"/data40b/Horizon-AGN/STARS"
 delta_t = 100  # Myr
 
 sim_dirs = [
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+    # "/data101/jlewis/sims/NH_for_rascas",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p05eps",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_lowSN_strictSF",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSF/E_stgNHboost_strictSF",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_halfSN",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_novrel_lowerSFE_stgNHboost_strictSF",
+
+    # "/data101/jlewis/sims/NH_for_rascas",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id36755",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p02eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p05eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p10eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_manual_sink1D7",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh2",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_merge_main_branch",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_goodfix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowerSFE",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_novrel",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowKin",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowTherm",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_superEdd",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_noSpin",    
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak_boostAcc",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak_boostAcc_1d7_dynMass",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_sink_desc_goodfix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowAGNtherm",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_fullresIC",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_meanBondi_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE/",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE/",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_norvel_lowerSFE_highAGNtherm/",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag_lowerSFE/",
     # "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130/",
@@ -101,6 +184,18 @@ sim_dirs = [
     # "/data102/jlewis/sims/lvlmax20/mh1e12/id180130_superEdd_drag",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_accBoost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_fix",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_coarse",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_recursive",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_cst_comov",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag_lowerSFE_lowNsink/",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_pdrag",
@@ -109,8 +204,11 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_noAGN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nrg_SN",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_strict_massive_seeds",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id36755",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictBH",
@@ -129,6 +227,7 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF_SEdd2",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_drag",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_meanBondi",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag",
@@ -158,6 +257,9 @@ markers = [
     "_",
 ]
 
+xlim=(np.inf,-np.inf)
+ylim=(np.inf,-np.inf)
+
 fig, ax = plt.subplots(1, 1, figsize=(8, 8))
 
 
@@ -165,14 +267,22 @@ gal_mass_bins = np.logspace(6, 12, 12)
 
 all_same_sim = True
 
-prev_ID = int(
-    ramses_sim(sim_dirs[0], nml="cosmo.nml", full_check=False).name.split("_")[0][2:]
-)
+if ramses_sim(sim_dirs[0], nml="cosmo.nml", full_check=False).name.startswith('id'):
+    prev_ID = int(
+        ramses_sim(sim_dirs[0], nml="cosmo.nml", full_check=False).name.split("_")[0][2:]
+    )
+else:
+    prev_ID = ramses_sim(sim_dirs[0], nml="cosmo.nml", full_check=False).name
 
 for sim_dir in sim_dirs[1:]:
 
     sim = ramses_sim(sim_dir, nml="cosmo.nml", full_check=False)
-    intID = int(sim.name.split("_")[0][2:])
+    if sim.name.startswith('id'):
+        intID = int(sim.name.split("_")[0][2:])
+    else:
+        intID = sim.name
+        if intID == "NH_for_rascas":
+            intID = "NewHorizon"
 
     all_same_sim = all_same_sim * (intID == prev_ID)
 
@@ -181,13 +291,18 @@ for sim_dir in sim_dirs[1:]:
 
 for isim, sim_dir in enumerate(sim_dirs):
 
-    sim = ramses_sim(sim_dir, nml="cosmo.nml")
+    sim = ramses_sim(
+        sim_dir, nml="cosmo.nml", full_snaps=False, tar_snaps=False, mini_snaps=True
+    )
 
     name = sim.name
 
     print(name)
 
-    intID = int(sim.name.split("_")[0][2:])
+    if sim.name.startswith('id'):
+        intID = int(sim.name.split("_")[0][2:])
+    else:
+        intID = sim.name
 
     # hagn_sim = get_hagn_sim()
     # hagn_snap = hagn_sim.get_closest_snap(zed=tgt_zed)
@@ -248,11 +363,12 @@ for isim, sim_dir in enumerate(sim_dirs):
 
     gal_pos = gal_dict["pos"].T
 
-    if all_same_sim:
-        vol_args, min_vol = check_in_all_sims_vol(gal_pos, sim, sim_dirs)
+    if len(sim_dirs)>1:
+        if all_same_sim:
+            vol_args, min_vol = check_in_all_sims_vol(gal_pos, sim, sim_dirs)
 
-        if vol_args.sum() == 0:
-            raise ValueError("No galaxies in volume")
+            if vol_args.sum() == 0:
+                raise ValueError("No galaxies in volume")
 
     # print(isim, vol_args.sum())
 
@@ -265,8 +381,9 @@ for isim, sim_dir in enumerate(sim_dirs):
     host_purity = gal_dict["host purity"]
     central_cond = gal_dict["central"] == 1
     pure_cond = (host_purity > fpure) * central_cond
-    if all_same_sim:
-        pure_cond *= vol_args
+    if len(sim_dirs)>1:
+        if all_same_sim:
+            pure_cond *= vol_args
     gal_mass = gal_dict["mass"][pure_cond]
     gal_pos = gal_dict["pos"][:, pure_cond]
     rmax = gal_dict["rmax"][pure_cond]
@@ -277,14 +394,19 @@ for isim, sim_dir in enumerate(sim_dirs):
 
     sink_mass = np.zeros_like(gal_mass)
 
+    step=None
+
     for igal, gid in enumerate(gids):
         try:
-            sid, found = sink_reader.gid_to_sid(sim, gid, sim_snap)
+            sid, found, step = sink_reader.gid_to_sid(sim, gid, sim_snap, step=step, gdict=gal_dict)
         except AssertionError:
             found = False
 
         if not found:
+            print(gid,np.log10(gal_mass[igal]),f'No sink')
             continue
+
+        print(gid,np.log10(gal_mass[igal]),sid)
 
         sink_props = sink_reader.get_sink(sid, sim_snap, sim)
         if "mass" in sink_props:
@@ -308,6 +430,24 @@ for isim, sim_dir in enumerate(sim_dirs):
         label += f", z={sim_zed:.2f}"
 
     sca = ax.scatter(gal_mass, sink_mass, label=label, alpha=0.5, marker=markers[isim])
+
+    if xlim[0]> gal_mass.min():
+        xlim = (gal_mass.min()*0.9, xlim[1])
+    if xlim[1]< gal_mass.max():
+        xlim = (xlim[0], gal_mass.max()*1.1)
+    if ylim[0]> sink_mass.min()*0.9:
+        ylim = (sink_mass.min(), ylim[1])
+    if ylim[1]< sink_mass.max():
+        ylim = (ylim[0], sink_mass.max()*1.1)
+
+    if ylim[0]< sim.namelist['smbh_params']['mseed']:
+        ylim = (sim.namelist['smbh_params']['mseed']*0.9, ylim[1])
+
+
+    if ylim[1]<1e7:
+        ylim = (ylim[0], 1e7)
+
+
 
     pos = sink_mass > 0
 
@@ -354,6 +494,8 @@ ax.plot(
 # )
 
 
+
+
 # now for HAGN
 
 hagn_sim = get_hagn_sim()
@@ -362,38 +504,54 @@ hagn_snap = hagn_sim.get_closest_snap(zed=tgt_zed)
 hagn_aexp = hagn_sim.get_snap_exps(hagn_snap)[0]
 hagn_zed = 1.0 / hagn_aexp - 1
 
-hagn_gals = make_super_cat(hagn_snap)
 
-print(hagn_gals.keys())
+if all_same_sim:
+    try: 
 
-hagn_gal_pos = np.transpose([hagn_gals["x"], hagn_gals["y"], hagn_gals["z"]])
+        hagn_gals = make_super_cat(hagn_snap)
 
-vol_args, min_vol = check_in_all_sims_vol(hagn_gal_pos, hagn_sim, sim_dirs)
+        # print(hagn_gals.keys())
 
-if vol_args.sum() > 0:
+        hagn_gal_pos = np.transpose([hagn_gals["x"], hagn_gals["y"], hagn_gals["z"]])
 
-    if "mbh" in hagn_gals:
+        vol_args, min_vol = check_in_all_sims_vol(hagn_gal_pos, hagn_sim, sim_dirs)
 
-        mbhs = hagn_gals["mbh"][vol_args]
-        mgals = hagn_gals["mgal"][vol_args]
+        if np.sum(vol_args) > 0:
 
-        ax.scatter(
-            mgals,
-            mbhs,
-            label=f"HAGN, z={hagn_zed:.2f}",
-            alpha=0.5,
-            marker="x",
-            color="k",
-        )
+            if "mbh" in hagn_gals:
 
-        # now avg stats
-        avg, _, _ = binned_statistic(
-            mgals, mbhs, bins=gal_mass_bins, statistic=np.nanmean
-        )
-        med_bin, _, _ = binned_statistic(
-            mgals, mgals, bins=gal_mass_bins, statistic=np.nanmedian
-        )
-        ax.plot(med_bin, avg, c="k", lw=1, ls="--")  # ,label=f"HAGN, z={hagn_zed:.2f}")
+                mbhs = hagn_gals["mbh"][vol_args]
+                mgals = hagn_gals["mgal"][vol_args]
+
+                ax.scatter(
+                    mgals,
+                    mbhs,
+                    label=f"HAGN, z={hagn_zed:.2f}",
+                    alpha=0.5,
+                    marker="x",
+                    color="k",
+                )
+
+
+                if xlim[0]> mgals.min():
+                    xlim = (mgals.min()*0.9, xlim[1])
+                if xlim[1]< mgals.max():
+                    xlim = (xlim[0], mgals.max()*1.1)
+                if ylim[0]> mbhs.min()*0.9:
+                    ylim = (mbhs.min(), ylim[1])
+                if ylim[1]< mbhs.max():
+                    ylim = (ylim[0], mbhs.max()*1.1)                
+
+                # now avg stats
+                avg, _, _ = binned_statistic(
+                    mgals, mbhs, bins=gal_mass_bins, statistic=np.nanmean
+                )
+                med_bin, _, _ = binned_statistic(
+                    mgals, mgals, bins=gal_mass_bins, statistic=np.nanmedian
+                )
+                ax.plot(med_bin, avg, c="k", lw=1, ls="--")  # ,label=f"HAGN, z={hagn_zed:.2f}")
+    except FileNotFoundError:
+        pass
 
 ax.tick_params(
     axis="both",
@@ -405,6 +563,10 @@ ax.tick_params(
     right=True,
     direction="in",
 )
+
+
+ax.set_xlim(xlim)
+ax.set_ylim(ylim)
 
 ax.grid()
 
@@ -437,7 +599,7 @@ title_txt += f" fpure > {fpure:.4f}"
 # if not os.path.exists(outdir):
 # os.makedirs(outdir)
 
-# NH_smbh(ax)
+NH_smbh(ax)
 
 if all_same_sim:
     name_prefix = f"{intID}_"

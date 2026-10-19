@@ -55,6 +55,94 @@ def plot_spec(wave, spectrum):
     return fig, ax
 
 
+def make_PFS_img(p, ctr_gal, rgal, stars, img_size: int = 400):
+
+    # include proj dir
+
+    fout = os.path.join(p, "PFSDump", "PFS_img.png")
+    fin = os.path.join(p, "PFSDump", "pfsdump")
+
+    fig, ax = plt.subplots(1, 2, sharex=True, sharey=True)
+
+    try:
+        ph = read_PFS_dump(fin)
+        pos = ph["x_em"]
+        y = np.linspace(pos[:, 1].min(), pos[:, 1].max(), img_size)
+        z = np.linspace(pos[:, 2].min(), pos[:, 2].max(), img_size)
+
+        pfs_img, _, _, _ = binned_statistic_2d(
+            pos[:, 1], pos[:, 2], pos[:, 2], bins=[y, z], statistic="count"
+        )
+
+        img = ax[0].imshow(
+            pfs_img.T,
+            origin="lower",
+            cmap="gray",
+            norm=LogNorm(vmin=1),
+            extent=np.asarray(
+                [
+                    (y[0]),
+                    (y[-1]),
+                    (z[0]),
+                    (z[-1]),
+                ]
+            ),
+        )
+
+        cb = fig.colorbar(img, ax=ax)
+        cb.set_label("Number of photons")
+
+    except FileNotFoundError:
+        print("something went wrong ... no pfsdump")
+        pass
+
+    ax[0].scatter(ctr_gal[1], ctr_gal[2], marker="x", c="b", s=50)
+    ax[1].scatter(ctr_gal[1], ctr_gal[2], marker="x", c="b", s=50)
+    # ax.scatter(ctr_gal[1], ctr_gal[0], marker="x", c="g", s=50)
+    # ax.scatter(ctr_gal[1], ctr_gal[2], marker="x", c="r", s=50)
+
+    circ = Circle(
+        (ctr_gal[1], ctr_gal[2]),
+        rgal,
+        fill=False,
+        edgecolor="b",
+        linewidth=2,
+        linestyle="--",
+    )
+    ax[0].add_patch(circ)
+    circ = Circle(
+        (ctr_gal[1], ctr_gal[2]),
+        rgal,
+        fill=False,
+        edgecolor="b",
+        linewidth=2,
+        linestyle="--",
+    )
+    ax[1].add_patch(circ)
+
+    # ax.set_xlim((y[0] - ctr_gal[1]), (y[-1] - ctr_gal[1]))
+    # ax.set_ylim((z[0] - ctr_gal[2]), (z[-1] - ctr_gal[2]))
+
+    ax[1].scatter(stars["pos"][:, 1], stars["pos"][:, 2], c="r", s=1)
+    ax[1].set_aspect("equal")
+
+    # print(stars["pos"].mean() / ctr_gal)
+
+    # ax.set_xlabel(r"$y, \mathrm{ckpc/h}$")
+    # ax.set_ylabel(r"$z, \mathrm{ckpc/h}$")
+
+    # xarg, yarg = np.where(pfs_img == pfs_img.max())
+
+    # ax.axvline(x=x[xarg[0]] * l, c="r")
+    # ax.axhline(y=y[yarg[0]] * l, c="r")
+
+    # print(x[xarg[0]], y[yarg[0]])
+
+    fig.savefig(fout)
+
+    plt.close(fig)
+
+
 def gen_spec(aexp, spec, lambda_bins, filts, rf=False):
 
     filts_names, filts_wavs, filts_trans = filts
@@ -143,6 +231,8 @@ def plot_spe_bands(
     mab_imgs,
     band_ctrs,
     filts,
+    aper_ckpc,
+    img_extent_ckpc=None,
     **kwargs,
 ):
 
@@ -195,8 +285,12 @@ def plot_spe_bands(
 
     for iband, (name, mab_img) in enumerate(zip(filts_names, mab_imgs)):
 
-        yband = np.linspace(-rgal[0], +rgal[0], mab_img.shape[0]) * l * 1e3 * aexp
-        zband = np.linspace(-rgal[0], +rgal[0], mab_img.shape[1]) * l * 1e3 * aexp
+        yband = np.linspace(
+            -0.5 * aper_ckpc[iband], +0.5 * aper_ckpc[iband], mab_img.shape[0]
+        )
+        zband = np.linspace(
+            -0.5 * aper_ckpc[iband], +0.5 * aper_ckpc[iband], mab_img.shape[1]
+        )
 
         # print(yband.min(), yband.max())
         # print(zband.min(), zband.max())
@@ -224,11 +318,11 @@ def plot_spe_bands(
 
             # hist = np.histogram(np.log10(img[ok_vals]), bins=50)
             if np.any(vmin == None) or np.any(vmax == None):
-                hist = np.histogram(mab_img[ok_vals], bins=20)
-                print(list(zip(hist[0], hist[1])))
+                hist = np.histogram(mab_img[ok_vals], bins=50)
+                # print(list(zip(hist[0], hist[1])))
                 cdf = np.cumsum(hist[0]) / np.sum(hist[0])
-                vmin = hist[1][np.argmin(np.abs(cdf - 0.1))]
-                vmax = hist[1][np.argmin(np.abs(cdf - 0.9))]
+                vmin = hist[1][np.argmin(np.abs(cdf - 0.01))]
+                vmax = hist[1][np.argmin(np.abs(cdf - 0.99))]
             # vmin = 10 ** hist[1][np.argmin(np.abs(cdf - 0.2))]
             # vmax = 10 ** hist[1][np.argmin(np.abs(cdf - 0.8))]
             # vmin = mab_img[ok_vals].min()
@@ -275,13 +369,19 @@ def plot_spe_bands(
                     extent=[yband[0], yband[-1], zband[0], zband[-1]],
                 )
 
+        if img_extent_ckpc is not None:
+
+            half_extent = img_extent_ckpc / 2.0
+            comb_ax[0][iband].set_xlim(-half_extent, half_extent)
+            comb_ax[0][iband].set_ylim(-half_extent, half_extent)
+        else:
+            comb_ax[0][iband].set_xlim(yband[0], yband[-1])
+            comb_ax[0][iband].set_ylim(min(zband[0], 29), zband[-1])
+
             # print(img.get_clim())
 
         # colorbar
         # cbar = fig.colorbar(img, ax=comb_ax[0][iband])
-
-        comb_ax[0][iband].set_xlim(yband[0], yband[-1])
-        comb_ax[0][iband].set_ylim(min(zband[0], 29), zband[-1])
 
         comb_ax[0][iband].set_aspect("equal")
 
@@ -417,9 +517,12 @@ def plot_mock_composite(
     b, g, r, yrascas=None, zrascas=None, axs=None, fig=None, **kwargs
 ):
 
+    vmax = kwargs.get('vmax',None)
+    vmin = kwargs.get('vmin',None)
+
     # fig, axs = plt.subplots(1, 1, sharex=True, sharey=True)
     if axs is None or fig is None:
-        fig, axs = plt.subplots(1, 1, figsize=(8, 8), sharex=True, sharey=True)
+        fig, axs = plt.subplots(1, 1, figsize=(8, 8), sharex=True, sharey=True, layout='constrained')
         # fig, axs = plt.subplots(1, 1, figsize=(20, 20), sharex=True, sharey=True)
 
     # pl_img = axs[0].imshow(
@@ -429,80 +532,34 @@ def plot_mock_composite(
 
     # brightest_mag = np.min([r, g, b])
 
+    # print(np.nanmin(r), np.nanmax(r))
+
     if yrascas is None or zrascas is None:
         extent = None
-        axs.imshow(
+        img=axs.imshow(
             # color_img_norm,
             np.transpose([r.T, g.T, b.T]),
             origin="lower",
-            # vmin=0,
-            # vmax=np.max(),
+            vmin=vmin,
+            vmax=vmax,
             # norm=LogNorm(vmin=1),
             # **kwargs,
         )
     else:
         extent = [yrascas[0], yrascas[-1], zrascas[0], zrascas[-1]]
-        axs.imshow(
+        img=axs.imshow(
             # color_img_norm,
             np.transpose([r.T, g.T, b.T]),
             origin="lower",
-            # vmin=0,
-            # vmax=np.max(),
+            vmin=vmin,
+            vmax=vmax,
             # norm=LogNorm(vmin=1),
             extent=extent,
             # **kwargs,
         )
 
-        axs.set_xlabel(r"$y, \mathrm{ckpc/h}$")
-        axs.set_ylabel(r"$z, \mathrm{ckpc/h}$")
+    vmin, vmax = img.get_clim()
 
-        delta_txt = 5
-        ruler_len = 5
-        axs.plot(
-            [yrascas[0] + delta_txt, yrascas[0] + delta_txt + ruler_len],
-            [zrascas[0] + delta_txt, zrascas[0] + delta_txt],
-            c="white",
-            lw=3,
-        )
-        axs.text(
-            yrascas[0] + delta_txt + ruler_len * 0.5,
-            zrascas[0] + delta_txt + 2,
-            "5 kpc/h",
-            c="white",
-            fontsize=8,
-            ha="center",
-        )
-
-    # axs.imshow(
-    #     r,
-    #     alpha=0.33,
-    #     vmax=1,
-    #     vmin=0,
-    #     origin="lower",
-    #     # norm=LogNorm(vmin=1),
-    #     extent=[yrascas[0], yrascas[-1], zrascas[0], zrascas[-1]],
-    #     cmap="Reds",
-    # )
-    # axs.imshow(
-    #     b,
-    #     alpha=0.33,
-    #     vmax=1,
-    #     vmin=0,
-    #     origin="lower",
-    #     # norm=LogNorm(vmin=1),
-    #     extent=[yrascas[0], yrascas[-1], zrascas[0], zrascas[-1]],
-    #     cmap="Blues",
-    # )
-    # axs.imshow(
-    #     g,
-    #     alpha=0.33,
-    #     vmax=1,
-    #     vmin=0,
-    #     origin="lower",
-    #     # norm=LogNorm(vmin=1),
-    #     extent=[yrascas[0], yrascas[-1], zrascas[0], zrascas[-1]],
-    #     cmap="Greens",
-    # )
 
     axs.set_facecolor("black")
 
@@ -541,6 +598,7 @@ def plot_mock_composite_vignettes(
                 # norm=LogNorm(vmin=1),
                 # **kwargs,
             )
+            
 
         # axs[0].set_xlabel(r"$y, \mathrm{ckpc/h}$")
         # axs[0].set_ylabel(r"$z, \mathrm{ckpc/h}$")
@@ -561,6 +619,8 @@ def plot_mock_composite_vignettes(
         #     fontsize=8,
         #     ha="center",
         # )
+
+    
 
     for a in axs:
         a.set_facecolor("black")

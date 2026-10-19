@@ -1,30 +1,70 @@
-from socket import INADDR_MAX_LOCAL_GROUP
-from matplotlib import markers
-from matplotlib.patches import Patch
+# from matplotlib import markers
+# from matplotlib.patches import Patch
 from zoom_analysis.stars import sfhs
 from zoom_analysis.zoom_helpers import decentre_coordinates, check_in_all_sims_vol
 from plot_constraints.plot_PQRO25_SMHMR import zed_to_data
 
 # from zoom_analysis.stars.star_reader import yt_read_star_ball, read_part_ball
-from zoom_analysis.stars.leja_quench_fit import sfr_ridge_leja22
+# from zoom_analysis.stars.leja_quench_fit import sfr_ridge_leja22
 from zoom_analysis.halo_maker.read_treebricks import (
     read_brickfile,
     convert_brick_units,
     convert_star_units,
     read_zoom_stars,
 )
-from zoom_analysis.trees.tree_reader import read_tree_file_rev as read_tree_fev_sim
-from zoom_analysis.constants import ramses_pc
+# from zoom_analysis.trees.tree_reader import read_tree_file_rev as read_tree_fev_sim
+# from zoom_analysis.constants import ramses_pc
 from zoom_analysis.halo_maker.assoc_fcts import (
     get_gal_assoc_file,
-    get_halo_assoc_file,
-    get_halo_props_snap,
-    find_zoom_tgt_gal,
-    find_zoom_tgt_halo,
-    get_central_gal_for_hid,
+    # get_halo_assoc_file,
+    # get_halo_props_snap,
+    # find_zoom_tgt_gal,
+    # find_zoom_tgt_halo,
+    # get_central_gal_for_hid,
     get_gal_props_snap,
 )
+import pandas as pd
 
+
+def umach_smhmr(z):
+
+
+    fpath='/data101/jlewis/universemachine/umachine-dr1/data/smhm/averages'
+
+    files = [f for f in os.listdir(fpath)  if f.startswith('sm_')]
+    aexps = np.array([float(f.split('_a')[-1].replace('.dat','')) for f in files])
+
+    aexp = 1/(1+z)
+
+    arg = np.argmin(np.abs(aexps-aexp))
+
+    if np.abs(aexps[arg]-aexp) > 0.05:
+        print(f"no umachine data for z={z:.2f}, closest aexp={aexps[arg]:.3f}")
+        return None
+
+    f2read = files[arg]
+
+    data = pd.read_table(os.path.join(fpath,f2read),delimiter=' ',header=6)
+
+    return(data)
+
+
+def schreiber2015_fit(mass,z):
+
+    sfrs = np.zeros_like(mass)
+
+    m0 = 0.5
+    a0 = 1.5
+    a1 = 0.3
+    m1 = 0.36
+    a2 = 2.5
+
+    r = np.log10(1+z)
+    log10mass = np.log10(mass/1e9)
+
+    sfrs = 10**(log10mass-m0 + a0*r - a1*(np.max([np.zeros_like(log10mass),log10mass-m1-a2*r],axis=0))**2)
+
+    return sfrs
 
 from matplotlib import colors
 from cycler import cycler
@@ -41,6 +81,8 @@ from scipy.stats import binned_statistic
 
 import os
 import numpy as np
+
+
 
 
 def nedkova21_size_fit(mass, z):
@@ -133,26 +175,38 @@ def yang_size_fit(mass, z, sftype="sf", obs="opt"):
 
 
 sim_dirs = [
+    # "/data101/jlewis/sims/NH_for_rascas",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_kicks",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE_lowSN",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_merge_main_branch",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak_boostAcc",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_vlowSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN",
     # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_lowerSFE_drag",
     # "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt",
     # "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_DynBondiGravSinkMass",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel",/
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_strict_massive_seeds/",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id36755",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id36755",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_MegaSF_lowSNe",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_XtremeSF_lowSNe",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe_highAGNeff",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_SuperMegaSF_midSNe",
@@ -162,43 +216,89 @@ sim_dirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_stricterSF",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_lowerSFE_NHboost",
     # "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05",
-    # "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
+    # # "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p10eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p05eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model0_0p02eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_manual_sink1D7",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_lowSN_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_halfSN",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_lowSN_strictSF",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_lowSN_strictSF",
+    # # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
+    # # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_novrel_lowerSFE_stgNHboost_strictSF",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
-    # "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE_stgNHboost_stricterSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd_drag",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_DynBondiGravSinkMass",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_maxiBH",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_form_stellar_peak_boostAcc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_novrel",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowerSFE",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_superEdd",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_lowSNe",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_noSpin",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowTherm",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki_1d7_dynSeed_boostAcc_lowKin",    
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
 ]
 
 main_stars = True
 
 bin_size = 0.5
-zbins = np.arange(1.5, 8.0, bin_size)
-zbin_err = 0.2
+# zbins = np.arange(2.0, 8.0+bin_size, bin_size)
+# zbins = np.arange(2.0, 6.0+bin_size, bin_size)
+# zbins = np.arange(2.0, 10.0+bin_size, bin_size)
+zbins = np.arange(2.0, 7.0+bin_size, bin_size)
+# zbins=np.array([2.9])
+# zbin_err = 0.05
+zbin_err = 0.5*bin_size
 sims_per_zbins = np.zeros((len(zbins)))
 # find_smallest z with 2 sims !
 smallest_z = np.inf
 
 sim_names = []
 all_same = True
-prev_ID = int(ramses_sim(sim_dirs[0], nml="cosmo.nml").name.split("_")[0][2:])
+if sim_dirs[0].split('/')[-1].startswith('id'):
+    prev_ID = int(ramses_sim(sim_dirs[0], nml="cosmo.nml").name.split("_")[0][2:])
+else:
+    prev_ID = sim_dirs[0].split('/')[-1]
+    if prev_ID == "NH_for_rascas":
+        prev_ID = "NewHorizon"
 
 for isim, sim_dir in enumerate(sim_dirs[1:]):
 
-    sim = ramses_sim(sim_dir, nml="cosmo.nml")
+    sim = ramses_sim(
+        sim_dir,
+        nml="cosmo.nml",
+        full_snaps=False,
+        tar_snaps=False,
+        mini_snaps=True,
+        full_check=False,
+    )
 
     name = sim.name
 
-    intID = int(sim.name.split("_")[0][2:])
+    if "NH" not in name and 'NewHorizon' not in name:
+        intID = int(sim.name.split("_")[0][2:])
+    else:
+        intID = "NewHorizon"
     sim_names.append(intID)
     all_same = all_same * (intID == prev_ID)
 
@@ -206,10 +306,20 @@ for isim, sim_dir in enumerate(sim_dirs[1:]):
 
 for sim_dir in sim_dirs:
 
-    sim = ramses_sim(sim_dir)
+    sim = ramses_sim(
+        sim_dir,
+        full_snaps=False,
+        tar_snaps=False,
+        mini_snaps=True,
+        full_check=False,
+    )
 
     sim_snaps = sim.snap_numbers
     sim_aexps = sim.get_snap_exps(sim_snaps)
+
+    if len(sim_snaps) == 0:
+        print(f"no snaps for sim {sim.name}")
+        continue
 
     for iz, z in enumerate(zbins):
 
@@ -223,11 +333,13 @@ for sim_dir in sim_dirs:
 
         assoc_file = get_gal_assoc_file(sim.path, snap)
         if not os.path.exists(assoc_file):
+            print(f"no assoc file for snap {snap} in sim {sim.name}")
             continue
 
         aexp = sim.get_snap_exps(snap)
         zed_sim = 1.0 / aexp - 1
         if np.abs(zed_sim - z) > zbin_err:
+            print(f"snap {snap} in sim {sim.name} too far from zbin {z:.2f}")
             continue
 
         sims_per_zbins[iz] += 1
@@ -237,14 +349,15 @@ smallest_z = np.where(sims_per_zbins >= min(1, len(sim_dirs)))[0][0]
 zbins = zbins[smallest_z:]
 
 
-mhalo_bins = np.logspace(8, 13, 7)
-mgal_bins = np.logspace(5.5, 12, 8)
+mhalo_bins = np.logspace(8.5, 13, 6)
+mgal_bins = np.logspace(5.5, 12, 9)
 
 ned_done = np.full(len(zbins), False)
 mow_done = np.full(len(zbins), False)
 yang_done = np.full(len(zbins), False)
 ssfr_stuff_done = np.full(len(zbins), False)
 PQRO_done = np.full(len(zbins), False)
+umach_done = np.full(len(zbins), False)
 
 # zbins = [6, 5, 4, 3, 2]
 # zbins = [7.0, 6.5, 6.0, 5.5, 5.0, 4.5, 4.0]  # , 3.5]  # , 3.0, 2.5, 2.0]
@@ -289,6 +402,10 @@ plot_colors = [c["color"] for c in default_cycler]
 plot_linestyles = [c["linestyles"] for c in default_cycler]
 plot_markers = [c["markers"] for c in default_cycler]
 
+nh_args = ["NH_for_rascas" in sd for sd in sim_dirs]
+if np.any(nh_args):
+    plot_colors.insert(nh_args.index(True), "tab:gray")
+
 lines_hmsmr = []
 lines_size = []
 lines_sfsm = []
@@ -296,7 +413,7 @@ lines_sfsm = []
 row_aspect = nrows - row_fact
 col_aspect = ncols
 
-figsize = (col_aspect * 4, row_aspect * 4)
+figsize = (col_aspect * 6, row_aspect * 6)
 
 legend_args = {
     # "handles": lines,
@@ -304,6 +421,7 @@ legend_args = {
     "ncol": 1,
     "loc": "lower right",
     "framealpha": 0.0,
+    "labelcolor": plot_colors,
 }
 
 subplot_args = {
@@ -327,16 +445,23 @@ sfsm_ax = np.ravel(sfsm_ax)
 plt.subplots_adjust(hspace=0.0, wspace=0.0)
 
 size_ax[0].set_ylim(0.01, 10)
-sfsm_ax[0].set_ylim(100, 1e9)
+sfsm_ax[0].set_ylim(50, 3E9)
 smhmr_ax[0].set_ylim(4e-5, 0.5)
 
 size_ax[0].set_xlim(mgal_bins[0], mgal_bins[-1])
 sfsm_ax[0].set_xlim(mgal_bins[0], mgal_bins[-1])
 smhmr_ax[0].set_xlim(mhalo_bins[0], mhalo_bins[-1])
 
+
 for isim, sim_dir in enumerate(sim_dirs):
 
-    sim = ramses_sim(sim_dir)
+    sim = ramses_sim(
+        sim_dir,
+        full_snaps=False,
+        tar_snaps=False,
+        mini_snaps=True,
+        full_check=False,
+    )
 
     print(sim.name)
 
@@ -366,7 +491,7 @@ for isim, sim_dir in enumerate(sim_dirs):
             PQRO_bins = np.diff(PQRO_bin_edges) + PQRO_bin_edges[:-1]
 
             pqro_err = smhmr_ax[iz].errorbar(  # 10**PQRO_bins,
-                10 ** PQRO_data["logMstarMh_lower_err"],
+                10 ** PQRO_data["logMstarMh_lower_err"], #there's a bug in the files
                 10 ** PQRO_data["logMh"],
                 # xerr=[10**(PQRO_data["logMstarMh_lower_err"]-PQRO_data["logMh_lower_err"]),
                 #         10**(PQRO_data["logMstarMh_lower_err"]+PQRO_data["logMh_upper_err"])],
@@ -384,6 +509,40 @@ for isim, sim_dir in enumerate(sim_dirs):
             )
 
             PQRO_done[iz] = True
+
+        if not umach_done[iz]:
+            umach_data_hm = umach_smhmr(z)
+            if umach_data_hm is not None:
+
+                if z>5.3:
+                    mask = 10 ** umach_data_hm["#Log10(HM_Center)(0)"]<=5e12
+                    if z>7.2:
+                        mask = 10 ** umach_data_hm["#Log10(HM_Center)(0)"]<=1.2e12
+                else:
+                    mask = np.full(umach_data_hm["#Log10(HM_Center)(0)"].shape, True)
+
+                mask = mask *  (10 ** umach_data_hm["#Log10(HM_Center)(0)"] > 1e9)
+
+                umach_err = smhmr_ax[iz].errorbar(  # 10**PQRO_bins,
+                    10 ** umach_data_hm["#Log10(HM_Center)(0)"][mask],
+                    10 ** umach_data_hm["Log_SMHM(4)"][mask],
+                    # 10 ** umach_data_hm["Log_True_SMHM(10)"],
+                    # xerr=[10**(PQRO_data["logMstarMh_lower_err"]-PQRO_data["logMh_lower_err"]),
+                    #         10**(PQRO_data["logMstarMh_lower_err"]+PQRO_data["logMh_upper_err"])],
+                    # yerr=[10**(PQRO_data["logMh"]-PQRO_data["logMstarMh"]),
+                    #         10**(PQRO_data["logMh"]+PQRO_data["logMstarMh"])],
+                    # xerr=[10**(PQRO_data["logMstarMh_lower_err"])-10**(PQRO_data["logMh_lower_err"]),
+                    #         10**(PQRO_data["logMstarMh_lower_err"])+10**(PQRO_data["logMh_upper_err"])],
+                    # yerr=[10**(PQRO_data["logMh"])-10**(PQRO_data["logMstarMh"]),
+                    #         10**(PQRO_data["logMh"])+10**(PQRO_data["logMstarMh"])],
+                    color="k",
+                    ls="-",
+                    lw=0.75,
+                    elinewidth=0.5,
+                    # marker="D",
+                )
+
+                umach_done[iz] = True
 
         size_ax[iz].text(
             0.95,
@@ -423,7 +582,9 @@ for isim, sim_dir in enumerate(sim_dirs):
 
         gal_props = get_gal_props_snap(sim_dir, snap, main_stars=True)
 
-        central = gal_props["central"]
+        #there a a few low mass star bursts that are not centrals
+        central = gal_props["central"] * gal_props["host purity"] > 0.9999
+        # central = np.full(gal_props["central"].shape,True)
 
         gal_pos = gal_props["pos"].T[central]
 
@@ -433,8 +594,10 @@ for isim, sim_dir in enumerate(sim_dirs):
         else:
             vol_args = np.full(gal_props["host purity"].shape, True)
 
-        # r50s = gal_props["r50"][central*vol_args] * sim.cosmo.lcMpc * 1e3 * aexp
-        reffs = gal_props["reff"][central * vol_args] * sim.cosmo.lcMpc * 1e3 * aexp
+        if 'reff' in gal_props.keys():
+            reffs = gal_props["reff"][central * vol_args] * sim.cosmo.lcMpc * 1e3 * aexp
+        else:
+            reffs = gal_props["r50"][central*vol_args] * sim.cosmo.lcMpc * 1e3 * aexp
         mstels = gal_props["mass"][central * vol_args]
         sfrs = gal_props["sfr100"][central * vol_args]
         mvir = gal_props["host mass"][central * vol_args]
@@ -442,6 +605,9 @@ for isim, sim_dir in enumerate(sim_dirs):
         if len(mstels) == 0:
             print("no galaxies")
             continue
+
+        print(f"found {np.sum(mstels>1e10)} galaxies more massive than 1e10 Msun in sim {sim.name} at z={z:.1f}")
+        # print(snap,aexp,1/ aexp - 1, time, len(mstels), np.sum(mstels>1e10))
 
         # sizes
         avg_size, _, _ = binned_statistic(
@@ -576,18 +742,27 @@ for isim, sim_dir in enumerate(sim_dirs):
             ssfr_stuff_done[iz] = True
 
         # hmsmr
+        mhalo = mstels+mvir
+        smhmr = mstels/mhalo
 
         avg_mstel, _, _ = binned_statistic(
-            mvir, mstels / mvir, bins=mhalo_bins, statistic="mean"
+            mhalo, smhmr, bins=mhalo_bins, statistic="mean"
         )
+        # avg_mstel, _, _ = binned_statistic(
+        #     mhalo, mstels, bins=mhalo_bins, statistic="mean"
+        # )
+        # avg_mhalo, _, _ = binned_statistic(
+        #     mhalo, mhalo, bins=mhalo_bins, statistic="mean"
+        # )
+        # avg_mstel = avg_mstel / avg_mhalo
         errs_mstel, _, _ = binned_statistic(
-            mvir, mstels / mvir, bins=mhalo_bins, statistic="std"
+            mhalo, smhmr, bins=mhalo_bins, statistic="std"
         )
         counts_mstel, _, _ = binned_statistic(
-            mvir, mstels / mvir, bins=mhalo_bins, statistic="count"
+            mhalo, smhmr, bins=mhalo_bins, statistic="count"
         )
         binctrs_mstel, _, _ = binned_statistic(
-            mvir, mvir, bins=mhalo_bins, statistic="median"
+            mhalo, mhalo, bins=mhalo_bins, statistic="median"
         )
 
         if np.any(counts_mstel == 0):
@@ -611,8 +786,8 @@ for isim, sim_dir in enumerate(sim_dirs):
             mvir_colors[points_full_alpha, 3] = 1
 
         smhmr_ax[iz].scatter(
-            mvir,
-            mstels / mvir,
+            mhalo,
+            smhmr,
             label=sim_dir,
             marker=plot_markers[isim],
             facecolors="none",
@@ -668,19 +843,22 @@ for isim, sim_dir in enumerate(sim_dirs):
             color=plot_colors[isim],
         )
 
+        xextent = np.linspace(*sfsm_ax[iz].get_xlim(),50)
+        sfsm_ax[iz].plot(xextent,1e6*schreiber2015_fit(xextent,z),c='k',ls='-')
+
         if sim.name not in labels_size:
             labels_size.append(sim.name)
             l = [
                 Line2D(
                     [],
                     [],
-                    markeredgecolor=c["color"],
+                    markeredgecolor=c,
                     markerfacecolor="none",
-                    color=c["color"],
-                    ls=c["linestyles"],
-                    marker=c["markers"],
+                    color=c,
+                    ls=ls,
+                    marker=m,
                 )
-                for ic, c in enumerate(default_cycler)
+                for ic, (c,m,ls) in enumerate(zip(plot_colors,plot_markers,plot_linestyles))
                 if ic == isim
             ]
             lines_size.extend(l)
@@ -690,13 +868,13 @@ for isim, sim_dir in enumerate(sim_dirs):
                 Line2D(
                     [],
                     [],
-                    markeredgecolor=c["color"],
+                    markeredgecolor=c,
                     markerfacecolor="none",
-                    color=c["color"],
-                    ls=c["linestyles"],
-                    marker=c["markers"],
+                    color=c,
+                    ls=ls,
+                    marker=m,
                 )
-                for ic, c in enumerate(default_cycler)
+                    for ic, (c,m,ls) in enumerate(zip(plot_colors,plot_markers,plot_linestyles))
                 if ic == isim
             ]
             lines_hmsmr.extend(l)
@@ -706,16 +884,17 @@ for isim, sim_dir in enumerate(sim_dirs):
                 Line2D(
                     [],
                     [],
-                    markeredgecolor=c["color"],
+                    markeredgecolor=c,
                     markerfacecolor="none",
-                    color=c["color"],
-                    ls=c["linestyles"],
-                    marker=c["markers"],
+                    color=c,
+                    ls=ls,
+                    marker=m,
                 )
-                for ic, c in enumerate(default_cycler)
+                    for ic, (c,m,ls) in enumerate(zip(plot_colors,plot_markers,plot_linestyles))
                 if ic == isim
             ]
             lines_sfsm.extend(l)
+
 
 
 if "Nedkova+21" not in labels_size:
@@ -729,20 +908,25 @@ if "Yang+25, SF" not in labels_size:
     lines_size.append(Line2D([], [], color="olive", ls="--", alpha=1.0))
     labels_size.append("Yang+25, quiescent")
     lines_size.append(Line2D([], [], color="olive", ls=":", alpha=1.0))
-if f"$sSFR<10^{-11} yr^{-1}$" not in labels_sfsm:
-    labels_sfsm.append("sSFR<$10^{-11}$ yr$^{-1}$")
-    labels_sfsm.append("$sSFR<0.2/T")
+if f"sSFR$<10^{{-11}} yr^{{-1}}$" not in labels_sfsm:
+    labels_sfsm.append("sSFR<$10^{{-11}}$ yr$^{{-1}}$")
+    labels_sfsm.append("$sSFR<0.2/T$")
+    labels_sfsm.append('Schreiber+15')
     lines_sfsm.append(Line2D([], [], color="k", ls="--", alpha=1.0))
     lines_sfsm.append(Line2D([], [], color="k", ls=":", alpha=1.0))
+    lines_sfsm.append(Line2D([], [], color="k", ls="-", alpha=1.0))
 if "Paquereau+25" not in labels_hmsmr:
     labels_hmsmr.append("Paquereau+25")
     lines_hmsmr.append(pqro_err)
+if "UniverseMachine" not in labels_hmsmr:
+    labels_hmsmr.append("UniverseMachine")
+    lines_hmsmr.append(umach_err)
 
 for plot in [smhmr_ax, size_ax, sfsm_ax]:
     for iax, ax in enumerate(plot):
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.grid()
+        # ax.grid()
         ax.tick_params(
             axis="both",
             which="both",
@@ -774,7 +958,7 @@ sfsm_ax[-1].legend(labels=labels_sfsm, handles=lines_sfsm, **legend_args)
 for iax in range(ncols * nrows):
 
     if iax % ncols == 0:
-        smhmr_ax[iax].set_ylabel(r"HMSMR")
+        smhmr_ax[iax].set_ylabel(r"Mean stellar to halo mass ratio")
         # size_ax[iax].set_ylabel(r"R$_{50}$ (kpc)")
         size_ax[iax].set_ylabel(r"R$_{eff}$ (kpc)")
         sfsm_ax[iax].set_ylabel(r"SFR$_{100\, Myr}$ (M$_\odot$/Myr)")

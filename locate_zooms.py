@@ -60,12 +60,15 @@ if __name__ == "__main__":
         if not os.path.isdir(d):
             continue
         try:
-            sim = ramses_sim(d, nml="cosmo.nml",full_check=False)
+            sim = ramses_sim(d, nml="cosmo.nml", full_check=False)
         except FileNotFoundError:
             print(f"Skipping {d}... there was no .nml")
             continue
 
+        print(sim.name)
+
         zoom_ctr = sim.zoom_ctr
+
         azoom, bzoom, czoom = (
             sim.namelist["refine_params"]["azoom"],
             sim.namelist["refine_params"]["bzoom"],
@@ -83,6 +86,7 @@ if __name__ == "__main__":
         # ax.scatter(zoom_ctr[0] * cMpc, zoom_ctr[1] * cMpc, s=1, label=sim.name)
         color = cmap(isim % 5)
 
+        print(zoom_ctr)
         coord1s = [zoom_ctr[0], zoom_ctr[1], zoom_ctr[0]]
         coord2s = [zoom_ctr[1], zoom_ctr[2], zoom_ctr[2]]
         size1s = [azoom, bzoom, azoom]

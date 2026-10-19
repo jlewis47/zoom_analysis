@@ -1,9 +1,13 @@
+# import contextlib
+import mmap
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 import h5py
 from astropy.cosmology import Planck18 as cosmo
 from astropy import units as u
-from f90_tools.IO import read_record
+from f90_tools.IO import read_record,skip_record,skip_ndata
+from h5tools.h5py_tools import h5_to_dict
 
 c = 299792458  # m/s
 h = 6.62607015e-34  # J s
@@ -34,6 +38,21 @@ h = 6.62607015e-34  # J s
 #      real(kind=8)              :: tau_abs_curr ! current optical depth (useful when photon change mesh domain)
 #      integer(kind=4)           :: iran         ! state of the random generator
 #   end type photon_current
+
+
+def find_line_in_file(fname, keyword):
+
+    outs = []
+
+    with open(fname, "r") as src:
+
+        for line in src:
+
+            if keyword in line:
+
+                outs.append(line)
+
+    return outs
 
 
 def read_photon_dump(fname):
@@ -124,7 +143,7 @@ def spec_to_erg_s_A_cm2_rf(mock, pfs_path):  # in rest frame
     # nrg /= 1 + z  # dimming
 
     # mock["spectrum"] = nrg * mock["spectrum"]
-    return nrg * mock["spectrum"]
+    return nrg * np.copy(mock["spectrum"])
 
     # as in rascas/py/mocks.py by Leo Michel Dansac
     # nPhotPerPacket = phot_hdr["total_flux"] / phot_hdr["nphotons"]
@@ -139,35 +158,35 @@ def spec_to_erg_s_A_cm2_rf(mock, pfs_path):  # in rest frame
 
 def spec_to_erg_s_A_cm2(mock, pfs_path, z):  # , aperture_cm):  # in obs frame
 
-    PC_cm = 3.08e18 #cm
+    PC_cm = 3.08e18  # cm
 
-    phot_hdr = read_PFS_dump(pfs_path, hdr=True)
+    if type(pfs_path) == str:
+        phot_hdr = read_PFS_dump(pfs_path, hdr=True)
+    else:
+        phot_hdr = pfs_path
 
     # print(mock["lambda_min"], mock["lambda_max"], mock["lambda_npix"])
 
-    if z>0:
+    if z > 0:
         dL = cosmo.luminosity_distance(z).to(u.cm).value
     else:
         dL = 10 * PC_cm
 
     lambda_bins = np.linspace(
-        mock["lambda_min"]*(1+z), mock["lambda_max"]*(1+z), mock["lambda_npix"]
-    ) #* (1+z)  # angstrom
+        mock["lambda_min"] * (1 + z), mock["lambda_max"] * (1 + z), int(mock["lambda_npix"])
+    )  # * (1+z)  # angstrom
     dlamb = np.diff(lambda_bins)[0]  # * 1e-10
     nrg = c * h / (lambda_bins * 1e-10) * 1e7  # erg
-    nrg *= phot_hdr["total_flux"] / phot_hdr["nphotons"] / dlamb
+    nrg *= phot_hdr["total_flux"] / int(phot_hdr["nphotons"]) / dlamb
 
-
-    nrg /= (
-        4 * np.pi * dL ** 2
-    )  # to flux at observer
+    nrg /= 4 * np.pi * dL**2  # to flux at observer
     if z > 0:
         nrg *= 1 + z  # dimming
     # nrg /= aperture_cm**2 * np.pi
     # nrg *= mock["aperture"] ** 2  # to luminisity at aperture
     # nrg /= 1 + z  # dimming
 
-    return nrg * mock["spectrum"]
+    return nrg * np.copy(mock["spectrum"])
     # mock["spectrum"] = nrg * mock["spectrum"]
 
     # as in rascas/py/mocks.py by Leo Michel Dansac
@@ -181,100 +200,287 @@ def spec_to_erg_s_A_cm2(mock, pfs_path, z):  # , aperture_cm):  # in obs frame
     # mock["spectrum"] *= nrg
 
 
-def cube_to_erg_s_A_cm2_as2(mock, pfs_path, z, aper_as):  # in obs frame
+def cube_to_erg_s_A_cm2_as2(mock, pfs, z, aper_as2):  # in obs frame if z!=0
 
     PC_cm = 3.08e18
 
-    phot_hdr = read_PFS_dump(pfs_path, hdr=True)  # why pfs here ?
+    if type(pfs) == str:
+        phot_hdr = read_PFS_dump(pfs, hdr=True)
+    else:
+        phot_hdr = pfs
 
     # print(mock["lambda_min"], mock["lambda_max"], mock["lambda_npix"])
-    if z>0:
+    if z > 0:
         dL = cosmo.luminosity_distance(z).to(u.cm).value  # cm
     else:
         dL = 10 * PC_cm
 
     # dx_as = np.arctan(dx_cm / dL) * 180 / np.pi * 3600  # as
-    dx_as = aper_as / mock["cube"].shape[0]
+    dx_as2 = aper_as2 / np.prod(mock["cube"].shape[:2])
 
     lambs = np.linspace(
-        mock["lambda_min"]*(1+z), mock["lambda_max"]*(1+z), mock["lambda_npix"]
+        mock["lambda_min"] * (1 + z), mock["lambda_max"] * (1 + z), mock["lambda_npix"]
     )  # angstrom
     dlamb = np.diff(lambs)[0]
     nrg = c * h / (lambs * 1e-10) * 1e7  # erg
     nrg *= phot_hdr["total_flux"] / phot_hdr["nphotons"] / dlamb
-    nrg /= dx_as**2  # cell surface
+    nrg /= dx_as2  # cell solid angle
     nrg /= 4 * np.pi * dL**2  # to flux at observer
 
-    nrg *= 1 + z  # dimming
+    nrg *= (1 + z)  # dimming
 
     mock["cube"] = nrg * mock["cube"]
 
 
-def read_mock_dump(fname, ndir=1):
+def read_mock_dump(fname, ndir=1,debug=False):
     file_type = fname.split(".")[-1]
 
     mocks = {}
 
+    if type(ndir)==int:
+        dir_args = np.arange(ndir+1)
+        print(f"Reading all to direction {ndir}")
+    else:
+        dir_args = [nd for nd in ndir]
+        print(f"Reading only directions {ndir}")
+
+    print(dir_args)
+
     with open(fname, "rb") as src:
+    # with open(fname,'rb') as f:
+        # with contextlib.closing(mmap.mmap(f.fileno(),0,access=mmap.ACCESS_READ)) as src:
 
-        for idir in range(ndir):
+            for idir in dir_args:
 
-            mock = {}
-            mock["type"] = file_type
+                if debug:print(f"direction:{idir}")
 
-            if file_type == "flux":
-                pass
+                mock = {}
+                mock["type"] = file_type
 
-            elif file_type == "spectrum":
-                npix = read_record(src, 1, np.int32)
-                aperture, lambda_min, lambda_max = read_record(src, 3, np.float64)
-                spec = np.zeros(npix, dtype=np.float64)
-                spec = read_record(src, npix, np.float64)
+                if file_type == "flux":
+                    pass
 
-                mock["aperture"] = aperture
-                mock["lambda_min"] = lambda_min
-                mock["lambda_max"] = lambda_max
-                mock["lambda_npix"] = npix
-                mock["spectrum"] = spec
+                elif file_type == "spectrum":
 
-            elif file_type == "image":
-                img_npix = read_record(src, 1, np.int32)
-                # print(img_npix)
-                img_side = read_record(src, 1, np.float64)
-                img_ctr = read_record(src, 3, np.float64)
-                img = np.zeros((img_npix, img_npix), dtype=np.float64)
-                img = read_record(src, img_npix * img_npix, np.float64).reshape(
-                    img_npix, img_npix
-                )
+                    npix = read_record(src, 1, np.int32,debug=debug)
+                    if idir not in dir_args:
+                        skip_record(src,1,debug=debug)
+                        skip_ndata(src,npix,np.float64,debug=debug)
+                        continue
+                    else:
+                        aperture, lambda_min, lambda_max = read_record(src, 3, np.float64,debug=debug)
+                        spec = read_record(src, npix, np.float64,debug=debug)
 
-                mock["img_npix"] = img_npix
-                mock["img_side"] = img_side
-                mock["img_ctr"] = img_ctr
+                        mock["aperture"] = aperture
+                        mock["lambda_min"] = lambda_min
+                        mock["lambda_max"] = lambda_max
+                        mock["lambda_npix"] = npix
+                        mock["spectrum"] = spec
 
-                mock["image"] = img
+                elif file_type == "image":
+                    img_npix = read_record(src, 1, np.int32,debug=debug)
+                    if idir not in dir_args:
+                        skip_record(src,1,debug=debug)
+                        skip_record(src,1,debug=debug)                        
+                        skip_ndata(src,img_npix**2,np.float64,debug=debug)  
+                        continue 
+                    else:
+                        img_side = read_record(src, 1, np.float64,debug=debug)
+                        img_ctr = read_record(src, 3, np.float64,debug=debug)
+                        img = read_record(src, img_npix * img_npix, np.float64,debug=debug).reshape(
+                            img_npix, img_npix
+                        )
 
-            elif file_type == "cube":
-                lambda_npx, img_npx = read_record(src, 2, np.int32)
-                lambda_min, lambda_max, cube_side = read_record(src, 3, np.float64)
-                cube_ctr = read_record(src, 3, np.float64)
-                cube = np.zeros((lambda_npx, img_npx, img_npx), dtype=np.float64)
-                cube = read_record(
-                    src, lambda_npx * img_npx * img_npx, np.float64
-                ).reshape(img_npx, img_npx, lambda_npx)
+                        mock["img_npix"] = img_npix
+                        mock["img_side"] = img_side
+                        mock["img_ctr"] = img_ctr
 
-                mock["lambda_npix"] = lambda_npx
-                mock["lambda_min"] = lambda_min
-                mock["lambda_max"] = lambda_max
+                        mock["image"] = img
 
-                mock["img_npix"] = img_npx
+                elif file_type == "cube":
+                    lambda_npx, img_npx = read_record(src, 2, np.int32,debug=debug)
+                    if idir not in dir_args:
+                        skip_record(src,1,debug=debug)
+                        skip_record(src,1,debug=debug)                        
+                        skip_ndata(src,img_npx**2 * lambda_npx,np.float64,debug=debug)  
+                        continue
+                    else:
+                        lambda_min, lambda_max, cube_side = read_record(src, 3, np.float64,debug=debug)
+                        cube_ctr = read_record(src, 3, np.float64,debug=debug)
+                        if debug:print(lambda_npx, img_npx, lambda_min, lambda_max, cube_side, cube_ctr)
+                        cube = read_record(src, lambda_npx * img_npx * img_npx, np.float64,
+                        debug=debug).reshape(img_npx, img_npx, lambda_npx)
+                        # cube = np.memmap(fname,dtype=np.float64,offset=64 * (3 + 3 + 2),shape=(img_npx, img_npx, lambda_npx),order='F')
+                        # cube = np.memmap(fname,dtype=np.float64,offset=64 * (3 + 3 + 2),shape=(img_npx**2*lambda_npx)).reshape(img_npx, img_npx, lambda_npx)
 
-                mock["cube_side"] = cube_side
-                mock["cube_ctr"] = cube_ctr
-                mock["cube"] = cube
+                        mock["lambda_npix"] = lambda_npx
+                        mock["lambda_min"] = lambda_min
+                        mock["lambda_max"] = lambda_max
 
-            mocks[f"direction_{idir:d}"] = mock
+                        mock["img_npix"] = img_npx
+
+                        mock["cube_side"] = cube_side
+                        mock["cube_ctr"] = cube_ctr
+                        mock["cube"] = cube
+
+                mocks[f"direction_{idir:d}"] = mock
 
     return mocks
+
+
+def compress_mock(fout, PFSheader, cubes=None, specs=None):
+
+    assert (
+        cubes is not None or specs is not None
+    ), "must either give a cubes or spec dict (or both)"
+
+    with h5py.File(fout, "w") as dest:
+
+        dest.create_dataset(
+            "nphotons", data=PFSheader["nphotons"]
+        )  # essential! used for inferring physical units for mocks
+        dest.create_dataset("total_flux", data=PFSheader["total_flux"])
+
+        if specs is not None:
+
+            spec_grp = dest.create_group("spectrum")
+
+            ndir = sum([1 for k in specs.keys() if k.startswith("direction")])
+
+            for idir in range(ndir):
+
+                dir_key = f"direction_{idir}"
+
+                if idir == 0:
+                    spec_grp.create_dataset("aperture", data=specs[dir_key]["aperture"])
+                    spec_grp.create_dataset(
+                        "lambda_min", data=specs[dir_key]["lambda_min"]
+                    )
+                    spec_grp.create_dataset(
+                        "lambda_max", data=specs[dir_key]["lambda_max"]
+                    )
+                    spec_grp.create_dataset(
+                        "lambda_npix", data=specs[dir_key]["lambda_npix"]
+                    )
+
+                spec_grp.create_dataset(
+                    f"spectrum_{idir}",
+                    data=specs[dir_key]["spectrum"],
+                    compression="lzf",
+                )
+
+        if cubes is not None:
+
+            cube_grp = dest.create_group("cube")
+
+            ndir = sum([1 for k in cubes.keys() if k.startswith("direction")])
+
+            for idir in range(ndir):
+
+                dir_key = f"direction_{idir}"
+
+                if idir == 0:
+                    cube_grp.create_dataset(
+                        "cube_side", data=cubes[dir_key]["cube_side"]
+                    )
+                    cube_grp.create_dataset("cube_ctr", data=cubes[dir_key]["cube_ctr"])
+                    cube_grp.create_dataset("img_npix", data=cubes[dir_key]["img_npix"])
+                    cube_grp.create_dataset(
+                        "lambda_min", data=cubes[dir_key]["lambda_min"]
+                    )
+                    cube_grp.create_dataset(
+                        "lambda_max", data=cubes[dir_key]["lambda_max"]
+                    )
+                    cube_grp.create_dataset(
+                        "lambda_npix", data=cubes[dir_key]["lambda_npix"]
+                    )
+
+                cube_grp.create_dataset(
+                    f"cube_{idir}",
+                    data=cubes[dir_key]["cube"],
+                    compression="lzf",
+                )
+
+    return 1
+
+
+# def read_compress_mock(fname,dtype=np.float32):
+def read_compress_mock(fname,ndirs=None,dtype=None):
+
+    read_mocks = h5_to_dict(fname,dtype=dtype)
+    # print(fname, fname.split("/")[:-1])
+    rascas_dir = "/".join(fname.split("/")[:-1])
+    # print(rascas_dir)
+
+    # dicts going out
+    mocks_spe = {}
+    mocks_cube = {}
+    pfs_header = {}
+
+    ndir = len(
+        [
+            k
+            for k in read_mocks["cube"].keys()
+            if k.startswith("cube") and "side" not in k and "ctr" not in k
+        ]
+    )
+
+    if type(ndirs)==int:
+        ndirs=[ndirs]
+
+    # to old format
+    for idir in range(ndir):
+
+        if ndirs is not None:
+            if idir not in ndirs:
+                print(f'skipping direction {idir}')
+                continue
+
+        dirkey = f"direction_{idir}"
+
+        if "spectrum" in read_mocks.keys():
+            mocks_spe[dirkey] = {}
+            for k in ["aperture", "lambda_min", "lambda_max", "lambda_npix"]:
+                mocks_spe[dirkey][k] = read_mocks["spectrum"][k]
+            mocks_spe[dirkey]["spectrum"] = read_mocks["spectrum"][f"spectrum_{idir}"]
+        else:
+            print("no spectrum entries found in compressed mock file")
+
+        if "cube" in read_mocks.keys():
+            mocks_cube[dirkey] = {}
+            for k in [
+                "cube_side",
+                "cube_ctr",
+                "img_npix",
+                "lambda_min",
+                "lambda_max",
+                "lambda_npix",
+            ]:
+                mocks_cube[dirkey][k] = read_mocks["cube"][k]
+            mocks_cube[dirkey]["cube"] = read_mocks["cube"][f"cube_{idir}"]
+        else:
+            print("no cube entries found in compressed mock file")
+
+    for kpfs in ["nphotons", "total_flux"]:
+        if kpfs in read_mocks.keys():
+            pfs_header[kpfs] = read_mocks[kpfs]
+
+    #handle old cases with missing nphotons and total luminosity
+    if pfs_header == {}:
+
+        tot_flux_line = find_line_in_file(
+            os.path.join(rascas_dir, "log_PFS"), "Total luminosity"
+        )[0]
+        # print(tot_flux_line)
+        pfs_header["total_flux"] = float(tot_flux_line.split(":")[-1])
+
+        nphot_line = find_line_in_file(
+            os.path.join(rascas_dir, "params_PFS.cfg"), "nPhotonPackets"
+        )[0]
+        # print(nphot_line)
+        pfs_header["nphotons"] = float(nphot_line.split("=")[-1])
+
+    return mocks_spe, mocks_cube, pfs_header
 
 
 def mock_spe_dump(

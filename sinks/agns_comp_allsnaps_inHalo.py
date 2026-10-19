@@ -54,7 +54,6 @@ from hagn.catalogues import make_super_cat, get_cat_hids
 
 from f90_tools.star_reader import read_part_ball_hagn, read_part_ball_NCdust
 
-
 hagn_snap = 197  # z=2 in the full res box
 HAGN_gal_dir = f"/data40b/Horizon-AGN/STARS"
 delta_t = 100  # Myr
@@ -82,7 +81,9 @@ sdirs = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_nh2",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_no_sink_desc",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_vlowSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN",
@@ -116,8 +117,14 @@ sdirs = [
     # # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_noHydroDragB4z4merge",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_halfSN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
 ]
 
 
@@ -327,6 +334,9 @@ for sdir in sdirs:
 
             # print(sinks)
 
+            if sinks == {}:
+                continue
+
             mbh_hagn[istep] = sinks["mass"].sum()
             mdot_hagn[istep] = sinks["dMBH_coarse"].sum()
             mdotEdd_hagn[istep] = sinks["dMEd_coarse"].sum()
@@ -409,7 +419,9 @@ for sdir in sdirs:
             if cur_snap_hid in [-1, 0]:
                 continue
 
-            hprops, hgals = get_halo_props_snap(sim.path, snap, hid=cur_snap_hid)
+            hprops = get_halo_props_snap(sim.path, snap, hids=cur_snap_hid)[
+                f"halo_{cur_snap_hid:07d}"
+            ]
 
             tgt_pos = hprops["pos"]
             tgt_r = hprops["rvir"]
@@ -422,6 +434,9 @@ for sdir in sdirs:
                 all_sinks=True,
                 tgt_fields=["position", "mass", "dMBH_coarse", "dMEd_coarse"],
             )
+
+            if zoom_sinks == {}:
+                continue
 
             if len(zoom_sinks["mass"]) == 0:
                 continue

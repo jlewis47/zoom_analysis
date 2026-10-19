@@ -5,47 +5,95 @@ import os
 # from scipy.signal import convolve
 # from scipy.ndimage import convolve1d
 from scipy.stats import binned_statistic, binned_statistic_2d
-from scipy.integrate import simpson, trapz
+from scipy.integrate import simpson, trapezoid
 
 from scipy.interpolate import interp1d
 
 from astropy import units as u
 from astropy.cosmology import Planck18 as cosmo
 
+import matplotlib.pyplot as plt
+
 
 def read_transmission(fin):
 
-    # print(fin)
+    print(fin)
     wav, trans = np.genfromtxt(fin, skip_header=1, comments="#").T
     return wav, trans
 
 
 def read_transmissions(
-    tgt_bands=None, IB=False, NB=False, MIRI=False, YJHK=True, NISP=True
+    tgt_bands=None,
+    NIRCAM=True,
+    HST=True,
+    HSC=True,
+    IRAC=True,
+    SuprimeCam=True,
+    ULTRAVISTA=True,
+    MIRI=True,
+    VISTA=True,
+    NISP=True,
+    VIS=True,
+    LSST=True,
+    GALEX=True,
+    MegaCam=True,
+    Euclid_EXT=True,
+    CLUTCH=True,
 ):
     root = "/home/jlewis/codes/zoom_analysis/rascas/filts"
 
     filters_files = [
         f
         for f in os.listdir(root)
-        if not ".py" in f and os.path.isfile(os.path.join(root, f))
+        if not f.endswith(".py") and os.path.isfile(os.path.join(root, f))
+        if not f.endswith(".png") and os.path.isfile(os.path.join(root, f))
+        if not "UVIS1" in f
     ]
 
     # print(filters_files)
 
-    if IB == False:
-        filters_files = [f for f in filters_files if "IB" not in f]
-    if NB == False:
-        filters_files = [f for f in filters_files if "NB" not in f]
+    if NIRCAM == False:
+        filters_files = [f for f in filters_files if "NIRCAM" not in f]
+    if HST == False:
+        filters_files = [f for f in filters_files if "HST" not in f]
+    if SuprimeCam == False:
+        filters_files = [f for f in filters_files if "SuprimeCam" not in f]
+    if ULTRAVISTA == False:
+        filters_files = [f for f in filters_files if "ULTRAVISTA" not in f]
     if MIRI == False:
         filters_files = [f for f in filters_files if "MIRI" not in f]
-    if YJHK == False:
-        filters_files = [f for f in filters_files if not f.startswith("Y.")]
-        filters_files = [f for f in filters_files if not f.startswith("J.")]
-        filters_files = [f for f in filters_files if not f.startswith("H.")]
-        filters_files = [f for f in filters_files if not f.startswith("K.")]
+    if VISTA == False:
+        filters_files = [f for f in filters_files if not f.startswith("VISTA")]
     if NISP == False:
-        filters_files = [f for f in filters_files if not f.startswith("NISP.")]
+        filters_files = [f for f in filters_files if not f.startswith("NISP")]
+    if VIS == False:
+        filters_files = [f for f in filters_files if not f.startswith("VIS")]
+    if LSST == False:
+        filters_files = [f for f in filters_files if not f.startswith("LSST")]
+    if GALEX == False:
+        filters_files = [f for f in filters_files if not f.startswith("GALEX")]
+    if MegaCam == False:
+        filters_files = [f for f in filters_files if not f.startswith("MegaCam")]
+    if HSC == False:
+        filters_files = [f for f in filters_files if not f.startswith("HSC")]
+    if IRAC == False:
+        filters_files = [f for f in filters_files if "IRAC" not in f]
+    if CLUTCH == False:
+        filters_files = [
+            f
+            for f in filters_files
+            if f not in ["NIRCAM-F200W.txt", "NIRCAM-F356W.txt"]
+        ]
+        filters_files = [
+            f
+            for f in filters_files
+            if f not in ["HST-F098W.pb", "HST-F435W.pb", "HST-F606W.pb"]
+        ]
+        filters_files = [f for f in filters_files if not f.startswith("UVIS")]
+        # filters_files = [f for f in filters_files if f != "HST-F098W.pb"]
+    if Euclid_EXT == False:
+        filters_files = [f for f in filters_files if not f.startswith("PS")]
+        filters_files = [f for f in filters_files if f != "MegaCam-r.pb"]
 
     filters_names = [f.split(".")[0] for f in filters_files]
     # print(filters_names)
@@ -64,7 +112,46 @@ def read_transmissions(
 
     # print(filters_names)
 
+    order = np.argsort(filters_names)
+
+    filters_names = [filters_names[o] for o in order]
+    filters_wavs = [filters_wavs[o] for o in order]
+    filters_trans = [filters_trans[o] for o in order]
+
+    print(f"Loaded {len(filters_names)} filters")
+
     return filters_names, filters_wavs, filters_trans
+
+
+def check_filters(path="."):
+
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10), layout="constrained")
+
+    names, wavs, trans = read_transmissions()
+
+    last_instr = ""
+    for n, w, t in zip(names, wavs, trans):
+        if last_instr == "" or last_instr != n.split("-")[0]:
+            color = None
+            last_instr = n.split("-")[0]
+        else:
+            color = l.get_color()
+        (l,) = ax.plot(w, t / t.sum(), label=n, color=color)
+        print(t.min(), t.max(), n)
+
+    ax.set_ylabel("transmission")
+    ax.set_xlabel("Angstrom")
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+
+    ax.set_ylim(
+        1e-4,
+    )
+
+    fig.legend(loc="outside lower center", ncols=4, framealpha=0.0)
+
+    fig.savefig("filt_test_all")
 
 
 def convolve_spe(spe_wav, spe_flux, filts_wav, filts_trans):
@@ -81,22 +168,28 @@ def convolve_spe(spe_wav, spe_flux, filts_wav, filts_trans):
             filt_wav, filt_trans, "linear", bounds_error=False, fill_value=0.0
         )
 
-        bin_filt_trans = inter_fct(spe_wav)
+        wav_min = filt_wav[0]
+        wav_max = filt_wav[-1]
+        i0 = np.searchsorted(spe_wav, wav_min)-1
+        i1 = np.searchsorted(spe_wav, wav_max)+1        
+
+        bin_filt_trans = inter_fct(spe_wav[i0:i1])
 
         bin_filt_trans[np.isnan(bin_filt_trans)] = 0.0
         if np.sum(bin_filt_trans) == 0:
             continue
 
         # convolve spectrum with filter
-        out[ifilt] = simpson(spe_flux[:] * bin_filt_trans, spe_wav[:]) / simpson(
-            bin_filt_trans, spe_wav[:]
+        out[ifilt] = simpson(spe_flux[i0:i1] * bin_filt_trans, spe_wav[i0:i1]) / simpson(
+            bin_filt_trans, spe_wav[i0:i1]
         )
+        # out[ifilt] = trapezoid(spe_flux[:] * bin_filt_trans, spe_wav[:]) / trapezoid(
+        #     bin_filt_trans, spe_wav[:]
+        # )
 
         # print(ifilt, out[ifilt])
 
         ctr[ifilt] = np.median(filt_wav)
-
-        ifilt += 1
 
     # print(px_weights)
 
@@ -109,55 +202,18 @@ def convolve_cube(spe_wav, spe_cube, filts_wav, filts_trans, rpix=None):
     right_half = int(np.ceil(rpix * 0.5))
     half = int(np.floor(spe_cube.shape[0] / 2))
 
+    work_cube = spe_cube[
+                half - left_half : half + right_half,
+                half - left_half : half + right_half,
+                :,
+            ]
+
     # incoming cubes are dims x,y,wav
     if rpix == None:
         rpix = spe_cube.shape[0]
     out_cube = np.zeros((len(filts_wav), rpix, rpix))
     ctr = np.zeros(len(filts_wav))
-    # px_weights = np.zeros_like(spe_flux)
-
-    # xs = np.arange(spe_cube.shape[0])
-    # ys = np.arange(spe_cube.shape[1])
-
-    # Xs,Ys = np.meshgrid(xs, ys)
-
-    # args =np.where(np.logical_and(np.abs(Xs-0.5*spe_cube.shape[0])<=int(rpix/2), np.abs(Ys-0.5*spe_cube.shape[1])<=int(rpix/2)))[0]
-
-    # # print(np.ravel(Ys))
-
-    # Yargs= np.ravel(Ys)[args]
-    # Xargs= np.ravel(Xs)[args]
-
-    # # print(args)
-    # # print(args.shape)
-
-    # # print(xs)
-
-    # xshape = np.sum(np.abs(xs-0.5*spe_cube.shape[0])<=rpix/2)
-    # yshape = np.sum(np.abs(ys-0.5*spe_cube.shape[1])<=rpix/2)
-
-    # # print(xs)
-
-    # # print(np.abs(xs)<=rpix/2)
-
-    # # # print(rpix, xargs)
-
-    # # print(np.abs(Xs)<=rpix/2)
-    # # print(np.sum(np.abs(Xs)<=rpix/2),Xs.shape)
-
-    # print(len(Xargs),xshape)
-    # print(len(Yargs),yshape)
-
-    # xargs = np.abs(np.arange(spe_cube.shape[0])-0.5*spe_cube.shape[0])<=rpix/2
-    # yargs = np.abs(np.arange(spe_cube.shape[1])-0.5*spe_cube.shape[1])<=rpix/2
-
-    # print(xargs, yargs)
-
-    # print(xargs.shape)
-
-    # print(spe_cube.shape)
-
-    # print(spe_cube[xargs, yargs, :].shape)
+  
 
     ifilt = 0
 
@@ -167,30 +223,37 @@ def convolve_cube(spe_wav, spe_cube, filts_wav, filts_trans, rpix=None):
             filt_wav, filt_trans, "linear", bounds_error=False, fill_value=0.0
         )
 
-        bin_filt_trans = inter_fct(spe_wav)
+
+        wav_min = filt_wav[0]
+        wav_max = filt_wav[-1]
+        i0 = np.searchsorted(spe_wav, wav_min)-1
+        i1 = np.searchsorted(spe_wav, wav_max)+1
+
+        bin_filt_trans = inter_fct(spe_wav[i0:i1])
+
+
         if np.sum(bin_filt_trans) == 0:
             continue
-
         # print(half, rpix, half_rpix, half+half_rpix, half-half_rpix)
 
         # convolve spectrum with filter
         # px_weights[:-1] += np.int32(bin_filt_trans > 0)
         out_cube[ifilt, :, :] = simpson(
-            spe_cube[
-                half - left_half : half + right_half,
-                half - left_half : half + right_half,
-                :,
-            ]
+        # out_cube[ifilt, :, :] = trapezoid(
+            work_cube[:,:,i0:i1]
             * bin_filt_trans[np.newaxis, np.newaxis, :],
-            spe_wav[:],
+            # np.einsum('ijk,k->ijk', work_cube[:,:,i0:i1], bin_filt_trans),
+            spe_wav[i0:i1],
             axis=2,
-        ) / simpson(bin_filt_trans, spe_wav[:])
+        # ) / trapezoid(bin_filt_trans, spe_wav[:])
+        ) / simpson(bin_filt_trans, spe_wav[i0:i1])
 
         # print(filt_wav)
+        
 
         ctr[ifilt] = np.median(filt_wav)
 
-        ifilt += 1
+ 
 
     return ctr, out_cube  # / px_weights
 

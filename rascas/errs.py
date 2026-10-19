@@ -59,22 +59,22 @@ def estimate_pseudogain(flux, flux_err):
 def cosmos_stuff(lephare_bands):
 
     lephare_to_err_bands = {
-        "f814_res": "HSTF814W",
-        "F444": "F444W",
-        "F115": "F115W",
-        "F150": "F150W",
-        "F277": "F277W",
-        "F770": "F770W",
-        "u_new": "u",
-        "gHSC": "gHSC",
-        "rHSC": "rHSC",
-        "iHSC": "iHSC",
-        "zHSC": "zHSC",
-        "yHSC": "yHSC",
-        "Y": "Y",
-        "K": "Ks",
-        "H": "H",
-        "J": "J",
+        "HST-f814_res": "HSTF814W",
+        "NIRCAM-F444": "F444W",
+        "NIRCAM-F115": "F115W",
+        "NIRCAM-F150": "F150W",
+        "NIRCAM-F277": "F277W",
+        "MIRI-F770": "F770W",
+        "MegaCam-u_new": "u",
+        "HSC-g": "gHSC",
+        "HSC-r": "rHSC",
+        "HSC-i": "iHSC",
+        "HSC-z": "zHSC",
+        "HSC-y": "yHSC",
+        "VISTA-Y": "Y",
+        "VISTA-Ks": "Ks",
+        "VISTA-H": "H",
+        "VISTA-J": "J",
         "IB427": "IB427",
         "IB467": "IB467",
         "IB484": "IB484",
@@ -96,14 +96,21 @@ def cosmos_stuff(lephare_bands):
         "zpp": "zpp",
         "ch1": "ch1",
         "ch2": "ch2",
-        "NUV": "NUV",
-        "FUV": "FUV",
+        "GALEX-NUV": "NUV",
+        "GALEX-FUV": "FUV",
         "NISP_Y": "NISP_Y",
         "NISP_J": "NISP_J",
         "NISP_H": "NISP_H",
     }
 
-    bands = [lephare_to_err_bands[lephare_band] for lephare_band in lephare_bands]
+    bands = [
+        (
+            lephare_to_err_bands[lephare_band]
+            # if lephare_band in lephare_to_err_bands.keys()
+            # else lephare_band
+        )
+        for lephare_band in lephare_bands
+    ]
 
     fact_err = {
         "HSTF814W": 0.01,
@@ -147,7 +154,7 @@ def cosmos_stuff(lephare_bands):
         "FUV": 0.006,
         "NISP_Y": 0.0,
         "NISP_J": 0.0,
-        "NISP_H": 0.0,        
+        "NISP_H": 0.0,
     }
     depth = {
         "HSTF814W": 27.8,
@@ -192,7 +199,6 @@ def cosmos_stuff(lephare_bands):
         "NISP_Y": np.inf,
         "NISP_J": np.inf,
         "NISP_H": np.inf,
-
     }
     nsig = {
         "HSTF814W": 3,
@@ -244,6 +250,13 @@ def cosmos_stuff(lephare_bands):
         np.asarray([depth[band] for band in bands]),
         np.asarray([nsig[band] for band in bands]),
     )
+    # return (
+    #     np.asarray(
+    #         [fact_err[band] if band in fact_err.keys() else 0.0 for band in bands]
+    #     ),
+    #     np.asarray([depth[band] if band in depth.keys() else 0.0 for band in bands]),
+    #     np.asarray([nsig[band] if band in nsig.keys() else 0.0 for band in bands]),
+    # )
 
 
 # def cosmos_fluxes(band):

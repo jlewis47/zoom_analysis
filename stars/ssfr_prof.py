@@ -49,7 +49,9 @@ from hagn.utils import get_hagn_sim, adaptahop_to_code_units
 from hagn.tree_reader import read_tree_rev, interpolate_tree_position
 from hagn.catalogues import get_halos_cat, make_super_cat, get_cat_hids, get_cat_gids
 
-from astropy.cosmology import Planck18 as cosmo
+# from astropy.cosmology import Planck18 as cosmo
+from astropy.cosmology import z_at_value
+import astropy.units as u
 
 from hagn.catalogues import make_super_cat, get_cat_hids
 
@@ -70,8 +72,9 @@ delta_t = 50  # Myr
 zstt = 2.0
 
 
-# sdir=    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
-# sdir=    "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_NClike"
+# sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
+sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike"
+
 # sdir=    "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF"
 # sdir=    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"
 # sdir=    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE/"
@@ -79,7 +82,7 @@ zstt = 2.0
 # sdir=    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE"
 # sdir=    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost"
 # sdir=    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictSF"
-sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe"
+# sdir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe"
 # sdir=    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288"
 # sdir=    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130"
 # sdir=    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
@@ -100,7 +103,6 @@ hagn_aexps = hagn_sim.get_snap_exps(param_save=False)
 hagn_times = hagn_sim.cosmo_model.age(1.0 / hagn_aexps - 1.0).value * 1e3
 
 tgt_zed = 1.0 / hagn_aexps[hagn_snaps == hagn_snap] - 1.0
-tgt_time = cosmo.age(tgt_zed).value
 
 
 last_hagn_id = -1
@@ -129,7 +131,7 @@ zoom_ls = [
 lines = []
 labels = []
 
-sfr_dt = 100  # Myr
+sfr_dt = 10  # Myr
 
 last_simID = None
 l = None
@@ -179,24 +181,30 @@ sim_aexps = sim.get_snap_exps()
 sim_times = sim.get_snap_times()
 sim.init_cosmo()
 sim_times = sim.cosmo_model.age(1.0 / sim_aexps - 1.0).value * 1e3
+tgt_time = sim.cosmo_model.age(tgt_zed).value
 
 # last sim_aexp
 # valid_steps = hagn_tree_aexps < (1.0 / (tgt_zed + 1.0))  # sim.aexp_end
 # nsteps = np.sum(valid_steps)
 
-nbins = 10
+nbins = 20
 rbins_ckpc = np.logspace(-1, 2, nbins)
 
 # steps = [6,5,4,3.5,3,2.75,2.5,2.375,2.25,2.2,2.15,2.1,2.05,2.0,1.9] # z
-steps = np.round(np.arange(2, 7, 0.2, dtype=np.float32)[::-1], decimals=1)
-uniq_rounded_avail_zeds = np.unique(np.round(1.0 / sim_aexps - 1, decimals=1))
-# print(uniq_rounded_avail_zeds,steps)
+# steps = np.round(np.arange(2, 7, 0.2, dtype=np.float32)[::-1], decimals=1)
+steps_myr = np.arange(sim_times.min(), sim_times.max(), 150, dtype=np.float32)[::-1]
+steps = z_at_value(sim.cosmo_model.age, steps_myr * u.Myr)
 # print(np.in1d(steps,uniq_rounded_avail_zeds))
 # print(np.in1d(np.round(1./sim_aexps-1,decimals=1),steps))
-steps = np.intersect1d(steps, uniq_rounded_avail_zeds)
+uniq_rounded_avail_zeds = np.unique(np.round(1.0 / sim_aexps - 1, decimals=1))
+uniq_rounded_steps = np.unique(np.round(steps, decimals=1))
+steps = np.intersect1d(uniq_rounded_steps, uniq_rounded_avail_zeds)
+# print(uniq_rounded_avail_zeds, steps)
+steps = steps[steps < 2.5]
+
 nsteps = len(steps)
 
-# print(steps,nsteps)
+# print(steps, nsteps)
 
 mstel_profs = np.zeros((nsteps, nbins))
 sfr_profs = np.zeros((nsteps, nbins))
@@ -316,7 +324,6 @@ gal_exps = gal_props_tree["aexps"]
 
 lsteps = len(hids)
 
-
 smooth_gal_props = smooth_props(gal_props_tree)
 
 for istep, tgt_zed in enumerate(steps):
@@ -425,6 +432,8 @@ for istep, tgt_zed in enumerate(steps):
 
     tgt_r = rbins_ckpc.max() / sim.cosmo.lcMpc / 1e3  # ckpc->code
 
+    print(tgt_pos, tgt_r, cur_snap_hid)
+
     try:
         stars = read_data_ball(
             sim,
@@ -449,7 +458,7 @@ for istep, tgt_zed in enumerate(steps):
     Zs = stars["metallicity"]
     masses = stars["mass"]
 
-    masses = masses = sfhs.correct_mass(sim, ages, masses, Zs)
+    masses = sfhs.correct_mass(sim, ages, masses, Zs)
 
     for ibin, rbin in enumerate(rbins_ckpc):
 
@@ -531,6 +540,76 @@ ax[1, 1].set_ylabel("Vrot/sigma")
 
 fig_dir = os.path.join("figs", main_star_str)
 f_fig = os.path.join(fig_dir, f"star_profile_{sim.name}.png")
+
+# get lines for legend from an axis
+handles, labels = ax[0, 0].get_legend_handles_labels()
+
+step_strs = [f"z={s:.2f}" for s in steps]
+ax[1, 2].legend(handles, step_strs, framealpha=0.0, loc="center", fontsize=14)
+ax[1, 2].axis("off")
+ax[0, 2].axis("off")
+
+print(f"wrote {f_fig}")
+
+fig.savefig(f_fig)
+
+
+fig, ax = plt.subplots(2, 3, sharex=True, figsize=(15, 10))
+
+# colors = plt.cm.viridis((np.asarray(steps)-np.min(steps))/(np.max(steps)-np.min(steps)))
+colors = plt.cm.viridis(np.linspace(0, 1, len(steps)))
+
+for istep in range(len(steps)):
+
+    (c,) = ax[0, 0].plot(
+        rbins_ckpc*sim.cosmo_model.arcsec_per_kpc_comoving(steps[istep]).value,
+        mstel_profs[istep],
+        c=colors[istep],
+        linestyle=zoom_ls[zoom_style],
+        label=f"z={steps[istep]}",
+    )
+    ax[0, 1].plot(
+        rbins_ckpc* sim.cosmo_model.arcsec_per_kpc_comoving(steps[istep]).value,
+        sfr_profs[istep] / 1e6,
+        color=c.get_color(),
+        linestyle=zoom_ls[zoom_style],
+    )
+
+    ax[1, 0].plot(
+        rbins_ckpc* sim.cosmo_model.arcsec_per_kpc_comoving(steps[istep]).value,
+        sfr_profs[istep] / mstel_profs[istep] / 1e6,
+        color=c.get_color(),
+        linestyle=zoom_ls[zoom_style],
+    )
+    ax[1, 1].plot(
+        rbins_ckpc* sim.cosmo_model.arcsec_per_kpc_comoving(steps[istep]).value,
+        np.abs(vrot_profs[istep]) / disp_profs[istep],
+        color=c.get_color(),
+        linestyle=zoom_ls[zoom_style],
+    )
+
+
+ax[0, 0].set_xscale("log")
+ax[0, 0].set_yscale("log")
+ax[0, 0].set_xlabel("r [as]")
+ax[0, 0].set_ylabel("total M* <r [Msun]")
+
+ax[0, 1].set_xscale("log")
+ax[0, 1].set_yscale("log")
+ax[0, 1].set_xlabel("r [as]")
+ax[0, 1].set_ylabel("total SFR <r [Msun/yr]")
+
+ax[1, 0].set_xscale("log")
+ax[1, 0].set_yscale("log")
+ax[1, 0].set_xlabel("r [as]")
+ax[1, 0].set_ylabel("total sSFR <r [yr^-1]")
+
+ax[1, 1].set_xscale("log")
+ax[1, 1].set_xlabel("r [as]")
+ax[1, 1].set_ylabel("Vrot/sigma")
+
+fig_dir = os.path.join("figs", main_star_str)
+f_fig = os.path.join(fig_dir, f"star_profile_{sim.name}_as.png")
 
 # get lines for legend from an axis
 handles, labels = ax[0, 0].get_legend_handles_labels()

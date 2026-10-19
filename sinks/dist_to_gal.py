@@ -36,7 +36,7 @@ import numpy as np
 import h5py
 
 
-tgt_zed = 2.0
+tgt_zed = 5.0
 
 hagn_snap = 197  # z=2 in the full res box
 # HAGN_gal_dir = f"/data40b/Horizon-AGN/TREE_STARS/GAL_{hagn_snap:05d}"
@@ -59,7 +59,10 @@ sim_paths = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_drag_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130_nh2",
-    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc_goodfix",
+    "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_nsc_biernacki",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_vlowSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_high_SN",
@@ -87,10 +90,10 @@ sim_paths = [
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646_sf0_noboost_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
-    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
 ]
 
 
@@ -191,7 +194,7 @@ for isim, sim_path in enumerate(sim_paths):
             saved_hagn_tree_aexps = f["hagn_tree_aexps"][:]
 
         sim_snap = sim.snap_numbers[-2]
-        last_sink_file = snap_to_coarse_step(sim_snap, sim)
+        last_sink_file,found = snap_to_coarse_step(sim_snap, sim)
         aexp_last_sink_file = read_sink_bin(
             os.path.join(sim.sink_path, f"sink_{last_sink_file:05d}.dat"),
         )["aexp"]

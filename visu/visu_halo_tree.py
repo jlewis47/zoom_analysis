@@ -6,6 +6,8 @@ from matplotlib.patches import Circle
 from matplotlib import patheffects as pe
 import os
 
+import argparse
+
 from hagn.utils import get_hagn_sim
 
 from zoom_analysis.constants import *
@@ -36,51 +38,152 @@ from zoom_analysis.visu.visu_fct import (
 )
 
 from zoom_analysis.trees.tree_reader import read_tree_file_rev_correct_pos
-from scipy.interpolate import UnivariateSpline
 
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_DynBondiGravSinkMass_SE"
-# sim_dir = (
-# "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowSFE_gravSink_SE"
-# )
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_superEdd_drag"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id147479_old"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_old"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id147479"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_eagn_T0p15"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099_inter"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id74099"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242704_novrel"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id21892_novrel"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756_nh"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id26646"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_21/mh1e12/id26646"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id112288"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_lowSFE_DynBondiGravSinkMass"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_drag_minMassDynGrav"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_kicks"
-# sim_dir = "/data102/jlewis/sims/lvlmax_21/mh1e12/id180130_model6_eps0p05"
-# sim_dir = "/data103/jlewis/sims/lvlmax_21/mh1e12/id180130_256"
-# sim_dir = "/data102/jlewis/sims/lvlmax_20/mh1e12/id180130_superEdd_drag"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289"
-# sim_dir = "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt"
-sim_dir = "/data103/jlewis/sims/lvlmax_22/mh1e12/id180130"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel"
-# sim_dir = "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost"
-# sim_dir= "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_XtremeLowSFE_stgNHboost_strictSF"
-# sim_dir= "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_SuperLowSFE_stgNHboost_strictSF"
-# sim_dir= "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost_strictestSF_lowSNe"
+
+vmin = vmax = None
+cmap = None
+cb = True
+mode = "sum"
+marker_color = "white"
+
+fields_config = {
+    "density": {
+        "cmap": "magma",
+        "vmin": 1e-26,
+        "vmax": 1e-20,
+    },
+    "velocity": {
+        "cmap": "bwr",
+        "subtract_mean": True,
+        "mode": "mean",  # alternative: "max"
+        "vmin": -1e3,
+        "vmax": 1e3,
+    },
+    "temperature": {
+        "cmap": "plasma",
+        "vmin": 1e3,
+        "vmax": 1e7,
+    },
+    "metallicity": {
+        "cmap": "YlOrRd",
+        "vmin": 1e-5,
+        "vmax": 1e-1,
+        "mode": "mean",
+    },
+    "dust_bin01": {
+        "vmin": 1e-8,
+        "vmax": 1e-3,
+    },
+    "dust_bin02": {
+        "vmin": 1e-8,
+        "vmax": 1e-3,
+    },
+    "dust_bin03": {
+        "vmin": 1e-8,
+        "vmax": 1e-3,
+    },
+    "dust_bin04": {
+        "vmin": 1e-8,
+        "vmax": 1e-3,
+    },
+    "DTM": {
+        "cmap": "YlGnBu",
+        "vmin": 1e-4,
+        "vmax": 0.5,
+        "mode": "mean",
+    },
+    "DTMCs": {
+        "cmap": "YlGnBu",
+        "vmin": 1e-4,
+        "vmax": 0.5,
+        "mode": "mean",
+    },
+    "DTMCl": {
+        "cmap": "YlGnBu",
+        "vmin": 1e-4,
+        "vmax": 0.5,
+        "mode": "mean",
+    },
+    "DTMSil": {
+        "cmap": "YlGnBu",
+        "vmin": 1e-4,
+        "vmax": 0.5,
+        "mode": "mean",
+    },
+    "DTMSis": {
+        "cmap": "YlGnBu",
+        "vmin": 1e-4,
+        "vmax": 0.5,
+        "mode": "mean",
+    },
+    "stellar mass": {
+        "cmap": "gray",  # alternative: "viridis"
+        "vmin": 6e4,
+        "vmax": 1e9,
+        "marker_color": "r",
+    },
+    "stellar age": {
+        "cmap": "Spectral_r",
+        "vmin": 1e1,   # Myr
+        "vmax": 1e3,
+        "mode": "mean",
+    },
+    "SFR1": {
+        "cmap": "hot",
+        "vmin": 1,
+        "vmax": 5e2,
+        "mode": "mean",
+    },
+    "SFR10": {
+        "cmap": "hot",
+        "vmin": 1,
+        "vmax": 5e2,
+        "mode": "mean",
+    },
+    "SFR100": {
+        "cmap": "hot",
+        "vmin": 1,
+        "vmax": 5e2,
+        "mode": "mean",
+    },
+    "SFR300": {
+        "cmap": "hot",
+        "vmin": 1,
+        "vmax": 5e2,
+        "mode": "mean",
+    },
+    "SFR500": {
+        "cmap": "hot",
+        "vmin": 1,
+        "vmax": 5e2,
+        "mode": "mean",
+    },
+    "SFR1000": {
+        "cmap": "hot",
+        "vmin": 1,
+        "vmax": 5e2,
+        "mode": "mean",
+    },
+    "dm mass": {
+        "cmap": "viridis",
+    },
+    "pressure": {
+        "vmin": 10,   # k
+        "vmax": 1e5,
+    },
+}
+
+
+arg_parse = argparse.ArgumentParser()
+
+arg_parse.add_argument('sim',type=str,help="path to ramses simulation")
+arg_parse.add_argument('field',type=str,choices=fields_config.keys())
+arg_parse.add_argument('aperture',type=float,help="aperture size in ckpc, default use r50",default=-1)
+
+args = arg_parse.parse_args()
+
+sim_dir = args.sim
+field = args.field
 
 sim = ramses_sim(sim_dir, nml="cosmo.nml")
 
@@ -114,7 +217,7 @@ aexps = sim.get_snap_exps()
 times = sim.get_snap_times()
 
 zstt = 2.0
-tgt_zed = 2.0
+tgt_zed = 2.5
 max_zed = 8.0
 
 delta_t = 4  # Myr
@@ -122,7 +225,7 @@ every_snap = True  # try and interpolate between tree nodes if not found
 
 rad_fact = 5.0  # fraction of radius to use as plot window
 use_r50 = True
-fixed_r_ckpc = 45
+fixed_r_ckpc = args.aperture
 
 plot_win_str = str(rad_fact).replace(".", "p")
 if fixed_r_ckpc > 0:
@@ -151,88 +254,31 @@ pdf = False
 # zdist = 50  # ckpc
 # hm = "HaloMaker_DM_dust"
 
-
 hagn_sim = get_hagn_sim()
 
-vmin = vmax = None
-cmap = None
-cb = True
+
+# for field in density temperature metallicity DTM DTMCs DTMCl DTMSis DTMSil "stellar mass" SFR100; do pyjob_long visu_halo_tree.py /data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380 $field; done
 
 
-mode = "sum"
-marker_color = "white"
+field_setup = fields_config[field]
 
-# field = "density"
-# cmap = "magma"
-# vmin = 1e-26
-# vmax = 1e-20
+if "cmap" in field_setup:
+    cmap = field_setup["cmap"]
 
-# field = "velocity"
-# cmap = "bwr"
-# subtract_mean=True
-# mode="mean"
-# # mode="max"
-# vmin = -1e3
-# vmax = 1e3
+if "vmin" in field_setup:
+    vmin = field_setup["vmin"]
 
+if "vmax" in field_setup:
+    vmax = field_setup["vmax"]
 
-# field = "temperature"
-# vmin = 1e3
-# vmax = 1e7
-# cmap = "plasma"
+if "mode" in field_setup:
+    mode = field_setup["mode"]
 
+if "subtract_mean" in field_setup:
+    subtract_mean = field_setup["subtract_mean"]
 
-# field = "metallicity"
-# vmin = "1e-5"
-# vmax = "1e-1"
-# cmap = "YlOrRd"
-
-# field = "dust_bin01"
-# field = "dust_bin02"
-# field = "dust_bin03"
-# field = "dust_bin04"
-
-# field = "DTM"
-# vmin = 1e-5
-# vmax = 1
-# cmap = "YlGnBu"
-# mode = "mean"
-
-field = "stellar mass"
-cmap = "gray"
-# cmap = "viridis"
-vmin = 6e4
-vmax = 1e9
-marker_color = "r"
-
-# field = "stellar age"
-# vmin = 1e1  # Myr
-# vmax = 1e3
-# cmap = "Spectral_r"
-# mode = "mean"
-
-# # field = "SFR1"
-# field = "SFR10"
-# field = "SFR100"
-# # # # field = "SFR300"
-# # # field = "SFR500"
-# # # # field = "SFR1000"
-# mode = "mean"
-# cmap = "hot"
-# vmin = 1
-# vmax = 5e2
-
-# field = "dm mass"
-# cmap = "viridis"
-
-
-# field = "pressure"
-# vmin = 10  # k
-# vmax = 1e5
-# tree_hids, tree_datas, tree_aexps = read_tree_rev(
-#     tree_path, tgt_zed, tree_type="halo", target_fields=["m", "x", "y", "z", "r"]
-# )
-
+if "marker_color" in field_setup:
+    marker_color = field_setup["marker_color"]
 
 sim = ramses_sim(sim_dir, nml="cosmo.nml")
 sim.init_cosmo()
@@ -292,9 +338,10 @@ start_snap = sim.get_closest_snap(aexp=start_aexp)
 #     [-0.70710678, -0.70710678, 0.0],
 #     [-0.47140452, 0.47140452, -0.74535599],
 # ]
+rascas_dir = [0,0,1]  # dirnb 0
 
 # rascas_dir = [0.52704628, -0.52704628, -0.66666667] # - dir nb 1
-rascas_dir = [0.52704628, 0.52704628, 0.66666667]  # dirnb 0
+# rascas_dir = [0.52704628, 0.52704628, 0.66666667]  # dirnb 0
 # rascas_dir = [-0.527046, 0.527046, 0.666667]  # dirnb 1
 # rascas_dir = [0.52704628, -0.52704628, 0.66666667]  # dirnb 3
 # rascas_dir= [0.527046, 0.527046, 0.666667]
@@ -538,7 +585,7 @@ for snap, aexp, time in zip(snaps[::-1], aexps[::-1], times[::-1]):
             fill=False,
             edgecolor=marker_color,
             lw=2,
-            ls=':',
+            ls=":",
             zorder=999,
         )
 

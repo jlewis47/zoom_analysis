@@ -47,7 +47,7 @@ from zoom_analysis.visu.visu_fct import get_gal_props_snap
 
 # fig, ax = sink_histories.setup_bh_plot()
 
-tgt_zed = 4.0
+tgt_zed = 3.0
 
 
 stellar_bins = np.logspace(5.5, 12, 8)
@@ -139,6 +139,7 @@ sim_dirs = [
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130",
     "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id112288_novrel_lowerSFE_stgNHboost_strictSF/",
 ]
 # list of all available pyplot markers:
@@ -311,7 +312,7 @@ for isim, sim_dir in enumerate(sim_dirs):
             continue
 
         mO = 15.995  # amu
-        # mH = 1.0080  # amu
+        mH = 1.0080  # amu
 
         # dense_gas = gas["density"] / 1.67e-24 > 0.1
         # dense_gas = np.full_like(gas["density"], True)
@@ -333,8 +334,8 @@ for isim, sim_dir in enumerate(sim_dirs):
 
         cell_vols_cMpc3 = (sim.cosmo.lcMpc * 2 ** gas["ilevel"]) ** 3
 
-        ZOH[igal] = np.sum(cell_vols_cMpc3 * gas["chem_O"] / 16.0) / np.sum(
-            cell_vols_cMpc3 * gas["chem_H"] / 1.0
+        ZOH[igal] = np.sum(cell_vols_cMpc3 * gas["chem_O"] / mO) / np.sum(
+            cell_vols_cMpc3 * gas["chem_H"] / mH
         )
         # ) / np.sum(cell_vols_cMpc3 * gas["density"] * 0.76)
 
@@ -524,8 +525,8 @@ if len(sim_dirs) == 1:
     title_txt += f"z={sim_zed:.2f}"
     # ax.text(0.05, 0.95, f"z={sim_zed:.2f}", transform=ax.transAxes)
 # also print purity threshold
-# ax.text(0.05, 0.9, f"fpure > {fpure:.3f}", transform=ax.transAxes)
-title_txt += f" fpure > {fpure:.3f}"
+# ax.text(0.05, 0.9, f"fpure > {fpure:.4f}", transform=ax.transAxes)
+title_txt += f" fpure > {fpure:.4f}"
 
 
 ax.legend(framealpha=0.0, title=title_txt)

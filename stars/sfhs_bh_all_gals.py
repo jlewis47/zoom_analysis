@@ -107,6 +107,8 @@ from hagn.catalogues import make_super_cat, get_cat_hids
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646_novrel_lowSFE_SE"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380"  # _leastcoarse"
+# sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike"  # _leastcoarse"
+sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_manual_sink1D7"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id18289"  # _leastcoarse"
 # sdir = "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890"  # _leastcoarse"
 # sdir = "/data103/jlewis/sims/lvlmax_22/mh1e12/id147479"  # _leastcoarse"
@@ -151,8 +153,8 @@ tgt_zed = None
 delta_aexp = 0.0001
 
 # mlim = 3e10
-mlim = 1e10
-# mlim = 6e9
+# mlim = 1e10
+mlim = 6e9
 # mlim = 1e9
 # mlim = 3e8
 
@@ -276,6 +278,7 @@ for igal in range(nb_gals_to_plot):
         # tgt_ids=[gid],
         star=False,
         # star=True,
+        overwrite=True
     )
 
     # ok_step = tree_gids[0] > 0

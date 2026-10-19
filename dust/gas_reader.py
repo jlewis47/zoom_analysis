@@ -42,15 +42,21 @@ def gas_pos_rad(sim: ramses_sim, snap, field, pos, rad, verbose=False):
         maxs = rad[1]
 
     idx = []
+
     for f in field:
-        if type(f) == str:
+
+        # print(f, type(f))
+
+        if type(f) in [str, np.str_]:
 
             if f == "temperature":
                 idx.extend(
                     [
                         i
                         for i in range(1, len(sim.hydro) + 1)
-                        if sim.hydro[str(i)] in ["density", "pressure"]
+                        if str(i) in sim.hydro
+                        and sim.hydro[str(i)]
+                        in ["density", "pressure", "thermal_pressure"]
                     ]
                 )
 
@@ -59,7 +65,9 @@ def gas_pos_rad(sim: ramses_sim, snap, field, pos, rad, verbose=False):
                     [
                         i
                         for i in range(1, len(sim.hydro) + 1)
-                        if sim.hydro[str(i)] in ["density", "metallicity"]
+                        if str(i) in sim.hydro
+                        and sim.hydro[str(i)]
+                        in ["density", "metallicity", "passive_scalar_1"]
                     ]
                 )
 
@@ -68,7 +76,8 @@ def gas_pos_rad(sim: ramses_sim, snap, field, pos, rad, verbose=False):
                     [
                         i
                         for i in range(1, len(sim.hydro) + 1)
-                        if sim.hydro[str(i)]
+                        if str(i) in sim.hydro
+                        and sim.hydro[str(i)]
                         in [
                             "density",
                             "metallicity",
@@ -84,7 +93,8 @@ def gas_pos_rad(sim: ramses_sim, snap, field, pos, rad, verbose=False):
                     [
                         i
                         for i in range(1, len(sim.hydro) + 1)
-                        if sim.hydro[str(i)]
+                        if str(i) in sim.hydro
+                        and sim.hydro[str(i)]
                         in [
                             "density",
                             "velocity_x",
@@ -98,7 +108,8 @@ def gas_pos_rad(sim: ramses_sim, snap, field, pos, rad, verbose=False):
                     [
                         i
                         for i in range(1, len(sim.hydro) + 1)
-                        if sim.hydro[str(i)]
+                        if str(i) in sim.hydro
+                        and sim.hydro[str(i)]
                         in [
                             "density",
                             "pressure",
@@ -115,7 +126,8 @@ def gas_pos_rad(sim: ramses_sim, snap, field, pos, rad, verbose=False):
                     [
                         i
                         for i in range(1, len(sim.hydro) + 1)
-                        if sim.hydro[str(i)]
+                        if str(i) in sim.hydro
+                        and sim.hydro[str(i)]
                         in [
                             "density",
                             "velocity_x",
@@ -130,8 +142,13 @@ def gas_pos_rad(sim: ramses_sim, snap, field, pos, rad, verbose=False):
                 # for i in range(1, len(sim.hydro) + 1):
                 # print(sim.hydro[str(i)], f, sim.hydro[str(i)] == f)
                 idx.extend(
-                    [i for i in range(1, len(sim.hydro) + 1) if sim.hydro[str(i)] == f]
+                    [
+                        i
+                        for i in range(1, len(sim.hydro) + 1)
+                        if str(i) in sim.hydro and sim.hydro[str(i)] == f
+                    ]
                 )
+
         elif type(f) in [int, np.int64, np.int32]:
             idx.append(f)
 
@@ -143,25 +160,27 @@ def gas_pos_rad(sim: ramses_sim, snap, field, pos, rad, verbose=False):
     cells = read_amrcells(sim, snap, np.ravel([mins, maxs]), idx, debug=verbose)
 
     if "temperature" in field:
-        cells["temperature"] = []
+        cells["temperature"] = np.array([])
+    if "metallicity" in field and "metallicity" not in cells.keys():
+        cells["metallicity"] = np.array([])
     if "DTM" in field:
-        cells["DTM"] = []
+        cells["DTM"] = np.array([])
     if "DTMC" in field:
-        cells["DTMC"] = []
+        cells["DTMC"] = np.array([])
     if "DTMSi" in field:
-        cells["DTMSi"] = []
+        cells["DTMSi"] = np.array([])
     if "DTMCs" in field:
-        cells["DTMCs"] = []
+        cells["DTMCs"] = np.array([])
     if "DTMCl" in field:
-        cells["DTMCl"] = []
+        cells["DTMCl"] = np.array([])
     if "DTMSis" in field:
-        cells["DTMSis"] = []
+        cells["DTMSis"] = np.array([])
     if "DTMSil" in field:
-        cells["DTMSil"] = []
+        cells["DTMSil"] = np.array([])
     if "mach" in field:
-        cells["mach"] = []
+        cells["mach"] = np.array([])
     if "alpha_vir" in field:
-        cells["alpha_vir"] = []
+        cells["alpha_vir"] = np.array([])
 
     return cells
 
@@ -254,11 +273,17 @@ def code_to_cgs(sim, aexp, amrdata):
         field_list[arg_temp] = b
         field_list[0] = a
 
-    print(amrdata.keys())
-
     pressure_key = "pressure"
     if not "pressure" in amrdata.keys() and "thermal_pressure" in amrdata.keys():
         pressure_key = "thermal_pressure"
+
+    if "metallicity" in amrdata.keys() and len(amrdata["metallicity"]) > 0:
+        metals_key = "metallicity"
+    elif "passive_scalar_1" in amrdata.keys():
+        metals_key = "passive_scalar_1"
+    else:
+        print("unknown metals keys, found neither 'metallicity' nor 'passive_scalar_1'")
+        metals_key = "metallicity"
 
     for field in field_list:
 
@@ -267,6 +292,10 @@ def code_to_cgs(sim, aexp, amrdata):
             # print(unit_T)
             # print((amrdata[pressure_key] / amrdata["density"]) * unit_T)
             out_data[field] = (amrdata[pressure_key] / amrdata["density"]) * unit_T
+        elif field == "metallicity":
+            out_data[field] = amrdata[metals_key]
+        elif field == "CRegy_01":
+            out_data[field] = amrdata[field] * (unit_l/unit_t)**2 / (unit_l)**3 / 1e7
         elif field in ["DTM", "DTMC", "DTMSi", "DTMCs", "DTMCl", "DTMSis", "DTMSil"]:
             dust_tot = (
                 amrdata["dust_bin01"]
@@ -275,30 +304,30 @@ def code_to_cgs(sim, aexp, amrdata):
                 + amrdata["dust_bin04"]
             )
             if field == "DTM":
-                out_data[field] = dust_tot / (amrdata["metallicity"] + dust_tot)
+                out_data[field] = dust_tot / (amrdata[metals_key] + dust_tot)
             elif field == "DTMC":
                 out_data[field] = (amrdata["dust_bin01"] + amrdata["dust_bin02"]) / (
-                    amrdata["metallicity"] + dust_tot
+                    amrdata[metals_key] + dust_tot
                 )
             elif field == "DTMCs":
                 out_data[field] = (amrdata["dust_bin01"]) / (
-                    amrdata["metallicity"] + dust_tot
+                    amrdata[metals_key] + dust_tot
                 )
             elif field == "DTMCl":
                 out_data[field] = (amrdata["dust_bin02"]) / (
-                    amrdata["metallicity"] + dust_tot
+                    amrdata[metals_key] + dust_tot
                 )
             elif field == "DTMSi":
                 out_data[field] = (amrdata["dust_bin03"] + amrdata["dust_bin04"]) / (
-                    amrdata["metallicity"] + dust_tot
+                    amrdata[metals_key] + dust_tot
                 )
             elif field == "DTMSis":
                 out_data[field] = (amrdata["dust_bin03"]) / (
-                    amrdata["metallicity"] + dust_tot
+                    amrdata[metals_key] + dust_tot
                 )
             elif field == "DTMSil":
                 out_data[field] = (amrdata["dust_bin04"]) / (
-                    amrdata["metallicity"] + dust_tot
+                    amrdata[metals_key] + dust_tot
                 )
 
         elif field in [
@@ -317,7 +346,6 @@ def code_to_cgs(sim, aexp, amrdata):
             out_data[field] = get_alpha_vir(
                 sim, aexp, amrdata, Gfact_cgs, dx_cm, sigma_v2, snd_speed
             )
-
         else:
             out_data[field] = amrdata[field]
         # elif field == "pressure":

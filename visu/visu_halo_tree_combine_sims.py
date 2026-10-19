@@ -147,6 +147,12 @@ vmax = 1e-20
 # sim_dir = "/data103/jlewis/sims/lvlmax_20/mh1e12/id180130_nosmooth_frcAccrt"
 
 sim_dirs = [
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_NClike",
+    "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_model5_100eps",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_lowSN_strictSF",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_lowSN",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF_halfSN",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id26646",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890",
     # "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id52380",
@@ -157,6 +163,8 @@ sim_dirs = [
     # "/data103/jlewis/sims/lvlmax_22/mh1e12/id52380_novrel_lowerSFE_stgNHboost_strictSF",
     # ]
     # sim_dirs = [
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_sink_desc",
+    # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id180130_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE",
     # "/data101/jlewis/sims/dust_fid/lvlmax_20/mh1e12/id242756_novrel_lowerSFE_stgNHboost",
@@ -234,10 +242,42 @@ for izlist, zlist in enumerate(zsims):
 
 common_zs = np.unique(np.round(common_zs, decimals=2))
 
+if len(common_zs)==0:
+    print('warning no commons redshifts found, trying with only 1 decimal')
+
+    common_zs = []
+    ztol = 0.1
+
+    for sim_dir in sim_dirs:
+
+        sim = ramses_sim(sim_dir, nml="cosmo.nml")
+
+        zsims.append(1.0 / sim.get_snap_exps() - 1.0)
+
+    for izlist, zlist in enumerate(zsims):
+        for iz, z in enumerate(zlist):
+            if z in common_zs:
+                continue
+            found = 1
+            for jzlist in range(nb_sims):
+                if jzlist == izlist:
+                    continue
+                if np.any(np.abs(z - zsims[jzlist]) < ztol):
+                    found += 1
+            if found == nb_sims:
+                common_zs.append(z)
+
+
+    common_zs = np.unique(np.round(common_zs, decimals=1))
+
+# print(common_zs)
+
 common_zs = np.sort(common_zs)[::-1]
 common_zs = common_zs[common_zs <= zmax]
 
 med_spacing = np.median(np.abs(np.diff(common_zs)))
+
+
 max_z = np.max(common_zs)
 min_z = np.min(common_zs)
 
@@ -382,7 +422,7 @@ for iz, tgt_z in enumerate(common_zs):
 
         # print(sim.name, done_snaps[isim])
 
-        for snap, aexp, time in zip(sim_snaps, sim_aexps, sim_times):
+        for snap, aexp, time in zip(sim_snaps[::-1], sim_aexps[::-1], sim_times[::-1]):
 
             if snap != closest_snap_to_tgt or snap in done_snaps[isim]:
                 print(f"{snap:d}: incorrect or already processed")
