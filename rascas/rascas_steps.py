@@ -22,7 +22,7 @@ def micron_to_fwhm_as(micron):
 
 
 def filt_file_to_dict(
-    floc="/home/jlewis/codes/zoom_analysis/rascas/filter_psf_res.csv",
+    floc="/home/jlewis/codes/zoom_analysis/rascas/filts/filter_psf_res.csv",
 ):
 
     out = np.genfromtxt(floc, delimiter=",", dtype=None, encoding=None)

@@ -1,0 +1,30 @@
+#filter name, psf (name), resolution (as), depth (mab), depth aperture (")"
+NIRCAM-F115, JWST-PSFEx_out_f115w_B3_psf_v5.0_s1-30mas.psf, 0.03, 27.2, 0.15
+NIRCAM-F150, JWST-PSFEx_out_f150w_B3_psf_v5.0_s1-30mas.psf, 0.03, 27.4, 0.15
+NIRCAM-F277, JWST-PSFEx_out_f277w_B3_psf_v5.0_s1-30mas.psf, 0.03, 28.1, 0.15
+NIRCAM-F444, JWST-PSFEx_out_f444w_B3_psf_v5.0_s1-30mas.psf, 0.03, 28.0, 0.15
+HST-f814_res, JWST-PSFEx_out_f814w_B3_psf_v5.0_s1.psf, 0.03, 27.5, 0.5
+MegaCam-u_new, OPT-PSFEx_out_CFHT-u_B3_psf_v4.0.psf, 0.150, 27.3, 1.0
+HSC-g, OPT-PSFEx_out_HSC-g_B3_psf_v4.0.psf, 0.168, 27.6, 1.0
+HSC-i, OPT-PSFEx_out_HSC-i_B3_psf_v4.0.psf, 0.168, 27.0, 1.0
+HSC-r, OPT-PSFEx_out_HSC-r_B3_psf_v4.0.psf, 0.168, 27.2, 1.0
+HSC-y, OPT-PSFEx_out_HSC-y_B3_psf_v4.0.psf, 0.168, 26.0, 1.0
+HSC-z, OPT-PSFEx_out_HSC-z_B3_psf_v4.0.psf, 0.168, 26.6, 1.0
+SC-L427, OPT-PSFEx_out_SC-IB427_B3_psf_v4.0.psf, 0.150 ,25.7 , 1.0
+SC-L484, OPT-PSFEx_out_SC-IA484_B3_psf_v4.0.psf, 0.150 ,26.2 , 1.0
+SC-L505, OPT-PSFEx_out_SC-IB505_B3_psf_v4.0.psf, 0.150 ,25.9 , 1.0
+SC-L527, OPT-PSFEx_out_SC-IA527_B3_psf_v4.0.psf, 0.150 ,26.1 , 1.0
+SC-L574, OPT-PSFEx_out_SC-IB574_B3_psf_v4.0.psf, 0.150 ,25.3 , 1.0
+SC-L624, OPT-PSFEx_out_SC-IA624_B3_psf_v4.0.psf, 0.150 ,26.1 , 1.0
+SC-L679, OPT-PSFEx_out_SC-IA679_B3_psf_v4.0.psf, 0.150 ,25.3 , 1.0
+SC-L709, OPT-PSFEx_out_SC-IB709_B3_psf_v4.0.psf, 0.150 ,25.7 , 1.0
+SC-L711, OPT-PSFEx_out_SC-NB711_B3_psf_v4.0.psf, 0.150 ,25.8 , 1.0
+SC-L738, OPT-PSFEx_out_SC-IA738_B3_psf_v4.0.psf, 0.150 ,25.3 , 1.0
+SC-L767, OPT-PSFEx_out_SC-IA767_B3_psf_v4.0.psf, 0.150 ,25.3 , 1.0
+SC-L816, OPT-PSFEx_out_SC-NB816_B3_psf_v4.0.psf, 0.150 ,25.2 , 1.0
+SC-L827, OPT-PSFEx_out_SC-IB827_B3_psf_v4.0.psf, 0.150 ,25.3 , 1.0
+VISTA-H, OPT-PSFEx_out_UVISTA-H_B3_psf_v4.0.psf, 0.150 ,25.8, 1.0 
+VISTA-J, OPT-PSFEx_out_UVISTA-J_B3_psf_v4.0.psf, 0.150 ,25.8, 1.0 
+VISTA-Ks, OPT-PSFEx_UVISTA-PSFEx_outISTA-Ks_B3_psf_v4.0.psf, 0.150 ,25.5, 1.0 
+VISTA-NB118, OPT-PSFEx_UVISTA-NB118_B3_psf_v4.0.psf, 0.150 ,25.3, 1.0 
+VISTA-Y, OPT-PSFEx_out_UVISTA-Y_B3_psf_v4.0.psf, 0.150 ,25.1, 1.0 
