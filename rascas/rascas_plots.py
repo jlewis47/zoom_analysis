@@ -1,3 +1,7 @@
+""" This module provides functions to generate plots from RASCAS output files, including spectral and imaging data. It includes functions to read the data, process it, and create visualizations for analysis and presentation.
+
+"""
+
 import os
 from turtle import color
 from astropy.extern.ply.yacc import YaccError

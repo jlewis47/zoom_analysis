@@ -1,3 +1,6 @@
+""" This module contains functions to read and write fits files, and to fit galaxies in a given field with a given mask. """
+
+
 # import astropy
 # import astropy.cosmology
 from astropy import wcs

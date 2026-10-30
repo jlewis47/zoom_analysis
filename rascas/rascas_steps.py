@@ -1,3 +1,9 @@
+""" 
+    RASCAS steps
+    This module provides functions to set up and run RASCAS simulations, including creating parameter files, running the simulations, and managing output directories. It also includes utility functions for converting units and reading/writing configuration files.
+"""
+
+
 from ast import Str
 import os
 from re import L

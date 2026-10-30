@@ -1,3 +1,8 @@
+    """ Read RASCAS output files
+     This module provides functions to read RASCAS output files, including photon dumps, PFS dumps, and mock data. It also includes functions to convert the data into physical units and compress the data into HDF5 format for easier handling.
+    """
+
+
 # import contextlib
 import mmap
 import numpy as np
