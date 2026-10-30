@@ -1,3 +1,11 @@
+"""Post-processing of RASCAS mock observations of simulated galaxies to produce mock spectra, magnitudes and images in a set of filters.
+
+Utility functions (image rescaling/rebinning, HDF5 output) and a ``__main__``
+script that computes, for each galaxy and viewing direction, mock observations (spectra,
+magnitudes and images with IGM absorption, PSF, instrument resolution) in a set of
+filters. The simulation list, paths and filters are hard-coded in ``__main__``.
+"""
+
 from datetime import date
 from time import ctime, strftime
 import numpy as np
@@ -104,6 +112,33 @@ from zoom_analysis.rascas.rascas_plots import *
 
 
 def rescale_image_flux_conserving(image, scale_factor, order=2):
+    """Resize an image by a factor ``1 / scale_factor`` with spline interpolation.
+
+    Notes
+    -----
+    Despite the function name, the total flux is currently NOT conserved:
+    the correction ``rescaled_image *= scale_factor**2`` is commented out, so
+    pixel values are preserved (surface brightness) and the total sum changes
+    by about ``1 / scale_factor**2``.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        2D image to rescale.
+    scale_factor : float
+        Values larger than 1 shrink the image (output size is about
+        input size / ``scale_factor``, rounded to an integer number of pixels).
+    order : int, optional
+        Spline interpolation order passed to ``scipy.ndimage.zoom``
+        (0 to 5). Default is 2 (quadratic). 
+
+    Returns
+    -------
+    np.ndarray
+        The rescaled image.
+    """
+    
+    
     # Rescale image using zoom
     rescaled_image = zoom(
         image, 1 / scale_factor, order=order
@@ -116,6 +151,29 @@ def rescale_image_flux_conserving(image, scale_factor, order=2):
 
 
 def pad_to_multiple(img, factor):
+    """Pad a 2D array so both dimensions are multiples of ``factor``.
+
+    This is useful for image operations that require block-aligned shapes, e.g.
+    integer rebinning.
+
+    Padding is added only at the end of each axis (bottom and right) and is
+    filled with zeros. This preserves the sum of the image but biases block
+    averages near the edges. A new array is always returned, even if no
+    padding is needed.
+
+    Parameters
+    ----------
+    img : np.ndarray
+        2D array to pad.
+    factor : int
+        Positive integer. Each output dimension is the smallest multiple of
+        ``factor`` that is greater than or equal to the input dimension.
+
+    Returns
+    -------
+    np.ndarray
+        Zero-padded array whose two dimensions are multiples of ``factor``.
+    """
     ny, nx = img.shape
     ny_pad = (factor - ny % factor) % factor
     nx_pad = (factor - nx % factor) % factor
@@ -125,7 +183,22 @@ def pad_to_multiple(img, factor):
 def rebin_flux_conserving(img, cur_res_as, tgt_res_as):
     """
     Rebin a 2D image from current resolution to target resolution,
-    conserving total flux and avoiding aliasing artifacts.
+    approximately conserving total flux and avoiding aliasing artifacts.
+    
+    Notes    -----
+    Total flux is only approximately conserved because:
+
+    * rows and columns that do not fill a complete block at the bottom and
+      right edges are trimmed, and their flux is lost;
+    * the Gaussian smoothing uses scipy's default ``reflect`` boundary mode,
+      which slightly alters the flux near the edges.
+
+    The ratio ``tgt_res_as / cur_res_as`` is rounded to the nearest integer
+    (a warning is printed if it is not close to an integer). The output
+    resolution is therefore ``factor * cur_res_as``, which may differ from
+    ``tgt_res_as``. If the ratio is below 1.5 the factor is 1 and the image
+    is only smoothed, not rebinned. If ``tgt_res_as <= cur_res_as``, a copy
+    of the input is returned unchanged.
 
     Parameters
     ----------
@@ -139,7 +212,7 @@ def rebin_flux_conserving(img, cur_res_as, tgt_res_as):
     Returns
     -------
     img_rebinned : 2D ndarray
-        Rebinned image, with total flux preserved.
+        Rebinned image with total flux preserved approximately.
     """
 
     if tgt_res_as <= cur_res_as:
@@ -178,6 +251,43 @@ def rebin_flux_conserving(img, cur_res_as, tgt_res_as):
 def write_mock_imgs(
     fname, aexp, time, z, aper_sr, px_res_as, px_res_stars_as, names, imgs, st_img
 ):
+    """Write mock-image data and metadata to an HDF5 file.
+
+    An existing file is overwritten. Images are written as provided: no unit
+    conversion is done, ``imgs`` are assumed to be in MJy.sr^-1 and ``st_img`` in
+    M_sun.as^-2 (units are only recorded in the header). Each band is stored in
+    a dataset named after ``names``; the stellar map is stored in the dataset
+    ``"stellar_surface density"`` (spelling kept for compatibility).
+
+    Parameters
+    ----------
+    fname : str or os.PathLike
+        Output filename.
+    aexp : float
+        Cosmic scale factor.
+    time : float
+        Simulation time in Myr.
+    z : float
+        Redshift.
+    aper_sr : float
+        Aperture size in steradians.
+    px_res_as : float
+        Pixel resolution of the main mock images in arcseconds.
+    px_res_stars_as : float
+        Pixel resolution used for the stellar surface-density image.
+    names : sequence of str
+        Names of the mock bands.
+    imgs : sequence of np.ndarray
+        2D intensity maps for each band.
+    st_img : np.ndarray
+        Stellar surface-density map.
+        
+    Notes
+    -----
+    ``names`` and ``imgs`` must have the same length: extra entries in the
+    longer one are silently ignored for the datasets, while the header still
+    lists all ``names``.
+    """
 
     with h5py.File(
         fname,
@@ -206,6 +316,25 @@ def write_mock_imgs(
 
 
 def walk_down_dirs(root, saved_paths):
+    """Recursively collect simulation directories under ``root``.
+
+    A directory whose name starts with ``id`` is treated as a simulation
+    directory: it is added to ``saved_paths`` (unless it is a symbolic link) and
+    the search does not descend into it. Other directories are explored
+    recursively (symbolic links to directories are followed).
+
+    Parameters
+    ----------
+    root : str
+        Directory to scan. Must exist, otherwise ``os.listdir`` raises.
+    saved_paths : list of str
+        List the paths are appended to. It is modified in place and also returned.
+
+    Returns
+    -------
+    list of str
+        The ``saved_paths`` list, in directory listing order (not sorted).
+    """
 
     dirs = [d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d))]
 
@@ -228,7 +357,21 @@ def walk_down_dirs(root, saved_paths):
 
 
 def locate_all_sims():
+    """Locate simulation directories in a fixed set of data directories.
 
+    Scans the hard-coded roots ``/data101/jlewis/sims/dust_fid/lvlmax_22``,
+    ``/data102/jlewis/sims/lvlmax_22`` and ``/data103/jlewis/sims/lvlmax_22``
+    with :func:`walk_down_dirs`. All three must exist, otherwise a
+    ``FileNotFoundError`` is raised.
+
+    Returns
+    -------
+    list of str
+        Sorted, unique simulation paths (as ``numpy.str_``), excluding any path
+        containing the substring ``common_plots``.
+    """
+    
+    
     sim_paths = []
 
     root_dirs = [
@@ -249,16 +392,36 @@ def locate_all_sims():
 
     return sim_paths
 
+# Post-processing of RASCAS mock observations (spectra, magnitudes, images).
+#
+# For each simulation in `sim_paths`, each snapshot with RASCAS output and each
+# galaxy, and for each of `ndir` viewing directions, the script:
+#   - reads the RASCAS spectrum/cube and the galaxy's stars (SFH, stellar
+#     surface density map);
+#   - applies IGM absorption (Inoue 2014) and computes synthetic magnitudes in
+#     the filters of `filter_select`, from the spectrum and from the cube;
+#   - builds band images (rotated for ground-based filters), converts them to
+#     MJy/sr and saves them (no IGM / with IGM);
+#   - convolves them with each filter's PSF, rebins them to the instrument
+#     resolution, and saves them;
+#   - saves diagnostic plots and an HDF5 dump of spectra and magnitudes.
+#
+# Hard-coded: simulation list and /data101/jlewis paths, `model_name`,
+# `ndir`, `rfact`, `overwrite`, filter list, 20 deg rotation of ground-based
+# bands, HaloMaker/Tree directories (NewHorizon vs others), plot ranges.
 
 if __name__ == "__main__":
-
     
-
+    # ---- 1. Global configuration ----
+    # RASCAS model name and list of simulation directories to process.
+    
+    # RASCAS model name definition
     # model_name = "zoom_tgt_bc03_chabrier100_wlya_SMC"
     model_name = "zoom_tgt_bc03_chabrier100_wlya_noDust"
 
     # sim_paths = locate_all_sims()
 
+    # RAMSES simulation directories to process
     sim_paths = [
         "/data101/jlewis/sims/NH_for_rascas",
         "/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id242756",
@@ -275,12 +438,16 @@ if __name__ == "__main__":
     # sim_paths = ["/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id74890"]
     # sim_paths = ["/data101/jlewis/sims/dust_fid/lvlmax_22/mh1e12/id180130"]
 
+    # Scans all simulation paths
     for sim_path in sim_paths:
 
         zed_targets = None
         snap_targets = None
 
+        # ---- 2. Run parameters ----
+        # Number of directions, aperture factor, overwrite flag, filters (reset per simulation).
         zmax = np.inf
+        # direction number
         ndir = 12
         # ndir = 12
         rfact = 1.0
@@ -292,6 +459,7 @@ if __name__ == "__main__":
         nist_pc = 3.085678e18  # cm
         dist_10pc = 10.0 * nist_pc
 
+        # Filters list
         filter_select = [
             "MegaCam-u_new",
             "HSC-g",
@@ -327,7 +495,8 @@ if __name__ == "__main__":
         filt_dict = filt_file_to_dict()
 
         # print(filt_dict)
-
+        # ---- 3. Load simulation ----
+        # Open the RAMSES simulation, init cosmology, check snapshots and association files.
         try:
             sim = ramses_sim(
                 sim_path,
@@ -357,6 +526,7 @@ if __name__ == "__main__":
         # snap_target = sim.get_closest_snap(zed=zed_target)
         true_zed_snap = 1.0 / sim.get_snap_exps(snap_target)[0] - 1
 
+        # Initializes cosmology
         sim.init_cosmo()
 
         sim.get_snap_times()
@@ -381,6 +551,8 @@ if __name__ == "__main__":
 
         avail_times = sim.cosmo_model.age(1.0 / avail_aexps - 1.0).value * 1e3
 
+        # ---- 4. Select snapshots ----
+        # Choose target snapshots, list available RASCAS outputs, read filter transmissions.
         if zed_targets is not None:
             snap_target_args = np.asarray(
                 [
@@ -413,10 +585,13 @@ if __name__ == "__main__":
 
         final_gid = None
 
+        # Read filter transmissions
         names_all, wavs_all, trans_all = read_transmissions()
 
         # print([(n, w) for n, w in zip(names_all, [np.median(w)/10000.0 for w in wavs_all])])
 
+        # ---- 5. Loop over snapshots ----
+        # Get time/redshift of each RASCAS snapshot; skip those without association file.
         for i, snap in enumerate(rascas_snaps):
             if snap_targets is not None:
                 if snap not in snap_targets:
@@ -445,7 +620,8 @@ if __name__ == "__main__":
                 print(f"skipping snap {snap:d} at time={time:.2f} no assoc file")
                 continue
 
-            # find_gals
+            # ---- 6. List galaxies ----
+            # Find the galaxies of the snapshot; set star reader/directories (NewHorizon vs zooms).
             gal_folders = os.listdir(os.path.join(rascas_path, f"output_{snap:05d}"))
             gids = [int(gdir.split("_")[-1]) for gdir in gal_folders]
 
@@ -460,7 +636,9 @@ if __name__ == "__main__":
 
                 hm = "HaloMaker_stars2_dp_rec_dust/"
                 part_fct = read_part_ball_NCdust
-
+                
+            # ---- 7. Loop over galaxies ----
+            # Read galaxy properties, check RASCAS files exist, define the output directory.
             for gid in gids:
 
                 # print(sim_path, snap, tree_hids[tree_arg])
@@ -557,6 +735,8 @@ if __name__ == "__main__":
 
                 pfs_path = os.path.join(rascas_dir, "PFSDump", f"pfsdump")
 
+                # ---- 8. Read RASCAS mocks ----
+                # Load spectra and cubes (HDF5 or raw dumps) and compute the aperture size.
                 if not os.path.exists(outp):
                     os.makedirs(outp, exist_ok=True)
 
@@ -588,6 +768,8 @@ if __name__ == "__main__":
                     aper_code_units * l * 1e3
                 ) * sim.cosmo_model.arcsec_per_kpc_comoving(z).value
 
+                # ---- 9. Stellar content ----
+                # Read galaxy stars and stars in the aperture; compute SFH and stellar masses.
                 fstar = os.path.join(
                     sim.path, hm, f"GAL_{snap:05d}", f"gal_stars_{gid:07d}"
                 )
@@ -673,6 +855,9 @@ if __name__ == "__main__":
 
                 print(sim.name, snap, 1.0 / aexp - 1, gid)
 
+                # ---- 10. Loop over viewing directions ----
+                # Pixel scales and stellar surface density map for the current direction.
+                
                 for idir in range(ndir):
 
                     outf = os.path.join(outp, f"mock_spectrum_{idir}.h5")
@@ -766,6 +951,9 @@ if __name__ == "__main__":
 
                     print(f"saved {st_fig}")
 
+                    # ---- 11. Observed spectrum ----
+                    # Convert to observed units, apply IGM absorption, select filters within coverage
+                    
                     # spec_rf = spec_to_erg_s_A_cm2_rf(spec, pfs_path,z=z)
                     lmin = spec["lambda_min"]
                     lmax = spec["lambda_max"]
@@ -846,6 +1034,8 @@ if __name__ == "__main__":
                     names = [names[order] for order in wav_order]
                     trans = [trans[order] for order in wav_order]
 
+                    # ---- 12. Magnitudes and band images ----
+                    # Synthetic magnitudes from the spectrum, band images from the cube.
                     # load cube
 
                     dx_box = cube["cube_side"] / cube["cube"].shape[0]
@@ -898,7 +1088,9 @@ if __name__ == "__main__":
                     # ax[1].imshow(imgs[-1, :, :].T, origin="lower", norm=LogNorm())
 
                     # fig.savefig("test_intregration_image")
-
+                    
+                    # ---- 13. Padding and rotation ----
+                    # Pad images; rotate ground-based bands (MegaCam, HSC) by 20 degrees.
                     new_imgs = []
 
                     rot_ang_deg = +20
@@ -963,6 +1155,9 @@ if __name__ == "__main__":
 
                     # continue
 
+                    # ---- 14. Convert to MJy/sr and check ----
+                    # Apply IGM transmission; compare magnitudes from images and from the spectrum.
+                    
                     if cube["cube"].sum() == 0:
 
                         print("cube full of empty cells!!!!... skipping")
@@ -1023,6 +1218,9 @@ if __name__ == "__main__":
                         print("Most likely: nearby object entering/exiting field")
                         # raise ValueError
 
+                    # ---- 15. Save images ----
+                    # Write HDF5 images without and with IGM absorption.
+                    
                     img_dir = os.path.join(outp, "MJy_images")
 
                     if not os.path.exists(img_dir):
@@ -1066,6 +1264,8 @@ if __name__ == "__main__":
                         st_img,
                     )
 
+                    # ---- 16. Apply PSF ----
+                    # Load and rescale PSFs, convolve images, trim zero-filled edges.
                     print("applying psf")
 
                     # psf = np.asarray([filt_dict[name]['psf_as']/2.355 for name,w in zip(names[:],wavs[:])])
@@ -1161,7 +1361,9 @@ if __name__ == "__main__":
                     #     imgs_MJy_wIGM_wPSF,
                     #     st_img,
                     # )
-
+                    
+                    # ---- 17. Rebin to instrument resolution ----
+                    # Rescale each band to its filter resolution (not flux conserving) and save.
                     print("rebinning to correct resolution")
 
                     imgs_MJy_wIGM_wPSF_rebinned = []
@@ -1270,6 +1472,8 @@ if __name__ == "__main__":
                         st_img,
                     )
 
+                    # ---- 18. Figure: spectrum and cutouts ----
+                    # Plot spectrum with band cutouts from images before PSF and rebinning.
                     print("saved mock images")
 
                     mag_lims = [
@@ -1335,7 +1539,9 @@ if __name__ == "__main__":
                     plt.close()
 
                     # fig_spe.savefig(png_fig.replace(".png", ".pdf"), format="pdf")
-
+                    
+                    # ---- 19. Magnitudes and figure after PSF ----
+                    # Magnitudes of PSF/rebinned images and second figure with rebinned cutouts.
                     mag_imgs_wpsf = [
                         -2.5
                         * np.log10(
@@ -1403,6 +1609,9 @@ if __name__ == "__main__":
 
                     #     mag_imgs_wpsf_rebinned_right_size.append(cur_image)
 
+                    # ---- 20. Dump spectra and magnitudes ----
+                    # Save spectra, magnitudes (observed and rest frame) and galaxy data to HDF5.
+                    
                     fig_spe, ax_spe = plot_spe_bands(
                         aexp,
                         rgal,
