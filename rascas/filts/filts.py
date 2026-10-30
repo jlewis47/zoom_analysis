@@ -40,6 +40,58 @@ def read_transmissions(
     Euclid_EXT=True,
     CLUTCH=True,
 ):
+        """Read the filter transmission curves stored in the filter directory.
+
+    All files of the hard-coded directory
+    ``/home/jlewis/codes/zoom_analysis/rascas/filts`` are read, except ``.py``
+    and ``.png`` files and files whose name contains ``UVIS1``. Instrument
+    families can be excluded with the boolean flags below. Each file is read
+    with :func:`read_transmission` (two columns: wavelength and transmission;
+    the first line is skipped and lines starting with ``#`` are ignored).
+
+    Parameters
+    ----------
+    tgt_bands : str, optional
+        Substring that the file names must contain. Currently broken, see
+        Notes.
+    NIRCAM, HST, SuprimeCam, ULTRAVISTA, MIRI, IRAC : bool, optional
+        If False, exclude the files whose name *contains* the flag name.
+        Default is True (keep).
+    VISTA, NISP, VIS, LSST, GALEX, MegaCam, HSC : bool, optional
+        If False, exclude the files whose name *starts with* the flag name.
+        Default is True (keep).
+    Euclid_EXT : bool, optional
+        If False, exclude the files starting with ``PS`` and the file
+        ``MegaCam-r.pb``. Default is True.
+    CLUTCH : bool, optional
+        If False, exclude ``NIRCAM-F200W.txt``, ``NIRCAM-F356W.txt``,
+        ``HST-F098W.pb``, ``HST-F435W.pb``, ``HST-F606W.pb`` and the files
+        starting with ``UVIS``. Default is True.
+
+    Returns
+    -------
+    filters_names : list of str
+        File names up to the first dot (e.g. ``NIRCAM-F277``), sorted
+        alphabetically.
+    filters_wavs : list of np.ndarray
+        Wavelength grid of each filter, in Angstrom.
+    filters_trans : list of np.ndarray
+        Transmission of each filter, as stored in the file (not normalised).
+
+    Notes
+    -----
+    * The lists are sorted by name, not by wavelength.
+    * ``VIS=False`` also removes the files starting with ``VISTA``, and
+      ``CLUTCH=False`` also removes any file starting with ``UVIS`` (this
+      includes names such as ``UVISTA-H``). ``ULTRAVISTA=False`` only matches
+      names containing ``ULTRAVISTA``, not ``UVISTA``.
+    * ``tgt_bands`` filters the files after the names have been listed, so the
+      lists get out of sync: an ``IndexError`` is raised unless the substring
+      matches every file.
+    * The files are read again at each call, and the path of each file and the
+      number of filters loaded are printed.
+    """
+    
     root = "/home/jlewis/codes/zoom_analysis/rascas/filts"
 
     filters_files = [
