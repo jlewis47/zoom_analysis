@@ -3,7 +3,8 @@ NIRCAM-F115, JWST-PSFEx_out_f115w_B3_psf_v5.0_s1-30mas.psf, 0.03, 27.2, 0.15
 NIRCAM-F150, JWST-PSFEx_out_f150w_B3_psf_v5.0_s1-30mas.psf, 0.03, 27.4, 0.15
 NIRCAM-F277, JWST-PSFEx_out_f277w_B3_psf_v5.0_s1-30mas.psf, 0.03, 28.1, 0.15
 NIRCAM-F444, JWST-PSFEx_out_f444w_B3_psf_v5.0_s1-30mas.psf, 0.03, 28.0, 0.15
-HST-f814_res, JWST-PSFEx_out_f814w_B3_psf_v5.0_s1.psf, 0.03, 27.5, 0.5
+MIRI-F770, JWST-PSFEx_out_f770w_B3_psf_v5.0_s1.psf, 0.06, 25.2, 0.5
+HST-f814_res, JWST-PSFEx_out_f814w_B3_psf_v5.0_s1.psf, 0.03, 27.5, 0.15
 MegaCam-u_new, OPT-PSFEx_out_CFHT-u_B3_psf_v4.0.psf, 0.150, 27.3, 1.0
 HSC-g, OPT-PSFEx_out_HSC-g_B3_psf_v4.0.psf, 0.168, 27.6, 1.0
 HSC-i, OPT-PSFEx_out_HSC-i_B3_psf_v4.0.psf, 0.168, 27.0, 1.0
