@@ -3,6 +3,16 @@ import numpy as np
 import h5py
 from scipy.ndimage import zoom, gaussian_filter
 
+from zoom_analysis.rascas.read_rascas import (
+    cube_to_erg_s_A_cm2_as2,
+    read_mock_dump,
+    spec_to_erg_s_A_cm2,
+    # spec_to_erg_s_A_cm2_rf,
+    read_compress_mock,
+    mock_spe_dump,
+    flamb_fnu
+)
+
 def rescale_image_flux_conserving(image, scale_factor, order=2):
     """Resize an image by a factor ``1 / scale_factor`` with spline interpolation.
 
@@ -327,3 +337,93 @@ def get_mock_geometry(sim, redshift, cube_data, direction):
     
     # Return all geometric quantities in a dictionary
     return aper_as,px_as,aper_sr,px_sr
+
+def convert_cgs_to_mjy_sr(image_cgs, lambda_eff_angstrom):
+    """
+    Converts a surface brightness image from erg/s/cm^2/A/arcsec^2 to MJy/sr.
+    The wavelength must be in angstrom (e.g. the band centres returned by gen_imgs).
+    """
+    # Arcsec^2 per steradian
+    SR_TO_AS2 = 3600.0 * 3600.0 * (180.0 / np.pi) ** 2
+    # f_lambda -> f_nu, then per arcsec^2 -> per sr, then erg/s/cm^2/Hz -> MJy (1 MJy = 1e-17 cgs)
+    return flamb_fnu(image_cgs, lambda_eff_angstrom) * SR_TO_AS2 / 1e-17
+
+def rebin_psf(psf_matrix, original_px_scale, target_px_scale):
+    """
+    Rebins the Point Spread Function (PSF) to match the target pixel scale
+    and normalizes it so the total flux equals 1.
+    """
+    # Calculate the ratio between the original PSF scale and the target scale
+    scale_ratio = original_px_scale / target_px_scale
+    
+    # Rebin the PSF using the imported dilate function
+    psf_rebinned = dilate(psf_matrix, scale_ratio)
+    
+    # Normalize the PSF matrix to ensure flux conservation
+    psf_rebinned /= np.sum(psf_rebinned)
+    
+    return psf_rebinned
+
+from scipy.signal import fftconvolve
+
+
+def convolve_with_psf(img, psf, trim_zero_margins=False, tol_rel=1e-12):
+    """
+    Convolves an image with a PSF using scipy's fftconvolve in
+    its default 'full' mode, so the flux spread by the PSF outside the original field
+    is kept. The output is larger than the input by about the size of the PSF.
+
+    trim_zero_margins : if False (default), remove one pixel on each side.
+                        If True, remove the outer rows/columns that contain only
+                        (numerically) zero values.
+    tol_rel           : relative threshold (to the maximum) below which a value is
+                        considered zero. FFT round-off is never exactly zero.
+    """
+    # Convolution in 'full' mode: size = image size + PSF size - 1
+    img_conv = fftconvolve(img, psf)
+
+    if not trim_zero_margins:
+        # One-pixel border removed
+        return img_conv[1:-1, 1:-1]
+
+    # Rows and columns that contain signal above the tolerance
+    keep = np.abs(img_conv) > tol_rel * np.abs(img_conv).max()
+    rows = np.where(keep.any(axis=1))[0]
+    cols = np.where(keep.any(axis=0))[0]
+    return img_conv[rows[0]:rows[-1] + 1, cols[0]:cols[-1] + 1]
+
+
+def instrumental_rebinning(image, original_px_scale, target_px_scale, order=4,
+                           only_if_coarser=False, scale_by_area=False):
+    """
+    Rebins the convolved image to the instrumental (or background) pixel scale.
+
+    order           : spline order of the interpolation
+    only_if_coarser : if True : leave the image untouched when the target
+                      pixels are not larger than the current ones. Keep False when the
+                      image is injected into a real background, which needs the exact
+                      target pixel scale in both directions.
+    scale_by_area   : if True, multiply by bin_fact**2. This is valid for a flux per pixel, NOT for a
+                      surface brightness in MJy/sr (keep False for MJy/sr images).
+
+    Returns the rebinned image and the pixel scale actually obtained (zoom rounds the
+    output size to an integer number of pixels).
+    """
+    # Ratio between target and current pixel scale (> 1: target pixels are larger)
+    bin_fact = target_px_scale / original_px_scale
+
+    # No rebinning unless the target pixels are larger
+    if only_if_coarser and bin_fact <= 1.0:
+        return image, original_px_scale
+
+    # Geometric zoom by 1 / bin_fact with spline interpolation of the requested order
+    img_final = zoom(image, 1.0 / bin_fact, order=order)
+
+    # "flux conserving" factor (only for flux per pixel)
+    if scale_by_area:
+        img_final = img_final * bin_fact ** 2
+
+    # Pixel scale actually obtained
+    real_px_scale = (image.shape[0] / img_final.shape[0]) * original_px_scale
+
+    return img_final, real_px_scale

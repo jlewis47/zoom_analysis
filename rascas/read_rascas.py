@@ -205,7 +205,16 @@ def spec_to_erg_s_A_cm2(mock, pfs_path, z):  # , aperture_cm):  # in obs frame
     # mock["spectrum"] *= nrg
 
 
-def cube_to_erg_s_A_cm2_as2(mock, pfs, z, aper_as2):  # in obs frame if z!=0
+def cube_to_erg_s_A_cm2_as2(mock, pfs, z, aper_as2, cosmo_model=None, inplace=True):  # in obs frame if z!=0
+    """
+    Converts a RASCAS cube to erg/s/A/cm^2/arcsec^2 (observer frame if z > 0).
+
+    cosmo_model : astropy cosmology used for the luminosity distance.
+                  If None, the module-level `cosmo` is used (previous behaviour).
+    inplace     : if True (default, previous behaviour), overwrite mock["cube"].
+                  If False, leave mock untouched.
+    Returns the converted cube in both cases.
+    """
 
     PC_cm = 3.08e18
 
@@ -216,7 +225,8 @@ def cube_to_erg_s_A_cm2_as2(mock, pfs, z, aper_as2):  # in obs frame if z!=0
 
     # print(mock["lambda_min"], mock["lambda_max"], mock["lambda_npix"])
     if z > 0:
-        dL = cosmo.luminosity_distance(z).to(u.cm).value  # cm
+        cosmo_used = cosmo if cosmo_model is None else cosmo_model
+        dL = cosmo_used.luminosity_distance(z).to(u.cm).value  # cm
     else:
         dL = 10 * PC_cm
 
@@ -234,7 +244,11 @@ def cube_to_erg_s_A_cm2_as2(mock, pfs, z, aper_as2):  # in obs frame if z!=0
 
     nrg *= (1 + z)  # dimming
 
-    mock["cube"] = nrg * mock["cube"]
+    cube_out = nrg * mock["cube"]
+    # Overwrite the cube only if requested (default keeps the previous in-place behaviour)
+    if inplace:
+        mock["cube"] = cube_out
+    return cube_out
 
 
 def read_mock_dump(fname, ndir=1,debug=False):

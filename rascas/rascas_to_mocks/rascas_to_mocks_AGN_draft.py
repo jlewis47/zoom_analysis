@@ -38,6 +38,8 @@ from Rascas_utils import (
 
 from Rascas_to_mocks_utils import (
     get_mock_geometry,
+    convert_cgs_to_mjy_sr,
+    convolve_with_psf,
 )
 
 from zoom_analysis.rascas.rascas_steps import (
@@ -48,14 +50,13 @@ from zoom_analysis.rascas.rascas_steps import (
 
 from zoom_analysis.rascas.filts.filts import (
     read_transmissions,
+    load_psf
 )
 
-from zoom_analysis.rascas.field_fits import (
-    load_psf,
-    # rebin_factor
-    # rebin
-    dilate,
+from rascas_plots import (
+    gen_imgs,
 )
+
 
 # ======================================================================
 # CONFIGURATION
@@ -181,9 +182,8 @@ for f_name in filter_select:
         
     psfs_norm[f_name] = img / np.sum(img) 
     
-    psf_res_as[f_name] = res_as
+    psf_res_as[f_name] = res_as   
     
-   
     #bg_path = filt_dict[f_name]["bg_path"]
     #this_bg_data, this_bg_headers, this_bg_px_as = load_background(bg_path, f_name)
     #bg_headers[f_name] = this_bg_headers
@@ -198,6 +198,14 @@ for f_name in filter_select:
 print(f"\n--- Starting Injection Pipeline ({len(df_positions)} total injections) ---")
 
 n_injected = 0
+
+# Select the filters of filter_select among all transmission curves, keeping filter_select order
+sel = [names_all.index(f) for f in filter_select]
+names = [names_all[i] for i in sel]
+wavs = [wavs_all[i] for i in sel]
+trans = [trans_all[i] for i in sel]
+
+
 
 # Loop through every row in the pre-calculated positions file
 for i_row, row in df_positions.iterrows():
@@ -250,31 +258,62 @@ for i_row, row in df_positions.iterrows():
         else:
             print(f"   ⚠️ WARNING: AGN mock missing for {scenario}. Injecting stars only.")
 
-    # 4. Filter Loop
-    for filter_name in filter_select:
-        lam_eff = filt_dict[filter_name]["lambda_eff"]
-        
-        img_stars_cgs = cube_to_mock_obs(
-            stars_cube_raw, filter_name, filters_path, pfsdump_path, 
-            redshift, sim.cosmo_model, sim.cosmo.lcMpc
-        )
-        img_total = convert_cgs_to_mjy_sr(img_stars_cgs, lam_eff)
+   
+    # 4. Convert the cubes to physical units once (independent of the filter)
+    stars_flux = cube_to_erg_s_A_cm2_as2(
+        stars_cube_raw, pfsdump_path, redshift, aper_as_stars**2,
+        cosmo_model=sim.cosmo_model, inplace=False
+    )
+    # Observation-frame wavelength grid 
+    lambda_obs = np.linspace(
+        stars_cube_raw["lambda_min"] * (1 + redshift),
+        stars_cube_raw["lambda_max"] * (1 + redshift),
+        stars_cube_raw["lambda_npix"],
+    )
+    # One call for all filters: images in erg/s/cm^2/A/as^2 and band centres
+    _, band_ctrs, imgs_stars = gen_imgs(
+        redshift, lambda_obs,
+        {"cube": stars_flux, "img_npix": stars_cube_raw["img_npix"]},
+        [names, wavs, trans],
+    )
 
-        if agn_cube_raw is not None and np.isclose(px_as_stars, px_as_agn, rtol=1e-3):
-            img_agn_cgs = cube_to_mock_obs(
-                agn_cube_raw, filter_name, filters_path, pfagn_path, 
-                redshift, sim.cosmo_model, sim.cosmo.lcMpc
+    imgs_agn = None
+    if agn_cube_raw is not None:
+        if not np.isclose(px_as_stars, px_as_agn, rtol=1e-3):
+            # Do not skip the AGN silently
+            print(f"   ⚠️ WARNING: AGN pixel scale differs from stars ({px_as_agn:.5f} vs {px_as_stars:.5f}). AGN ignored.")
+        else:
+            agn_flux = cube_to_erg_s_A_cm2_as2(
+                agn_cube_raw, pfagn_path, redshift, aper_as_agn**2,
+                cosmo_model=sim.cosmo_model, inplace=False
             )
-            img_agn = convert_cgs_to_mjy_sr(img_agn_cgs, lam_eff)
-            img_total += img_agn
+            # The AGN cube must share the stars wavelength grid, otherwise band centres differ
+            for key in ("lambda_min", "lambda_max", "lambda_npix"):
+                assert agn_cube_raw[key] == stars_cube_raw[key], f"AGN and stars cubes differ in {key}"
+                
+            _, _, imgs_agn = gen_imgs(
+                redshift, lambda_obs,
+                {"cube": agn_flux, "img_npix": agn_cube_raw["img_npix"]},
+                [names, wavs, trans],
+            )
+
+    # 5. Filter loop: unit conversion, PSF, rebinning, injection
+    for ib, filter_name in enumerate(names):
+        # Convert to MJy/sr using the band centre returned by gen_imgs
+        img_total = convert_cgs_to_mjy_sr(imgs_stars[ib], band_ctrs[ib])
+        if imgs_agn is not None:
+            img_total += convert_cgs_to_mjy_sr(imgs_agn[ib], band_ctrs[ib])
 
         psf_rebinned = rebin_psf(psfs_norm[filter_name], psf_res_as[filter_name], px_as_stars)
-        img_conv = fftconvolve(img_total, psf_rebinned, mode='same')
-        img_final = instrumental_rebinning(img_conv, px_as_stars, bg_px_as[filter_name])
-        
+        img_conv = convolve_with_psf(img_total, psf_rebinned)
+        img_final, px_real = instrumental_rebinning(img_conv, px_as_stars, bg_px_as[filter_name])
+
+        # Warn if the rounded output size makes the pixel scale deviate from the background's
+        if not np.isclose(px_real, bg_px_as[filter_name], rtol=2e-3):
+            print(f"   ⚠️ {filter_name}: pixel scale {px_real:.5f} vs background {bg_px_as[filter_name]:.5f}")
+
         coord = SkyCoord(ra * u.deg, dec * u.deg)
         x_px, y_px = wcs_dict[filter_name].world_to_pixel(coord)
-        
         inject_mock_into_background_inplace(img_final, composites[filter_name], int(x_px), int(y_px))
 
     n_injected += 1
