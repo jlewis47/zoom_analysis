@@ -283,3 +283,47 @@ def locate_all_sims():
     sim_paths = [p for p in sim_paths if "common_plots" not in p]
 
     return sim_paths
+
+
+def get_mock_geometry(sim, redshift, cube_data, direction):
+    """
+    Calculates the geometry of a mock cube: field size, pixel scale and solid angle.
+
+    Returns a dict with:
+      aper_as : side of the field of view [arcsec]
+      px_as   : pixel scale [arcsec/pixel]
+      aper_sr : solid angle of the field of view [sr]
+      px_sr   : solid angle of one pixel [sr]
+    """
+    # Total simulation box size in comoving Megaparsecs (cMpc)
+    l_Mpc = sim.cosmo.lcMpc
+    
+    # Angular scale: arcseconds per comoving kiloparsec at the galaxy's redshift
+    ang_per_ckpc = sim.cosmo_model.arcsec_per_kpc_comoving(redshift).value
+    
+    # Mock cube of the requested viewing direction
+    cube = cube_data[direction]
+    
+    # Fraction of the box used for the cube
+    cube_side = cube["cube_side"]
+    
+    # Number of pixels per side (fall back on the cube shape if "img_npix" is missing)
+    img_npix = cube["img_npix"] if "img_npix" in cube else cube["cube"].shape[0]
+    
+    # Total aperture (side of the field of view) in arcseconds
+    aper_as = cube_side * l_Mpc * 1e3 * ang_per_ckpc
+    
+    # Pixel scale in arcsec/pixel
+    px_as = aper_as / img_npix
+    
+    # Conversion factor from arcseconds to radians
+    arcsec_to_rad = np.pi / 180.0 / 3600.0
+    
+    # Solid angle of the whole field of view in steradians
+    aper_sr = (aper_as * arcsec_to_rad) ** 2
+    
+    # Solid angle of one pixel in steradians
+    px_sr = (px_as * arcsec_to_rad) ** 2
+    
+    # Return all geometric quantities in a dictionary
+    return aper_as,px_as,aper_sr,px_sr

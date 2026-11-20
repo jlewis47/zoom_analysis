@@ -29,11 +29,15 @@ from Rascas_utils import (
     cube_to_mock_obs, 
     convert_cgs_to_mjy_sr, 
     inject_mock_into_background_inplace, 
-    load_psf, 
+#    load_psf, 
     load_background, 
     get_mock_px_as, 
     rebin_psf, 
     instrumental_rebinning
+)
+
+from Rascas_to_mocks_utils import (
+    get_mock_geometry,
 )
 
 from zoom_analysis.rascas.rascas_steps import (
@@ -46,6 +50,12 @@ from zoom_analysis.rascas.filts.filts import (
     read_transmissions,
 )
 
+from zoom_analysis.rascas.field_fits import (
+    load_psf,
+    # rebin_factor
+    # rebin
+    dilate,
+)
 
 # ======================================================================
 # CONFIGURATION
@@ -53,7 +63,7 @@ from zoom_analysis.rascas.filts.filts import (
 # Target configurations
 fedd_list = [1, 10, 30, 100]
 agn_scenarios = ['no_agn'] + [f'fedd{f}' for f in fedd_list]
-target_filters = ['NIRCAM-F277', 'NIRCAM-F444', 'MIRI-F770']
+#target_filters = ['NIRCAM-F277', 'NIRCAM-F444', 'MIRI-F770']
 
 # Paths
 galaxies_csv_path = "/home/maegey/M2/data/stats/Selection_galaxies_all_z_Mbh1e5_with_apertures.csv"
@@ -62,8 +72,11 @@ positions_txt_path = "/home/maegey/M2/data/stats/2dir_5fedd_mag27" # <-- UPDATED
 output_dir = "/home/maegey/n23data1/omaegey/sim_data/NewHorizon/analysis"
 os.makedirs(output_dir, exist_ok=True)
 
-filters_path = os.path.expanduser("~/M2/data/filters")
+#filters_path = os.path.expanduser("~/M2/data/filters")
 filt_dict_file = HERE.parent/"filts"/"filter_psf_res.csv"
+dir_filters = HERE.parent/"filts"
+#!!!!! dir_psfs to be updated to the correct path where PSF files are stored
+# On Infinity : root_psf="/automnt/data101/jlewis/marko_psfs"
 dir_psfs = "/home/maegey/M2/data/psfs" 
 
 
@@ -76,7 +89,7 @@ filter_select = [
     # "HSC-y",
     # "HSC-z",
     # "NIRCAM-F115",
-    "NIRCAM-F150",
+    # "NIRCAM-F150",
     "NIRCAM-F277",
     "NIRCAM-F444",
     "MIRI-F770",
@@ -102,10 +115,31 @@ filter_select = [
 ]
 
 #Read the filter table (PSF file, resolution, depth) into a dictionary.
+# {filter_name: {"psf_fname": str, "res_as": float,
+#         "depth_aper": float, "aper_depth_as": float}}
+
 filt_dict = filt_file_to_dict(floc=filt_dict_file)
 
 # Read filter transmissions
-names_all, wavs_all, trans_all = read_transmissions()
+names_all, wavs_all, trans_all = read_transmissions(
+    tgt_bands=None,
+    NIRCAM=True,
+    HST=False,
+    HSC=False,
+    IRAC=False,
+    SuprimeCam=False,
+    ULTRAVISTA=False,
+    MIRI=True,
+    VISTA=False,
+    NISP=False,
+    VIS=False,
+    LSST=False,
+    GALEX=False,
+    MegaCam=False,
+    Euclid_EXT=False,
+    CLUTCH=False,
+    root=dir_filters
+)
 
 # # Filter dictionaries
 # filt_dict = {
@@ -120,38 +154,43 @@ names_all, wavs_all, trans_all = read_transmissions()
 # 1. Initialize simulation and cosmology
 sim = ramses_sim("/n23data1/jlewis/sim_data/NewHorizon", full_snaps=False)
 sim.init_cosmo()
-filters_df = obs.load_filters_to_dataframe(filters_path)
+#filters_df = obs.load_filters_to_dataframe(filters_path)
 
 # 2. Load the input catalogs
 df_galaxies = pd.read_csv(galaxies_csv_path)
 df_positions = pd.read_csv(positions_txt_path, sep=r"\s+") 
 
 # Ensure index is treated as integer for proper mapping
-df_positions['index'] = df_positions['index'].astype(int)
+# df_positions['index'] = df_positions['index'].astype(int)
 
-# 3. Pre-load Backgrounds, PSFs, and WCS objects
-composites = {}
-bg_headers = {}
-bg_px_as = {}
-wcs_dict = {}
-psf_matrices = {}
+# 3. Pre-load composite PSFs
+#composites = {}
+#bg_headers = {}
+#bg_px_as = {}
+#wcs_dict = {}
+psfs_norm = {}
 psf_res_as = {}
 
-print("--- Pre-loading Backgrounds, PSFs, and WCS ---")
-for f_name in target_filters:
+print("--- Pre-loading PSFs and normalizing")
+for f_name in filter_select:
     psf_fname = filt_dict[f_name]["psf_fname"]
-    fwhm_jwst_as = filt_dict[f_name]["fwhm_jwst_as"]
-    p_mat, p_res_as = load_psf(psf_fname, fwhm_jwst_as, dir_psfs)
-    psf_matrices[f_name] = p_mat / np.sum(p_mat) 
-    psf_res_as[f_name] = p_res_as
+    #fwhm_jwst_as = filt_dict[f_name]["fwhm_jwst_as"]
     
-    bg_path = filt_dict[f_name]["bg_path"]
-    this_bg_data, this_bg_headers, this_bg_px_as = load_background(bg_path, f_name)
-    bg_headers[f_name] = this_bg_headers
-    bg_px_as[f_name] = this_bg_px_as
+    # Load PSF file and resolution. Caution : the resolution is obtained from the get_res_from_img function (read from the background image)
+    img, res_as = load_psf(psf_fname,root_psf=dir_psfs)
+        
+    psfs_norm[f_name] = img / np.sum(img) 
     
-    composites[f_name] = np.copy(this_bg_data)
-    wcs_dict[f_name] = wcs.WCS(this_bg_headers)
+    psf_res_as[f_name] = res_as
+    
+   
+    #bg_path = filt_dict[f_name]["bg_path"]
+    #this_bg_data, this_bg_headers, this_bg_px_as = load_background(bg_path, f_name)
+    #bg_headers[f_name] = this_bg_headers
+    #bg_px_as[f_name] = this_bg_px_as
+    
+    #composites[f_name] = np.copy(this_bg_data)
+    #wcs_dict[f_name] = wcs.WCS(this_bg_headers)
 
 # ======================================================================
 # INJECTION PIPELINE
@@ -195,7 +234,7 @@ for i_row, row in df_positions.iterrows():
     # 3. Load Raw RASCAS Data Cubes
     full_stars_dump = read_mock_dump(stars_cube_path, ndir=ndir_fortran)
     stars_cube_raw = full_stars_dump[direction_key]
-    px_as_stars = get_mock_px_as(sim, redshift, full_stars_dump, direction_key) 
+    aper_as_stars,px_as_stars,aper_sr_stars,px_sr_stars = get_mock_geometry(sim, redshift, full_stars_dump, direction_key)
     
     agn_cube_raw = None
     px_as_agn = None
@@ -207,12 +246,12 @@ for i_row, row in df_positions.iterrows():
         if os.path.exists(agn_path):
             full_agn_dump = read_mock_dump(agn_path, ndir=ndir_fortran)
             agn_cube_raw = full_agn_dump[direction_key]
-            px_as_agn = get_mock_px_as(sim, redshift, full_agn_dump, direction_key)
+            aper_as_agn,px_as_agn,aper_sr_agn,px_sr_agn = get_mock_geometry(sim, redshift, full_agn_dump, direction_key)
         else:
             print(f"   ⚠️ WARNING: AGN mock missing for {scenario}. Injecting stars only.")
 
     # 4. Filter Loop
-    for filter_name in target_filters:
+    for filter_name in filter_select:
         lam_eff = filt_dict[filter_name]["lambda_eff"]
         
         img_stars_cgs = cube_to_mock_obs(
@@ -229,7 +268,7 @@ for i_row, row in df_positions.iterrows():
             img_agn = convert_cgs_to_mjy_sr(img_agn_cgs, lam_eff)
             img_total += img_agn
 
-        psf_rebinned = rebin_psf(psf_matrices[filter_name], psf_res_as[filter_name], px_as_stars)
+        psf_rebinned = rebin_psf(psfs_norm[filter_name], psf_res_as[filter_name], px_as_stars)
         img_conv = fftconvolve(img_total, psf_rebinned, mode='same')
         img_final = instrumental_rebinning(img_conv, px_as_stars, bg_px_as[filter_name])
         
@@ -246,7 +285,7 @@ print(f"\n✅ {n_injected} / {len(df_positions)} mock scenarios successfully inj
 # SAVE MASTER IMAGES
 # ======================================================================
 print("\n--- Saving Master Images ---")
-for filter_name in target_filters:
+for filter_name in filter_select:
     filepath = os.path.join(output_dir, f"master_cosmosweb_injected_{filter_name}.fits")
     final_data = composites[filter_name]
     clean_data = np.nan_to_num(final_data, nan=0.0, posinf=0.0, neginf=0.0)

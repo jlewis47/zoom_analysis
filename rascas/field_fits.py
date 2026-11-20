@@ -107,7 +107,7 @@ def get_hdr_res(hdr):
     return proj_plane_pixel_scales(wcs.WCS(hdr))[0] * 3600.0
 
 
-def get_res_from_img(fname_psf):
+def get_res_from_img(fname_psf,psf_root="/automnt/data101/jlewis/marko_psfs",res_root = "/automnt/data101/jlewis/marko_cosmosWeb_fields/residual_images/"):
 
     lookup_dict = {
         "JWST-PSFEx_out_f115w_B3_psf_v5.0_s1-30mas.psf": "background_image_f115w.fits",
@@ -115,7 +115,7 @@ def get_res_from_img(fname_psf):
         "JWST-PSFEx_out_f277w_B3_psf_v5.0_s1-30mas.psf": "background_image_f277w.fits",
         "JWST-PSFEx_out_f444w_B3_psf_v5.0_s1-30mas.psf": "background_image_f444w.fits",
         "JWST-PSFEx_out_f814w_B3_psf_v5.0_s1.psf": "background_image_HST-F814W.fits",
-        # "JWST-PSFEx_out_f770w_B3_psf_v5.0_s1.psf" : "background_image_",
+        "JWST-PSFEx_out_f770w_B3_psf_v5.0_s1.psf": "background_image_MIRI-F770W_B3.fits",
         "OPT-PSFEx_out_CFHT-u_B3_psf_v4.0.psf": "background_image_CFHT-u.fits",
         "OPT-PSFEx_out_HSC-g_B3_psf_v4.0.psf": "background_image_HSC-g.fits",
         "OPT-PSFEx_out_HSC-r_B3_psf_v4.0.psf": "background_image_HSC-r.fits",
@@ -141,19 +141,29 @@ def get_res_from_img(fname_psf):
         "OPT-PSFEx_out_UVISTA-NB118_B3_psf_v4.0.psf": "background_image_UVISTA-NB118_B3.fits",
         "OPT-PSFEx_out_UVISTA-Y_B3_psf_v4.0.psf": "background_image_UVISTA-Y_B3.fits",
     }
-
-    res_root = "/automnt/data101/jlewis/marko_cosmosWeb_fields/residual_images/"
-
+  
     res_fname = os.path.join(res_root, lookup_dict[fname_psf.strip(" ")])
+    
+    # psf header
+    psf_path = os.path.join(psf_root, fname_psf.strip(" "))
+        
+    #Sampling step of the PSF file in image pixels with respect to the original background image.
+    psf_samp = fits.getheader(psf_path, ext=1)["PSF_SAMP"]
 
     # print(fname_psf, res_fname)
 
-    hdr = read_fits_hdr(res_fname)
+    # Background image header
+    bg_hdr = read_fits_hdr(res_fname)
+    bg_res = get_hdr_res(bg_hdr)
+    
+    #psf resolution in arcsec
+    psf_res_as = psf_samp * bg_res
 
     # print(hdr)
     # instr_name = lookup_dict[fname_psf.strip(" ")].split("_")[-1].split("-")[0].split(".")[0]
+    
 
-    return get_hdr_res(hdr)
+    return psf_res_as
 
 
 def fit_galaxies_iter(
