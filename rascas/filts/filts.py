@@ -39,6 +39,7 @@ def read_transmissions(
     MegaCam=True,
     Euclid_EXT=True,
     CLUTCH=True,
+    root = "/home/jlewis/codes/zoom_analysis/rascas/filts"
 ):
         """Read the filter transmission curves stored in the filter directory.
 
@@ -92,7 +93,7 @@ def read_transmissions(
       number of filters loaded are printed.
     """
     
-    root = "/home/jlewis/codes/zoom_analysis/rascas/filts"
+    
 
     filters_files = [
         f
