@@ -45,8 +45,8 @@ def micron_to_fwhm_as(micron):
 
 def filt_file_to_dict(
     floc="/home/jlewis/codes/zoom_analysis/rascas/filts/filter_psf_res.csv",
-):
-        """Read the filter table (PSF file, resolution, depth) into a dictionary.
+    ):
+    """Read the filter table (PSF file, resolution, depth) into a dictionary.
 
     The CSV file has one filter per line and five comma-separated columns:
     filter name, PSF file name, resolution (arcsec), depth (AB magnitude) and

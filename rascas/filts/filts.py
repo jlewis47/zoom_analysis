@@ -40,8 +40,8 @@ def read_transmissions(
     Euclid_EXT=True,
     CLUTCH=True,
     root = "/home/jlewis/codes/zoom_analysis/rascas/filts"
-):
-        """Read the filter transmission curves stored in the filter directory.
+    ):
+    """Read the filter transmission curves stored in the filter directory.
 
     All files of the hard-coded directory
     ``/home/jlewis/codes/zoom_analysis/rascas/filts`` are read, except ``.py``

@@ -8,37 +8,65 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 from scipy.signal import fftconvolve
 from pathlib import Path
+from astropy.cosmology import Planck18 as cosmo
+
+
+# Temporary paths, waiting for Candide
+wait_for_Candide = True
+
+# ======================================================================
+# Provisional Simulation Class for Candide's Environment
+# ======================================================================
+class ProvisionalSim:
+        
+    def __init__(self, cosmo_model, snap_table):
+        self.cosmo_model = cosmo_model
+        self._aexp = dict(zip(snap_table["snap"].astype(int), snap_table["aexp"]))
+
+    def get_snap_exps(self, snap):
+        return [self._aexp[int(snap)]]
 
 # ======================================================================
 # PATHS SETUP & IMPORTS
 # ======================================================================
-HERE = Path(__file__).resolve().parent  
-extra_paths = [
-    "/home/maegey/M2/src/zoom_toolbox", 
-    "/home/maegey/M2/src/Rascas_toolbox", 
-    "/home/maegey/M2/src/obs"
-]
-for path in extra_paths:
-    if path not in sys.path: 
-        sys.path.append(path)
+HERE = Path("/home/omaegey/Documents/Git/zoom_analysis/rascas/rascas_to_mocks")
 
-from gremlin.read_sim_params import ramses_sim
-from zoom_analysis.rascas.read_rascas import read_mock_dump
-import obs_utils as obs
-from Rascas_utils import (
-    cube_to_mock_obs, 
-    convert_cgs_to_mjy_sr, 
-    inject_mock_into_background_inplace, 
-#    load_psf, 
-    load_background, 
-    get_mock_px_as, 
-    rebin_psf, 
-    instrumental_rebinning
-)
+if wait_for_Candide:
+    extra_paths = [
+        "/home/omaegey/Documents/Git", 
+        "/home/omaegey/Documents/Backup_M2_Candide/src/Rascas_toolbox", 
+        "/home/omaegey/Documents/Backup_M2_Candide/src/zoom_toolbox"
+    ]
+    for path in extra_paths:
+        if path not in sys.path: 
+            sys.path.append(path)
+    
+else:
+    extra_paths = [
+        "/home/maegey/M2/src/zoom_toolbox", 
+        "/home/maegey/M2/src/Rascas_toolbox", 
+    ]
+    for path in extra_paths:
+        if path not in sys.path: 
+            sys.path.append(path)
+            
+    from gremlin.read_sim_params import ramses_sim
 
-from Rascas_to_mocks_utils import (
+
+# from Rascas_utils import (
+#     cube_to_mock_obs, 
+#     #convert_cgs_to_mjy_sr, 
+#     inject_mock_into_background_inplace, 
+# #    load_psf, 
+#     load_background, 
+#     get_mock_px_as, 
+#     instrumental_rebinning
+# )
+
+from zoom_analysis.rascas.rascas_to_mocks.rascas_to_mocks_utils import (
     get_mock_geometry,
     convert_cgs_to_mjy_sr,
+    rebin_psf, 
     convolve_with_psf,
 )
 
@@ -50,10 +78,22 @@ from zoom_analysis.rascas.rascas_steps import (
 
 from zoom_analysis.rascas.filts.filts import (
     read_transmissions,
+)
+
+from zoom_analysis.rascas.field_fits import (
     load_psf
 )
 
-from rascas_plots import (
+from zoom_analysis.rascas.read_rascas import (
+    cube_to_erg_s_A_cm2_as2,
+    read_mock_dump,
+    spec_to_erg_s_A_cm2,
+    # spec_to_erg_s_A_cm2_rf,
+    read_compress_mock,
+    mock_spe_dump,
+)
+
+from zoom_analysis.rascas.rascas_plots import (
     gen_imgs,
 )
 
@@ -61,24 +101,41 @@ from rascas_plots import (
 # ======================================================================
 # CONFIGURATION
 # ======================================================================
-# Target configurations
+
+
+
+#Simulation directory path
+sim = "NewHorizon"
+
+sim_dir =f"/n23data1/jlewis/sim_data/{sim}"
+
+if wait_for_Candide:
+    sim_data_dir = "/home/omaegey/Documents/data/sim_data"
+else:
+    sim_data_dir = "/n23data1/omaegey/sim_data"
+
+# Scenarios: no AGN, or AGN with different Eddington ratios
 fedd_list = [1, 10, 30, 100]
 agn_scenarios = ['no_agn'] + [f'fedd{f}' for f in fedd_list]
 #target_filters = ['NIRCAM-F277', 'NIRCAM-F444', 'MIRI-F770']
 
-# Paths
-galaxies_csv_path = "/home/maegey/M2/data/stats/Selection_galaxies_all_z_Mbh1e5_with_apertures.csv"
-positions_txt_path = "/home/maegey/M2/data/stats/2dir_5fedd_mag27" # <-- UPDATED PATH
+# Paths => Currently set for local machine, waiting for Candide come-back
+if wait_for_Candide:
+    galaxies_csv_path = "/home/omaegey/Documents/data/stats/Selection_galaxies_all_z_Mbh1e5_with_apertures.csv"
+    output_dir = "/home/omaegey/Documents/data/sim_data/NewHorizon/analysis"
+    dir_psfs = "/home/omaegey/Documents/data/psfs" 
+else:
+    galaxies_csv_path = "/home/maegey/M2/data/stats/Selection_galaxies_all_z_Mbh1e5_with_apertures.csv"
+    output_dir = "/home/maegey/n23data1/omaegey/sim_data/NewHorizon/analysis"
+    dir_psfs = "/home/maegey/M2/data/psfs"
+    #!!!!! dir_psfs to be updated to the correct path where PSF files are stored
+    # On Infinity : root_psf="/automnt/data101/jlewis/marko_psfs"
 
-output_dir = "/home/maegey/n23data1/omaegey/sim_data/NewHorizon/analysis"
 os.makedirs(output_dir, exist_ok=True)
 
 #filters_path = os.path.expanduser("~/M2/data/filters")
 filt_dict_file = HERE.parent/"filts"/"filter_psf_res.csv"
-dir_filters = HERE.parent/"filts"
-#!!!!! dir_psfs to be updated to the correct path where PSF files are stored
-# On Infinity : root_psf="/automnt/data101/jlewis/marko_psfs"
-dir_psfs = "/home/maegey/M2/data/psfs" 
+dir_filters = "/home/omaegey/Documents/data/filters"
 
 
 #Filters selection
@@ -115,10 +172,14 @@ filter_select = [
     # "UVISTA-Y",
 ]
 
+
+# ======================================================================
+# DATA LOADING & PRE-INITIALIZATION
+# ======================================================================
+
 #Read the filter table (PSF file, resolution, depth) into a dictionary.
 # {filter_name: {"psf_fname": str, "res_as": float,
 #         "depth_aper": float, "aper_depth_as": float}}
-
 filt_dict = filt_file_to_dict(floc=filt_dict_file)
 
 # Read filter transmissions
@@ -149,22 +210,19 @@ names_all, wavs_all, trans_all = read_transmissions(
 #     "MIRI-F770":   {"lambda_eff": 77000.0, "psf_fname": "PSF_MIRI_in_flight_opd_filter_F770W.fits",   "fwhm_jwst_as": 0.269, "inst_px_as": 0.110, "bg_path": "/home/maegey/n23data2/analyze_gal_sims/residual_images/background_image_MIRI-F770W_B3.fits"}
 # }
 
-# ======================================================================
-# DATA LOADING & PRE-INITIALIZATION
-# ======================================================================
-# 1. Initialize simulation and cosmology
-sim = ramses_sim("/n23data1/jlewis/sim_data/NewHorizon", full_snaps=False)
-sim.init_cosmo()
-#filters_df = obs.load_filters_to_dataframe(filters_path)
-
-# 2. Load the input catalogs
+# Initialize simulation and cosmology
+if wait_for_Candide:   
+    snap_table = pd.read_csv(f"{sim_data_dir}/{sim}/snap_aexp.csv")   # columns: snap, aexp
+    sim = ProvisionalSim(cosmo, snap_table)
+else:
+    sim = ramses_sim(sim_dir, full_snaps=False)
+    sim.init_cosmo()
+    
+# Load the input catalogs
 df_galaxies = pd.read_csv(galaxies_csv_path)
 df_positions = pd.read_csv(positions_txt_path, sep=r"\s+") 
 
-# Ensure index is treated as integer for proper mapping
-# df_positions['index'] = df_positions['index'].astype(int)
-
-# 3. Pre-load composite PSFs
+# Pre-load composite PSFs
 #composites = {}
 #bg_headers = {}
 #bg_px_as = {}
@@ -193,7 +251,7 @@ for f_name in filter_select:
     #wcs_dict[f_name] = wcs.WCS(this_bg_headers)
 
 # ======================================================================
-# INJECTION PIPELINE
+# MOCK PIPELINE
 # ======================================================================
 print(f"\n--- Starting Injection Pipeline ({len(df_positions)} total injections) ---")
 
@@ -231,7 +289,7 @@ for i_row, row in df_positions.iterrows():
     print(f"[{i_row+1}/{len(df_positions)}] GalID: {galid} | Scen: {scenario} | Dir: {ndir_fortran} | RA: {ra:.4f}, DEC: {dec:.4f}")
 
     # 2. Path definitions
-    galaxy_dir = f"/n23data1/omaegey/sim_data/NewHorizon/snap_{tgt_snap:05d}/gal_{galid:07d}"
+    galaxy_dir = f"{sim_data_dir}/{sim}/snap_{tgt_snap:05d}/gal_{galid:07d}"
     pfsdump_path = os.path.join(galaxy_dir, "PFSDump/pfsdump")
     stars_cube_path = os.path.join(galaxy_dir, "RASCASDump/mock_stars.cube")
     
