@@ -102,12 +102,10 @@ from zoom_analysis.rascas.rascas_plots import (
 # CONFIGURATION
 # ======================================================================
 
-
-
 #Simulation directory path
-sim = "NewHorizon"
+sim_name = "NewHorizon"
 
-sim_dir =f"/n23data1/jlewis/sim_data/{sim}"
+sim_dir =f"/n23data1/jlewis/sim_data/{sim_name}"
 
 if wait_for_Candide:
     sim_data_dir = "/home/omaegey/Documents/data/sim_data"
@@ -135,7 +133,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 #filters_path = os.path.expanduser("~/M2/data/filters")
 filt_dict_file = HERE.parent/"filts"/"filter_psf_res.csv"
-dir_filters = "/home/omaegey/Documents/data/filters"
+dir_filters = "/home/omaegey/Documents/data/filters/Angstrom"  
 
 
 #Filters selection
@@ -212,7 +210,7 @@ names_all, wavs_all, trans_all = read_transmissions(
 
 # Initialize simulation and cosmology
 if wait_for_Candide:   
-    snap_table = pd.read_csv(f"{sim_data_dir}/{sim}/snap_aexp.csv")   # columns: snap, aexp
+    snap_table = pd.read_csv(f"{sim_data_dir}/{sim_name}/snap_aexp.csv")   # columns: snap, aexp
     sim = ProvisionalSim(cosmo, snap_table)
 else:
     sim = ramses_sim(sim_dir, full_snaps=False)
@@ -220,7 +218,7 @@ else:
     
 # Load the input catalogs
 df_galaxies = pd.read_csv(galaxies_csv_path)
-df_positions = pd.read_csv(positions_txt_path, sep=r"\s+") 
+#df_positions = pd.read_csv(positions_txt_path, sep=r"\s+") 
 
 # Pre-load composite PSFs
 #composites = {}

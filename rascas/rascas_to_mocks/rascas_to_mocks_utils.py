@@ -10,7 +10,11 @@ from zoom_analysis.rascas.read_rascas import (
     # spec_to_erg_s_A_cm2_rf,
     read_compress_mock,
     mock_spe_dump,
-    flamb_fnu
+)
+
+from zoom_analysis.rascas.filts.filts import (
+    flamb_fnu,
+#    fnu_to_mAB,
 )
 
 def rescale_image_flux_conserving(image, scale_factor, order=2):
